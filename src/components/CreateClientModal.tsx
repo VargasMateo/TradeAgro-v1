@@ -38,6 +38,7 @@ export default function CreateClientModal({
 
   const [errors, setErrors] = useState<{
     name?: string;
+    businessName?: string;
     cuit?: string;
     ivaCondition?: string;
     email?: string;
@@ -91,6 +92,10 @@ export default function CreateClientModal({
     
     if (!formData.name.trim()) {
       newErrors.name = 'El nombre es obligatorio';
+    }
+
+    if (!formData.businessName.trim()) {
+      newErrors.businessName = 'La razón social es obligatoria';
     }
 
     if (!formData.cuit.trim()) {
@@ -186,7 +191,7 @@ export default function CreateClientModal({
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">
-                  Razón Social
+                  Razón Social <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -194,8 +199,18 @@ export default function CreateClientModal({
                   value={formData.businessName}
                   onChange={handleInputChange}
                   placeholder="Ej: AgroExport S.A."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.businessName 
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
                 />
+                {errors.businessName && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.businessName}
+                  </p>
+                )}
               </div>
             </div>
 
