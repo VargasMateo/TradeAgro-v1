@@ -1,6 +1,8 @@
 export interface ClientField {
   name: string;
-  location: string;
+  lat?: number;
+  lng?: number;
+  lots: string[];
 }
 
 export interface Client {
@@ -15,5 +17,5 @@ export interface Client {
   color?: string;
   lat?: number;
   lng?: number;
-  fields?: (string | ClientField)[];
+  fields?: ClientField[];
 }

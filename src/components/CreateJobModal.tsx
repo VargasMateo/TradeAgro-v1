@@ -33,9 +33,38 @@ export default function CreateJobModal() {
   const [clients, setClients] = useState(() => {
     const stored = localStorage.getItem('clients');
     return stored ? JSON.parse(stored) : [
-      { id: '1', name: 'AgroExport S.A.', businessName: 'AgroExport Sociedad Anónima', cuit: '30-12345678-9', ivaCondition: 'Responsable Inscripto', fields: ['Lote 24, Sector Norte', 'Lote 15, Sector Sur'] },
-      { id: '2', name: "Finca La Estela", businessName: "Estela Agricola S.R.L.", cuit: "30-87654321-0", ivaCondition: "Responsable Inscripto", fields: ['Campo Principal', 'Anexo 1'] },
-      { id: '3', name: 'Juan Pérez', cuit: '20-55554444-3', ivaCondition: 'Monotributista', fields: ['El Ombú', 'La Esperanza'] },
+      { 
+        id: '1', 
+        name: 'AgroExport S.A.', 
+        businessName: 'AgroExport Sociedad Anónima', 
+        cuit: '30-12345678-9', 
+        ivaCondition: 'Responsable Inscripto', 
+        fields: [
+          { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
+          { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
+        ] 
+      },
+      { 
+        id: '2', 
+        name: "Finca La Estela", 
+        businessName: "Estela Agricola S.R.L.", 
+        cuit: "30-87654321-0", 
+        ivaCondition: "Responsable Inscripto", 
+        fields: [
+          { name: 'Campo Principal', lat: -31.4201, lng: -64.1888, lots: ['A1', 'A2'] },
+          { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
+        ] 
+      },
+      { 
+        id: '3', 
+        name: 'Juan Pérez', 
+        cuit: '20-55554444-3', 
+        ivaCondition: 'Monotributista', 
+        fields: [
+          { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
+          { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
+        ] 
+      },
     ];
   });
 
@@ -46,6 +75,7 @@ export default function CreateJobModal() {
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showFieldSuggestions, setShowFieldSuggestions] = useState(false);
+  const [showLotSuggestions, setShowLotSuggestions] = useState(false);
 
   const [formData, setFormData] = useState({
     client: searchParams.get('client') || '',
@@ -73,8 +103,11 @@ export default function CreateJobModal() {
     (c.businessName && c.businessName.toLowerCase() === formData.client.toLowerCase())
   );
   const availableFields = selectedClientObj ? (selectedClientObj.fields || []) : [];
-  const fieldNames = availableFields.map((f: any) => typeof f === 'string' ? f : f.name);
+  const fieldNames = availableFields.map((f: any) => f.name);
   const fieldSuggestions = Array.from(new Set(fieldNames)).filter((f: any) => f && f.toLowerCase().includes(formData.field.toLowerCase()));
+
+  const selectedFieldObj = availableFields.find((f: any) => f.name.toLowerCase() === formData.field.toLowerCase());
+  const lotSuggestions = selectedFieldObj ? (selectedFieldObj.lots || []).filter((l: string) => l.toLowerCase().includes(formData.lot.toLowerCase())) : [];
 
   // Reset state when modal opens
   useEffect(() => {
@@ -469,7 +502,7 @@ export default function CreateJobModal() {
                             onClick={() => {
                               if (window.confirm(`¿Deseas crear el nuevo campo "${formData.field}"${selectedClientObj ? ` para el cliente ${selectedClientObj.name}` : ''}?`)) {
                                 if (selectedClientObj) {
-                                  setClients((prev: any) => prev.map((c: any) => c.id === selectedClientObj.id ? { ...c, fields: [...c.fields, { name: formData.field, location: '' }] } : c));
+                                  setClients((prev: any) => prev.map((c: any) => c.id === selectedClientObj.id ? { ...c, fields: [...c.fields, { name: formData.field, lat: undefined, lng: undefined, lots: ['Lote Único'] }] } : c));
                                 }
                                 setShowFieldSuggestions(false);
                               } else {
@@ -484,7 +517,7 @@ export default function CreateJobModal() {
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">
                       Lote <span className="text-red-500">*</span>
                     </label>
@@ -492,7 +525,12 @@ export default function CreateJobModal() {
                       type="text"
                       name="lot"
                       value={formData.lot}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        setShowLotSuggestions(true);
+                      }}
+                      onFocus={() => setShowLotSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowLotSuggestions(false), 200)}
                       placeholder="Identificador"
                       className={cn(
                         "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
@@ -501,6 +539,23 @@ export default function CreateJobModal() {
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
+                    {showLotSuggestions && lotSuggestions.length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                        {lotSuggestions.map((l: string) => (
+                          <button
+                            key={l}
+                            type="button"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, lot: l }));
+                              setShowLotSuggestions(false);
+                            }}
+                          >
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {errors.lot && (
                       <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
                         {errors.lot}

@@ -33,7 +33,7 @@ export default function CreateClientModal({
     ivaCondition: 'Responsable Inscripto',
     email: '',
     phone: '',
-    fields: [{ name: '', location: '' }]
+    fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
   });
 
   const [errors, setErrors] = useState<{
@@ -53,9 +53,12 @@ export default function CreateClientModal({
         ivaCondition: editingClient.ivaCondition || '',
         email: editingClient.email || '',
         phone: editingClient.phone || '',
-        fields: (editingClient.fields || []).map(f => 
-          typeof f === 'string' ? { name: f, location: '' } : { name: f.name || '', location: f.location || '' }
-        )
+        fields: (editingClient.fields || []).map(f => ({
+          name: f.name || '',
+          lat: f.lat,
+          lng: f.lng,
+          lots: Array.isArray(f.lots) ? f.lots : ['']
+        }))
       });
     } else {
       setFormData({
@@ -65,7 +68,7 @@ export default function CreateClientModal({
         ivaCondition: 'Responsable Inscripto',
         email: '',
         phone: '',
-        fields: [{ name: '', location: '' }]
+        fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
       });
     }
     setErrors({});
@@ -108,8 +111,11 @@ export default function CreateClientModal({
 
     if (formData.fields.length === 0) {
       newErrors.fields = 'Debe agregar al menos un campo';
-    } else if (formData.fields.some(f => !f.name.trim())) {
-      newErrors.fields = 'Todos los campos deben tener un nombre';
+    } else {
+      const fieldErrors = formData.fields.some(f => !f.name.trim() || f.lots.length === 0 || f.lots.some(l => !l.trim()));
+      if (fieldErrors) {
+        newErrors.fields = 'Todos los campos y lotes deben tener un nombre';
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -297,7 +303,7 @@ export default function CreateClientModal({
                 </label>
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, fields: [...prev.fields, { name: '', location: '' }] }))}
+                  onClick={() => setFormData(prev => ({ ...prev, fields: [...prev.fields, { name: '', lat: undefined, lng: undefined, lots: [''] }] }))}
                   className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
                 >
                   <Plus className="h-3 w-3" />
@@ -314,53 +320,122 @@ export default function CreateClientModal({
               {formData.fields.length === 0 ? (
                 <p className="text-sm text-slate-500 italic">No hay campos agregados.</p>
               ) : (
-                <div className="space-y-3">
-                  {formData.fields.map((field, index) => (
-                    <div key={index} className="flex gap-3 items-start">
-                      <div className="flex-1 space-y-2">
-                        <input
-                          type="text"
-                          value={field.name}
-                          onChange={(e) => {
-                            const newFields = [...formData.fields];
-                            newFields[index].name = e.target.value;
+                <div className="space-y-6">
+                  {formData.fields.map((field, fIndex) => (
+                    <div key={fIndex} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/30 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Campo #{fIndex + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFields = formData.fields.filter((_, i) => i !== fIndex);
                             setFormData(prev => ({ ...prev, fields: newFields }));
                           }}
-                          placeholder="Nombre del campo"
-                          className={cn(
-                            "w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2",
-                            errors.fields && !field.name.trim()
-                              ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                              : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
-                          )}
-                        />
+                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                      <div className="flex-1 space-y-2">
-                        <input
-                          type="text"
-                          value={field.location}
-                          onChange={(e) => {
-                            const newFields = [...formData.fields];
-                            newFields[index].location = e.target.value;
-                            setFormData(prev => ({ ...prev, fields: newFields }));
-                          }}
-                          placeholder="Ubicación"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                        />
+
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div className="sm:col-span-1">
+                          <label className="text-[10px] font-bold text-slate-500 ml-1 mb-1 block uppercase">Nombre del Campo <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            value={field.name}
+                            onChange={(e) => {
+                              const newFields = [...formData.fields];
+                              newFields[fIndex].name = e.target.value;
+                              setFormData(prev => ({ ...prev, fields: newFields }));
+                            }}
+                            placeholder="Ej: Lote San Juan"
+                            className={cn(
+                              "w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                              errors.fields && !field.name.trim() ? "border-red-300 ring-red-500/10" : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                            )}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 ml-1 mb-1 block uppercase">Latitud</label>
+                          <input
+                            type="number"
+                            value={field.lat || ''}
+                            onChange={(e) => {
+                              const newFields = [...formData.fields];
+                              newFields[fIndex].lat = e.target.value ? parseFloat(e.target.value) : undefined;
+                              setFormData(prev => ({ ...prev, fields: newFields }));
+                            }}
+                            placeholder="-31.4201"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 ml-1 mb-1 block uppercase">Longitud</label>
+                          <input
+                            type="number"
+                            value={field.lng || ''}
+                            onChange={(e) => {
+                              const newFields = [...formData.fields];
+                              newFields[fIndex].lng = e.target.value ? parseFloat(e.target.value) : undefined;
+                              setFormData(prev => ({ ...prev, fields: newFields }));
+                            }}
+                            placeholder="-64.1888"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newFields = formData.fields.filter((_, i) => i !== index);
-                          setFormData(prev => ({ ...prev, fields: newFields }));
-                          if (newFields.length > 0 && !newFields.some(f => !f.name.trim())) {
-                            setErrors(prev => ({ ...prev, fields: undefined }));
-                          }
-                        }}
-                        className="mt-1 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+
+                      <div className="pl-4 border-l-2 border-emerald-100 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Lotes <span className="text-red-500">*</span></label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newFields = [...formData.fields];
+                              newFields[fIndex].lots = [...newFields[fIndex].lots, ''];
+                              setFormData(prev => ({ ...prev, fields: newFields }));
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700"
+                          >
+                            <Plus className="h-3 w-3" />
+                            AGREGAR LOTE
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {field.lots.map((lot, lIndex) => (
+                            <div key={lIndex} className="flex gap-2 items-center">
+                              <input
+                                type="text"
+                                value={lot}
+                                onChange={(e) => {
+                                  const newFields = [...formData.fields];
+                                  newFields[fIndex].lots[lIndex] = e.target.value;
+                                  setFormData(prev => ({ ...prev, fields: newFields }));
+                                }}
+                                placeholder={`Lote #${lIndex + 1}`}
+                                className={cn(
+                                  "w-full rounded-lg border bg-white/50 px-3 py-2 text-xs text-slate-600 focus:outline-none focus:ring-2",
+                                  errors.fields && !lot.trim() ? "border-red-300 ring-red-500/10" : "border-slate-100 focus:border-emerald-500 focus:ring-emerald-500/20"
+                                )}
+                              />
+                              {field.lots.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newFields = [...formData.fields];
+                                    newFields[fIndex].lots = newFields[fIndex].lots.filter((_, i) => i !== lIndex);
+                                    setFormData(prev => ({ ...prev, fields: newFields }));
+                                  }}
+                                  className="text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

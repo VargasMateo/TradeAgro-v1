@@ -19,7 +19,10 @@ const initialClients: Client[] = [
     color: "bg-emerald-100 text-emerald-700",
     lat: -34.6037,
     lng: -58.3816,
-    fields: ['Lote 24, Sector Norte', 'Lote 15, Sector Sur']
+    fields: [
+      { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
+      { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
+    ]
   },
   {
     id: 2,
@@ -33,7 +36,10 @@ const initialClients: Client[] = [
     color: "bg-blue-100 text-blue-700",
     lat: -31.4201,
     lng: -64.1888,
-    fields: ['Campo Principal', 'Anexo 1']
+    fields: [
+      { name: 'Campo Principal', lat: -31.4201, lng: -64.1888, lots: ['A1', 'A2'] },
+      { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
+    ]
   },
   {
     id: 3,
@@ -46,7 +52,10 @@ const initialClients: Client[] = [
     color: "bg-amber-100 text-amber-700",
     lat: -31.6107,
     lng: -60.6973,
-    fields: ['El Ombú', 'La Esperanza']
+    fields: [
+      { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
+      { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
+    ]
   },
   {
     id: 4,
@@ -139,7 +148,7 @@ export default function ClientsPage() {
       name: '',
       email: '',
       phone: '',
-      fields: []
+      fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
     });
     setView('form');
   };
@@ -150,7 +159,12 @@ export default function ClientsPage() {
       name: client.name || '',
       email: client.email || '',
       phone: client.phone || '',
-      fields: (client.fields || []).map(f => typeof f === 'string' ? { name: f, location: '' } : { name: f.name || '', location: f.location || '' })
+      fields: (client.fields || []).map(f => ({
+        name: f.name || '',
+        lat: f.lat,
+        lng: f.lng,
+        lots: Array.isArray(f.lots) ? f.lots : ['']
+      }))
     });
     setView('form');
   };
