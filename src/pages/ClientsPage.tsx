@@ -3,23 +3,8 @@ import { useLocation } from "react-router-dom";
 import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
-
-interface ClientField {
-  name: string;
-  location: string;
-}
-
-interface Client {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  initials: string;
-  color: string;
-  lat?: number;
-  lng?: number;
-  fields?: (string | ClientField)[];
-}
+import CreateClientModal from "../components/CreateClientModal";
+import { Client, ClientField } from "../types/client";
 
 const initialClients: Client[] = [
   {
@@ -163,37 +148,19 @@ export default function ClientsPage() {
     }
   };
 
-  const handleSave = () => {
-    if (!formData.name || !formData.email) {
-      alert('Por favor complete los campos obligatorios');
-      return;
-    }
-
+  const handleSaveDirect = (clientData: Client) => {
     if (editingClient) {
       // Update existing
       const updatedClients = clients.map(c => {
         if (c.id === editingClient.id) {
-          return {
-            ...c,
-            ...formData,
-            initials: formData.name.substring(0, 2).toUpperCase()
-          };
+          return clientData;
         }
         return c;
       });
       saveToLocalStorage(updatedClients);
     } else {
       // Create new
-      const newClient: Client = {
-        id: Date.now(),
-        ...formData,
-        initials: formData.name.substring(0, 2).toUpperCase(),
-        color: "bg-emerald-100 text-emerald-700", // Default color
-        lat: -31.4201 + (Math.random() - 0.5) * 2, // Random lat around Cordoba for new clients
-        lng: -64.1888 + (Math.random() - 0.5) * 2,  // Random lng around Cordoba for new clients
-        fields: formData.fields
-      };
-      saveToLocalStorage([newClient, ...clients]);
+      saveToLocalStorage([clientData, ...clients]);
     }
 
     setView('list');
@@ -315,146 +282,12 @@ export default function ClientsPage() {
         )}
       </div>
 
-      {/* FORM MODAL */}
-      {view === 'form' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 p-6">
-              <h2 className="text-xl font-bold text-slate-900">
-                {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
-              </h2>
-              <button
-                onClick={() => setView('list')}
-                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Nombre Completo / Razón Social</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Ej: AgroExport S.A."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="contacto@ejemplo.com"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700">Teléfono</label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="+54 9 ..."
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-700">Campos</label>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, fields: [...prev.fields, { name: '', location: '' }] }))}
-                      className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Agregar Campo
-                    </button>
-                  </div>
-
-                  {formData.fields.length === 0 ? (
-                    <p className="text-sm text-slate-500 italic">No hay campos agregados.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {formData.fields.map((field, index) => (
-                        <div key={index} className="flex gap-3 items-start">
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              value={field.name}
-                              onChange={(e) => {
-                                const newFields = [...formData.fields];
-                                newFields[index].name = e.target.value;
-                                setFormData(prev => ({ ...prev, fields: newFields }));
-                              }}
-                              placeholder="Nombre del campo"
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                            />
-                          </div>
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              value={field.location}
-                              onChange={(e) => {
-                                const newFields = [...formData.fields];
-                                newFields[index].location = e.target.value;
-                                setFormData(prev => ({ ...prev, fields: newFields }));
-                              }}
-                              placeholder="Ubicación"
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newFields = formData.fields.filter((_, i) => i !== index);
-                              setFormData(prev => ({ ...prev, fields: newFields }));
-                            }}
-                            className="mt-1 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-4 border-t border-slate-100 p-6 bg-slate-50/50 rounded-b-2xl">
-              <button
-                onClick={() => setView('list')}
-                className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                CANCELAR
-              </button>
-              <button
-                onClick={handleSave}
-                className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Save className="h-4 w-4" />
-                GUARDAR CLIENTE
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateClientModal
+        isOpen={view === 'form'}
+        onClose={() => setView('list')}
+        onSave={handleSaveDirect}
+        editingClient={editingClient}
+      />
     </div>
   );
 }

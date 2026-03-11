@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
+import CreateClientModal from "./CreateClientModal";
+import { Client } from "../types/client";
 
 export default function CreateJobModal() {
   const navigate = useNavigate();
@@ -41,6 +43,7 @@ export default function CreateJobModal() {
     localStorage.setItem('clients', JSON.stringify(clients));
   }, [clients]);
 
+  const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showFieldSuggestions, setShowFieldSuggestions] = useState(false);
 
@@ -290,15 +293,7 @@ export default function CreateJobModal() {
                           <button
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
-                            onClick={() => {
-                              if (window.confirm(`¿Deseas crear el nuevo cliente "${formData.client}"?`)) {
-                                const newClient = { id: Date.now().toString(), name: formData.client, fields: [] };
-                                setClients((prev: any) => [...prev, newClient]);
-                                setShowClientSuggestions(false);
-                              } else {
-                                setFormData(prev => ({ ...prev, client: '' }));
-                              }
-                            }}
+                            onClick={() => setIsCreateClientModalOpen(true)}
                           >
                             + Crear "{formData.client}"
                           </button>
@@ -676,6 +671,17 @@ export default function CreateJobModal() {
         </div>
 
       </div>
+      <CreateClientModal
+        isOpen={isCreateClientModalOpen}
+        onClose={() => setIsCreateClientModalOpen(false)}
+        initialName={formData.client}
+        onSave={(newClient) => {
+          setClients((prev: any) => [newClient, ...prev]);
+          setFormData(prev => ({ ...prev, client: newClient.name }));
+          setIsCreateClientModalOpen(false);
+          setShowClientSuggestions(false);
+        }}
+      />
     </div>
   );
 }
