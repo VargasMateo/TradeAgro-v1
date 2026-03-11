@@ -227,6 +227,7 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
                     </button>
                   </>
                 )}
+                {prof.phone && (
                   <a 
                     href={`https://wa.me/${formatPhoneNumberForWhatsApp(prof.phone)}`}
                     target="_blank"
@@ -239,6 +240,7 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
                     </svg>
                     <span className="hidden sm:inline">WhatsApp</span>
                   </a>
+                )}
               </div>
             </div>
             
@@ -252,10 +254,12 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
                 <Mail className="h-4 w-4 text-slate-400" />
                 <span className="truncate">{prof.email}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-slate-500">
-                <Phone className="h-4 w-4 text-slate-400" />
-                <span>{prof.phone}</span>
-              </div>
+              {prof.phone && (
+                <div className="flex items-center gap-3 text-sm text-slate-500">
+                  <Phone className="h-4 w-4 text-slate-400" />
+                  <span>{prof.phone}</span>
+                </div>
+              )}
             </div>
           </div>
             </MagneticEffect>
