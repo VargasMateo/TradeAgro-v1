@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Filter,
@@ -259,7 +259,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-500">ID Orden</label>
+                  <label className="text-xs font-semibold text-slate-500">ID Trabajo</label>
                   <input
                     type="text" name="id" list="id-suggestions" value={filters.id} onChange={handleFilterChange}
                     placeholder="Ej: #AG-88"
@@ -370,7 +370,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 md:flex-none"
             >
               <Plus className="h-4 w-4" />
-              Nueva Orden
+              Nuevo Trabajo
             </Link>
           )}
         </div>
@@ -477,7 +477,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  ID Orden
+                  ID Trabajo
                 </th>
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
                   Fecha

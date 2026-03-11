@@ -87,14 +87,14 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             Volver a Trabajos
           </Link>
           <span>/</span>
-          <span className="text-slate-900 font-medium">Orden {job.id}</span>
+          <span className="text-slate-900 font-medium">Trabajo {job.id}</span>
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-                Orden {job.id}
+                Trabajo {job.id}
               </h1>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600 border border-amber-100">
                 {job.status.toUpperCase()}
@@ -116,7 +116,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                 className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               >
                 <Edit className="h-4 w-4" />
-                Editar Orden
+                Editar Trabajo
               </button>
             )}
           </div>
