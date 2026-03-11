@@ -78,7 +78,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     { path: "/dashboard", label: "Inicio", icon: Home },
     //{ path: "/calendar", label: "Calendario", icon: Calendar },
     { path: "/jobs", label: "Trabajos", icon: Briefcase },
-    { path: "/reports", label: "Reportes", icon: FileText },
+    //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
   if (userRole === 'profesional') {
@@ -239,7 +239,8 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="relative" ref={notificationRef}>
+            {/* TODO: Implementar notificaciones */}
+            {/* <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={cn(
@@ -255,7 +256,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
                 isOpen={isNotificationsOpen}
                 onClose={() => setIsNotificationsOpen(false)}
               />
-            </div>
+            </div> */}
 
             <Link to="/profile" className="hidden rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200 sm:block">
               <Settings className="h-5 w-5" />

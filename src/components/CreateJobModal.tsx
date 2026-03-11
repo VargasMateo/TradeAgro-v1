@@ -65,10 +65,8 @@ export default function CreateJobModal() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const clientSuggestions = clients.filter((c: any) => c.name.toLowerCase().includes(formData.client.toLowerCase()));
-  const selectedClientObj = clients.find((c: any) => c.name === formData.client);
-  const availableFields = selectedClientObj
-    ? (selectedClientObj.fields || [])
-    : clients.flatMap((c: any) => c.fields || []);
+  const selectedClientObj = clients.find((c: any) => c.name.toLowerCase() === formData.client.toLowerCase());
+  const availableFields = selectedClientObj ? (selectedClientObj.fields || []) : [];
   const fieldNames = availableFields.map((f: any) => typeof f === 'string' ? f : f.name);
   const fieldSuggestions = Array.from(new Set(fieldNames)).filter((f: any) => f && f.toLowerCase().includes(formData.field.toLowerCase()));
 

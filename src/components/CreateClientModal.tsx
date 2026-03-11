@@ -27,7 +27,7 @@ export default function CreateClientModal({
     name: initialName,
     email: '',
     phone: '',
-    fields: []
+    fields: [{ name: '', location: '' }]
   });
 
   const [errors, setErrors] = useState<{
@@ -51,7 +51,7 @@ export default function CreateClientModal({
         name: initialName,
         email: '',
         phone: '',
-        fields: []
+        fields: [{ name: '', location: '' }]
       });
     }
     setErrors({});

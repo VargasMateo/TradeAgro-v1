@@ -121,16 +121,6 @@ export default function UpcomingJobs() {
           </Link>
         ))}
 
-        {/* "New Job" Card */}
-        <Link
-          to="?newJob=true"
-          className="snap-center shrink-0 w-[100px] flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 text-slate-400 transition-colors hover:border-emerald-200 hover:bg-emerald-50/30 hover:text-emerald-600"
-        >
-          <div className="rounded-full bg-white p-2 shadow-sm">
-            <Plus className="h-5 w-5" />
-          </div>
-          <span className="text-xs font-bold text-center">Nuevo trabajo</span>
-        </Link>
       </div>
     </div>
   );
