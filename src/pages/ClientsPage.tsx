@@ -10,6 +10,9 @@ const initialClients: Client[] = [
   {
     id: 1,
     name: "AgroExport S.A.",
+    businessName: "AgroExport Sociedad Anónima",
+    cuit: "30-12345678-9",
+    ivaCondition: "Responsable Inscripto",
     email: "contacto@agroexport.com",
     phone: "+54 9 11 1234-5678",
     initials: "AE",
@@ -21,6 +24,9 @@ const initialClients: Client[] = [
   {
     id: 2,
     name: "Finca La Estela",
+    businessName: "Estela Agricola S.R.L.",
+    cuit: "30-87654321-0",
+    ivaCondition: "Responsable Inscripto",
     email: "admin@laestela.com",
     phone: "+54 9 351 9876-5432",
     initials: "FL",
@@ -32,6 +38,8 @@ const initialClients: Client[] = [
   {
     id: 3,
     name: "Juan Pérez",
+    cuit: "20-55554444-3",
+    ivaCondition: "Monotributista",
     email: "juan.perez@email.com",
     phone: "+54 9 341 5555-4444",
     initials: "JP",
@@ -43,6 +51,9 @@ const initialClients: Client[] = [
   {
     id: 4,
     name: "Cooperativa Sur",
+    businessName: "Cooperativa de Trabajo Sur Ltda.",
+    cuit: "33-11112222-4",
+    ivaCondition: "Responsable Inscripto",
     email: "info@coopsur.org.ar",
     phone: "+54 9 299 1111-2222",
     initials: "CS",
@@ -54,6 +65,9 @@ const initialClients: Client[] = [
   {
     id: 5,
     name: "Los Alamos",
+    businessName: "Los Alamos S.A.",
+    cuit: "30-33339999-5",
+    ivaCondition: "Responsable Inscripto",
     email: "gerencia@losalamos.com",
     phone: "+54 9 261 3333-9999",
     initials: "LA",
@@ -245,6 +259,17 @@ export default function ClientsPage() {
 
                 <div className="mb-6">
                   <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">{client.name}</h3>
+                  {client.businessName && (
+                    <p className="text-xs font-medium text-slate-500 mt-1">{client.businessName}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600">
+                      CUIT: {client.cuit}
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">
+                      {client.ivaCondition}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-3 border-t border-slate-100 pt-6">

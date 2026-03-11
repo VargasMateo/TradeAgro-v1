@@ -33,9 +33,9 @@ export default function CreateJobModal() {
   const [clients, setClients] = useState(() => {
     const stored = localStorage.getItem('clients');
     return stored ? JSON.parse(stored) : [
-      { id: '1', name: 'AgroExport S.A.', fields: ['Lote 24, Sector Norte', 'Lote 15, Sector Sur'] },
-      { id: '2', name: 'Finca La Estela', fields: ['Campo Principal', 'Anexo 1'] },
-      { id: '3', name: 'Juan Pérez', fields: ['El Ombú', 'La Esperanza'] },
+      { id: '1', name: 'AgroExport S.A.', businessName: 'AgroExport Sociedad Anónima', cuit: '30-12345678-9', ivaCondition: 'Responsable Inscripto', fields: ['Lote 24, Sector Norte', 'Lote 15, Sector Sur'] },
+      { id: '2', name: "Finca La Estela", businessName: "Estela Agricola S.R.L.", cuit: "30-87654321-0", ivaCondition: "Responsable Inscripto", fields: ['Campo Principal', 'Anexo 1'] },
+      { id: '3', name: 'Juan Pérez', cuit: '20-55554444-3', ivaCondition: 'Monotributista', fields: ['El Ombú', 'La Esperanza'] },
     ];
   });
 
@@ -64,8 +64,14 @@ export default function CreateJobModal() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const clientSuggestions = clients.filter((c: any) => c.name.toLowerCase().includes(formData.client.toLowerCase()));
-  const selectedClientObj = clients.find((c: any) => c.name.toLowerCase() === formData.client.toLowerCase());
+  const clientSuggestions = clients.filter((c: any) => 
+    c.name.toLowerCase().includes(formData.client.toLowerCase()) || 
+    (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()))
+  );
+  const selectedClientObj = clients.find((c: any) => 
+    c.name.toLowerCase() === formData.client.toLowerCase() || 
+    (c.businessName && c.businessName.toLowerCase() === formData.client.toLowerCase())
+  );
   const availableFields = selectedClientObj ? (selectedClientObj.fields || []) : [];
   const fieldNames = availableFields.map((f: any) => typeof f === 'string' ? f : f.name);
   const fieldSuggestions = Array.from(new Set(fieldNames)).filter((f: any) => f && f.toLowerCase().includes(formData.field.toLowerCase()));
@@ -329,13 +335,14 @@ export default function CreateJobModal() {
                           <button
                             key={c.id}
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col"
                             onClick={() => {
                               setFormData(prev => ({ ...prev, client: c.name }));
                               setShowClientSuggestions(false);
                             }}
                           >
-                            {c.name}
+                            <span className="font-bold">{c.name}</span>
+                            {c.businessName && <span className="text-[10px] text-slate-500">{c.businessName}</span>}
                           </button>
                         ))}
                         {!clients.some((c: any) => c.name.toLowerCase() === formData.client.toLowerCase()) && formData.client.trim() !== '' && (

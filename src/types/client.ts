@@ -5,7 +5,10 @@ export interface ClientField {
 
 export interface Client {
   id: string | number;
-  name: string;
+  name: string; // Nombre Completo
+  businessName?: string; // Razón Social
+  cuit: string;
+  ivaCondition: 'Responsable Inscripto' | 'Monotributista';
   email: string;
   phone: string;
   initials?: string;

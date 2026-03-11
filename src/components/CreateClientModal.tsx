@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, Trash2 } from "lucide-react";
+import { X, Plus, Save, Trash2, ChevronDown } from "lucide-react";
 import { Client, ClientField } from "../types/client";
 import { cn } from "../lib/utils";
 
@@ -20,11 +20,17 @@ export default function CreateClientModal({
 }: CreateClientModalProps) {
   const [formData, setFormData] = useState<{
     name: string;
+    businessName: string;
+    cuit: string;
+    ivaCondition: 'Responsable Inscripto' | 'Monotributista' | '';
     email: string;
     phone: string;
     fields: ClientField[];
   }>({
     name: initialName,
+    businessName: '',
+    cuit: '',
+    ivaCondition: 'Responsable Inscripto',
     email: '',
     phone: '',
     fields: [{ name: '', location: '' }]
@@ -32,6 +38,8 @@ export default function CreateClientModal({
 
   const [errors, setErrors] = useState<{
     name?: string;
+    cuit?: string;
+    ivaCondition?: string;
     email?: string;
     fields?: string;
   }>({});
@@ -40,6 +48,9 @@ export default function CreateClientModal({
     if (editingClient) {
       setFormData({
         name: editingClient.name || '',
+        businessName: editingClient.businessName || '',
+        cuit: editingClient.cuit || '',
+        ivaCondition: editingClient.ivaCondition || '',
         email: editingClient.email || '',
         phone: editingClient.phone || '',
         fields: (editingClient.fields || []).map(f => 
@@ -49,6 +60,9 @@ export default function CreateClientModal({
     } else {
       setFormData({
         name: initialName,
+        businessName: '',
+        cuit: '',
+        ivaCondition: 'Responsable Inscripto',
         email: '',
         phone: '',
         fields: [{ name: '', location: '' }]
@@ -73,7 +87,17 @@ export default function CreateClientModal({
     const newErrors: typeof errors = {};
     
     if (!formData.name.trim()) {
-      newErrors.name = 'El nombre del cliente es obligatorio';
+      newErrors.name = 'El nombre es obligatorio';
+    }
+
+    if (!formData.cuit.trim()) {
+      newErrors.cuit = 'El CUIT es obligatorio';
+    } else if (!/^\d{11}$/.test(formData.cuit.replace(/-/g, '').replace(/\s/g, ''))) {
+      newErrors.cuit = 'CUIT inválido (11 dígitos)';
+    }
+
+    if (!formData.ivaCondition) {
+      newErrors.ivaCondition = 'La condición de IVA es obligatoria';
     }
 
     if (!formData.email.trim()) {
@@ -96,6 +120,7 @@ export default function CreateClientModal({
     const clientData: Client = {
       id: editingClient?.id || Date.now(),
       ...formData,
+      ivaCondition: formData.ivaCondition as 'Responsable Inscripto' | 'Monotributista',
       initials: formData.name.substring(0, 2).toUpperCase(),
       color: editingClient?.color || "bg-emerald-100 text-emerald-700",
       lat: editingClient?.lat || (-31.4201 + (Math.random() - 0.5) * 2),
@@ -129,28 +154,103 @@ export default function CreateClientModal({
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto">
           <div className="grid grid-cols-1 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Nombre Completo / Razón Social <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Ej: AgroExport S.A."
-                className={cn(
-                  "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                  errors.name 
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
-                    : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Nombre Completo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Juan Pérez"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.name 
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
+                />
+                {errors.name && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.name}
+                  </p>
                 )}
-              />
-              {errors.name && (
-                <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {errors.name}
-                </p>
-              )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Razón Social
+                </label>
+                <input
+                  type="text"
+                  name="businessName"
+                  value={formData.businessName}
+                  onChange={handleInputChange}
+                  placeholder="Ej: AgroExport S.A."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  CUIT <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="cuit"
+                  value={formData.cuit}
+                  onChange={handleInputChange}
+                  placeholder="20-12345678-9"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.cuit 
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
+                />
+                {errors.cuit && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.cuit}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Condición de IVA <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="ivaCondition"
+                    value={formData.ivaCondition}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData(prev => ({ ...prev, ivaCondition: value as any }));
+                      if (errors.ivaCondition) {
+                        setErrors(prev => ({ ...prev, ivaCondition: undefined }));
+                      }
+                    }}
+                    className={cn(
+                      "w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                      errors.ivaCondition 
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                        : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                    )}
+                  >
+                    <option value="">Seleccionar...</option>
+                    <option value="Responsable Inscripto">Responsable Inscripto</option>
+                    <option value="Monotributista">Monotributista</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                </div>
+                {errors.ivaCondition && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.ivaCondition}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
