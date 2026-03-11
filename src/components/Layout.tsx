@@ -19,18 +19,15 @@ import { cn } from "../lib/utils";
 import { useState } from "react";
 import NotificationsDropdown from "./NotificationsDropdown";
 import CreateJobModal from "./CreateJobModal";
+import { MOCK_USERS } from "../lib/mockUsers";
 
 export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-  
-  const [userProfile, setUserProfile] = useState({
-    name: "Admin User",
-    email: "admin@tradeagro.com",
-    avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-  });
+
+  const [userProfile, setUserProfile] = useState(MOCK_USERS[userRole]);
 
   useEffect(() => {
     const loadProfile = () => {
@@ -53,7 +50,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     window.addEventListener("storage", loadProfile);
     // Custom event for same-tab updates
     window.addEventListener("profile-updated", loadProfile);
-    
+
     return () => {
       window.removeEventListener("storage", loadProfile);
       window.removeEventListener("profile-updated", loadProfile);
@@ -79,7 +76,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
   const navItems = [
     { path: "/dashboard", label: "Inicio", icon: Home },
-    { path: "/calendar", label: "Calendario", icon: Calendar },
+    //{ path: "/calendar", label: "Calendario", icon: Calendar },
     { path: "/jobs", label: "Trabajos", icon: Briefcase },
     { path: "/reports", label: "Reportes", icon: FileText },
   ];
@@ -191,7 +188,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
                   {userProfile.email}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -243,7 +240,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="relative" ref={notificationRef}>
-              <button 
+              <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={cn(
                   "relative rounded-xl p-2 transition-colors lg:p-2.5",
@@ -253,24 +250,24 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500 lg:right-2.5 lg:top-2.5"></span>
               </button>
-              
-              <NotificationsDropdown 
-                isOpen={isNotificationsOpen} 
-                onClose={() => setIsNotificationsOpen(false)} 
+
+              <NotificationsDropdown
+                isOpen={isNotificationsOpen}
+                onClose={() => setIsNotificationsOpen(false)}
               />
             </div>
-            
+
             <Link to="/profile" className="hidden rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200 sm:block">
               <Settings className="h-5 w-5" />
             </Link>
-            
+
             <Link to="/profile" className="h-8 w-8 overflow-hidden rounded-full border border-slate-200 sm:hidden">
-               <img
-                  src={userProfile.avatarUrl}
-                  alt={userProfile.name}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+              <img
+                src={userProfile.avatarUrl}
+                alt={userProfile.name}
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </Link>
           </div>
         </header>

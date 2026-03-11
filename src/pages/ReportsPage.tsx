@@ -120,11 +120,11 @@ export default function ReportsPage() {
       const today = new Date();
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(today.getMonth() - 6);
-      
+
       const formatDate = (date: Date) => {
         return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
       };
-      
+
       return `Mostrando últimos 6 meses (${formatDate(sixMonthsAgo)} - ${formatDate(today)})`;
     }
     if (timeFilter === 'personalizado') {
@@ -153,7 +153,7 @@ export default function ReportsPage() {
             Rendimiento agrícola y financiero.
           </p>
         </div>
-        
+
         <div className="flex flex-col gap-3 sm:items-end">
           {/* Reference Text - Desktop */}
           <div className="hidden md:inline-flex items-center rounded-md bg-[#2e7d32]/10 px-2.5 py-1 text-xs font-semibold text-[#2e7d32]">
@@ -163,7 +163,7 @@ export default function ReportsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {/* Filters */}
             <div className="flex w-full items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
-              <button 
+              <button
                 onClick={() => setTimeFilter('campana')}
                 className={cn(
                   "flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-4",
@@ -172,7 +172,7 @@ export default function ReportsPage() {
               >
                 Campaña 23/24
               </button>
-              <button 
+              <button
                 onClick={() => setTimeFilter('6meses')}
                 className={cn(
                   "flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-4",
@@ -181,7 +181,7 @@ export default function ReportsPage() {
               >
                 6 Meses
               </button>
-              <button 
+              <button
                 onClick={() => setTimeFilter('personalizado')}
                 className={cn(
                   "flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-4",
@@ -191,7 +191,7 @@ export default function ReportsPage() {
                 Personalizado
               </button>
             </div>
-            
+
             {/* Actions */}
             <div className="flex gap-2">
               <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 md:flex-none">
@@ -208,8 +208,8 @@ export default function ReportsPage() {
             <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm animate-in slide-in-from-top-2 sm:w-auto">
               <div className="flex flex-1 flex-col">
                 <label className="text-[10px] font-bold uppercase text-slate-500 px-1 mb-1">Desde</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   className="w-full rounded-lg border-none bg-slate-50 px-2 py-1.5 text-sm text-slate-900 focus:ring-2 focus:ring-[#2e7d32] outline-none"
@@ -217,8 +217,8 @@ export default function ReportsPage() {
               </div>
               <div className="flex flex-1 flex-col">
                 <label className="text-[10px] font-bold uppercase text-slate-500 px-1 mb-1">Hasta</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   className="w-full rounded-lg border-none bg-slate-50 px-2 py-1.5 text-sm text-slate-900 focus:ring-2 focus:ring-[#2e7d32] outline-none"
@@ -239,12 +239,13 @@ export default function ReportsPage() {
       {/* KPI Cards - 2 Columns on Mobile */}
       <div className="mb-6 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         {kpiData.map((kpi, index) => (
-          <MagneticEffect key={index} className="rounded-2xl">
+          <div key={index} className="h-full">
+            <MagneticEffect className="rounded-2xl">
             <div
               className={cn(
                 "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition-all md:p-6 h-full",
-                kpi.color === "emerald" 
-                  ? "border-emerald-100/50" 
+                kpi.color === "emerald"
+                  ? "border-emerald-100/50"
                   : "border-rose-100/50"
               )}
             >
@@ -257,8 +258,8 @@ export default function ReportsPage() {
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className={cn(
                   "flex items-center justify-center rounded-lg p-1.5 md:p-2",
-                  kpi.color === "emerald" 
-                    ? "bg-emerald-50 text-emerald-600" 
+                  kpi.color === "emerald"
+                    ? "bg-emerald-50 text-emerald-600"
                     : "bg-rose-50 text-rose-600"
                 )}>
                   <kpi.icon className="h-4 w-4 md:h-5 md:w-5" />
@@ -274,7 +275,7 @@ export default function ReportsPage() {
                   {kpi.change}
                 </span>
               </div>
-              
+
               <p className="mb-1 truncate text-xs font-medium text-slate-500 md:text-sm">
                 {kpi.title}
               </p>
@@ -287,7 +288,8 @@ export default function ReportsPage() {
                 )}
               </h3>
             </div>
-          </MagneticEffect>
+            </MagneticEffect>
+          </div>
         ))}
       </div>
 
@@ -406,7 +408,7 @@ export default function ReportsPage() {
                   Facturación
                 </th>
                 <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 md:px-6 md:py-4 md:text-xs">
-                  
+
                 </th>
               </tr>
             </thead>

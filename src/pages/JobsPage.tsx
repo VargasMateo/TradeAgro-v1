@@ -112,7 +112,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
   const [jobs, setJobs] = useState(initialJobs);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Filter state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
@@ -195,7 +195,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
     if (activeTab === "Pendientes" && job.status !== "Pendiente") return false;
     if (activeTab === "En Proceso" && job.status !== "En Proceso") return false;
     if (activeTab === "Completados" && job.status !== "Completado") return false;
-    
+
     // Popup filters
     if (filters.id && !job.id.toLowerCase().includes(filters.id.toLowerCase())) return false;
     if (filters.date && !job.date.toLowerCase().includes(filters.date.toLowerCase())) return false;
@@ -223,12 +223,12 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           </p>
         </div>
         <div className="flex gap-3 relative">
-          <button 
+          <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors md:flex-none",
-              activeFiltersCount > 0 
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" 
+              activeFiltersCount > 0
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             )}
           >
@@ -243,13 +243,13 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
           {/* Filter Popup */}
           {isFilterOpen && (
-            <div 
+            <div
               ref={filterRef}
               className="absolute right-0 top-full mt-2 w-80 z-50 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2"
             >
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">Filtros Avanzados</h3>
-                <button 
+                <button
                   onClick={() => setIsFilterOpen(false)}
                   className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
                 >
@@ -260,7 +260,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500">ID Orden</label>
-                  <input 
+                  <input
                     type="text" name="id" list="id-suggestions" value={filters.id} onChange={handleFilterChange}
                     placeholder="Ej: #AG-88"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -269,10 +269,10 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     {uniqueValues.id.map(val => <option key={val} value={val} />)}
                   </datalist>
                 </div>
-                
+
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500">Fecha</label>
-                  <input 
+                  <input
                     type="text" name="date" list="date-suggestions" value={filters.date} onChange={handleFilterChange}
                     placeholder="Ej: 12 Oct"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -286,7 +286,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                   <>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-slate-500">Cliente</label>
-                      <input 
+                      <input
                         type="text" name="client" list="client-suggestions" value={filters.client} onChange={handleFilterChange}
                         placeholder="Buscar cliente..."
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -297,7 +297,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-slate-500">Ubicación</label>
-                      <input 
+                      <input
                         type="text" name="location" list="location-suggestions" value={filters.location} onChange={handleFilterChange}
                         placeholder="Buscar ubicación..."
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -311,7 +311,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500">Servicio</label>
-                  <input 
+                  <input
                     type="text" name="service" list="service-suggestions" value={filters.service} onChange={handleFilterChange}
                     placeholder="Buscar servicio..."
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -323,7 +323,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500">Profesional</label>
-                  <input 
+                  <input
                     type="text" name="operator" list="operator-suggestions" value={filters.operator} onChange={handleFilterChange}
                     placeholder="Buscar profesional..."
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -335,7 +335,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500">Estado</label>
-                  <select 
+                  <select
                     name="status" value={filters.status} onChange={handleFilterChange}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   >
@@ -348,13 +348,13 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               </div>
 
               <div className="mt-4 flex gap-2 pt-4 border-t border-slate-100">
-                <button 
+                <button
                   onClick={clearFilters}
                   className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Limpiar
                 </button>
-                <button 
+                <button
                   onClick={() => setIsFilterOpen(false)}
                   className="flex-1 rounded-lg bg-[#2e7d32] px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
                 >
@@ -439,7 +439,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                 {job.status}
               </span>
             </div>
-            
+
             <div className="mb-4 space-y-2 rounded-xl bg-slate-50 p-3">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Cliente:</span>
@@ -452,8 +452,8 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Profesional:</span>
                 <div className="flex items-center gap-2">
-                  <img 
-                    src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`} 
+                  <img
+                    src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
                     alt={job.operator}
                     className="h-5 w-5 rounded-full object-cover"
                     referrerPolicy="no-referrer"
@@ -553,8 +553,8 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-2">
-                      <img 
-                        src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`} 
+                      <img
+                        src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
                         alt={job.operator}
                         className="h-8 w-8 rounded-full object-cover border border-slate-200"
                         referrerPolicy="no-referrer"
@@ -569,11 +569,11 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                       className={cn(
                         "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
                         job.status === "En Proceso" &&
-                          "border-amber-100 bg-amber-50 text-amber-600",
+                        "border-amber-100 bg-amber-50 text-amber-600",
                         job.status === "Pendiente" &&
-                          "border-slate-200 bg-slate-100 text-slate-500",
+                        "border-slate-200 bg-slate-100 text-slate-500",
                         job.status === "Completado" &&
-                          "border-emerald-100 bg-emerald-50 text-emerald-600"
+                        "border-emerald-100 bg-emerald-50 text-emerald-600"
                       )}
                     >
                       <span
@@ -591,9 +591,9 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     <div className="flex items-center justify-end gap-2">
                       {(userRole === 'profesional' || userRole === 'superadmin') && (
                         <>
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSearchParams({ editJob: (job.id || '').replace('#', '') });
                             }}
                             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
@@ -601,7 +601,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button 
+                          <button
                             onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
                             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                             title="Borrar"
@@ -610,7 +610,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                           </button>
                         </>
                       )}
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${(job.id || '').replace('#', '')}`); }}
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
                         title="Ir"

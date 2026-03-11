@@ -22,7 +22,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [newObservation, setNewObservation] = useState("");
-  const [observations, setObservations] = useState<{text: string, author: string, date: string}[]>([
+  const [observations, setObservations] = useState<{ text: string, author: string, date: string }[]>([
     {
       text: "Las condiciones climáticas fueron desfavorables el martes. Retraso de 4 horas debido a fuertes lluvias. Los niveles de humedad del suelo están actualmente por encima de lo óptimo; se recomienda esperar 48 horas antes de iniciar operaciones con maquinaria pesada.",
       author: "NOTA POR ADMIN",
@@ -32,10 +32,10 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
   const handleAddObservation = () => {
     if (!newObservation.trim()) return;
-    
+
     const today = new Date();
     const formattedDate = `${today.toLocaleString('es-ES', { month: 'short' })} ${today.getDate()}, ${today.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
-    
+
     setObservations([...observations, {
       text: newObservation,
       author: userRole === 'cliente' ? 'CLIENTE' : 'PROFESIONAL',
@@ -111,7 +111,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
               Compartir
             </button>
             {(userRole === 'profesional' || userRole === 'superadmin') && (
-              <button 
+              <button
                 onClick={() => setSearchParams({ editJob: id || '' })}
                 className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               >
@@ -126,14 +126,14 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main Content - Left Column */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* General Data Card */}
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-2">
               <Info className="h-5 w-5 text-[#2e7d32]" />
               <h2 className="text-lg font-bold text-slate-900">Datos Generales</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-y-6 md:grid-cols-2">
               <div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Cliente</p>
@@ -229,7 +229,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                   }
                 }}
               />
-              <button 
+              <button
                 onClick={handleAddObservation}
                 disabled={!newObservation.trim()}
                 className="flex items-center justify-center rounded-xl bg-[#2e7d32] p-2.5 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -243,7 +243,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
         {/* Sidebar - Right Column */}
         <div className="space-y-6">
-          
+
           {/* Attachments Card */}
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center justify-between">
@@ -299,7 +299,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                 </div>
               } />
             </div>
-            
+
             <div className="mt-4 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
                 <MapPin className="h-5 w-5" />

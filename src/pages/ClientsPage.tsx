@@ -85,7 +85,7 @@ export default function ClientsPage() {
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -195,11 +195,11 @@ export default function ClientsPage() {
       };
       saveToLocalStorage([newClient, ...clients]);
     }
-    
+
     setView('list');
   };
 
-  const filteredClients = clients.filter(client => 
+  const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -222,7 +222,7 @@ export default function ClientsPage() {
             Administre su cartera de clientes y contactos.
           </p>
         </div>
-        
+
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -234,7 +234,7 @@ export default function ClientsPage() {
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-64"
             />
           </div>
-          <button 
+          <button
             onClick={handleAddNew}
             className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
           >
@@ -247,61 +247,63 @@ export default function ClientsPage() {
       {/* LIST VIEW */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredClients.map((client) => (
-          <MagneticEffect key={client.id} className="rounded-2xl">
-            <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200 h-full">
-              <div className="mb-6 flex items-start justify-between">
-              <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-white shadow-sm flex items-center justify-center">
-                <img
-                  src={`https://ui-avatars.com/api/?name=${client.name}&background=${getColorForClient(client.name)}&color=fff&bold=true&size=128`}
-                  alt={client.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div className="flex gap-1">
-                <a 
-                  href={`https://wa.me/${formatPhoneNumberForWhatsApp(client.phone)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg p-2 text-slate-400 hover:bg-[#25D366]/10 hover:text-[#25D366]"
-                  title="Contactar por WhatsApp"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </a>
-                <button 
-                  onClick={() => handleEdit(client)}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-emerald-600"
-                  title="Editar"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button 
-                  onClick={() => handleDelete(client.id)}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                  title="Eliminar"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">{client.name}</h3>
-            </div>
+          <div key={client.id} className="h-full">
+            <MagneticEffect className="rounded-2xl">
+              <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200 h-full">
+                <div className="mb-6 flex items-start justify-between">
+                  <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-white shadow-sm flex items-center justify-center">
+                    <img
+                      src={`https://ui-avatars.com/api/?name=${client.name}&background=${getColorForClient(client.name)}&color=fff&bold=true&size=128`}
+                      alt={client.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex gap-1">
+                    <a
+                      href={`https://wa.me/${formatPhoneNumberForWhatsApp(client.phone)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg p-2 text-slate-400 hover:bg-[#25D366]/10 hover:text-[#25D366]"
+                      title="Contactar por WhatsApp"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </a>
+                    <button
+                      onClick={() => handleEdit(client)}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-emerald-600"
+                      title="Editar"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(client.id)}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
 
-            <div className="space-y-3 border-t border-slate-100 pt-6">
-              <div className="flex items-center gap-3 text-sm text-slate-500">
-                <Mail className="h-4 w-4 text-slate-400" />
-                <span className="truncate">{client.email}</span>
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">{client.name}</h3>
+                </div>
+
+                <div className="space-y-3 border-t border-slate-100 pt-6">
+                  <div className="flex items-center gap-3 text-sm text-slate-500">
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    <span className="truncate">{client.email}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-slate-500">
+                    <Phone className="h-4 w-4 text-slate-400" />
+                    <span>{client.phone}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-sm text-slate-500">
-                <Phone className="h-4 w-4 text-slate-400" />
-                <span>{client.phone}</span>
-              </div>
-            </div>
-            </div>
-          </MagneticEffect>
+            </MagneticEffect>
+          </div>
         ))}
-        
+
         {filteredClients.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
             <div className="mb-4 rounded-full bg-slate-100 p-4 text-slate-400">
@@ -317,14 +319,14 @@ export default function ClientsPage() {
       {view === 'form' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all">
           <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 p-6">
               <h2 className="text-xl font-bold text-slate-900">
                 {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
               </h2>
-              <button 
-                onClick={() => setView('list')} 
+              <button
+                onClick={() => setView('list')}
                 className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
                 <X className="h-5 w-5" />
@@ -383,7 +385,7 @@ export default function ClientsPage() {
                       Agregar Campo
                     </button>
                   </div>
-                  
+
                   {formData.fields.length === 0 ? (
                     <p className="text-sm text-slate-500 italic">No hay campos agregados.</p>
                   ) : (

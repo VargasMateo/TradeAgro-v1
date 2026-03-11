@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Tractor, ArrowRight, Briefcase, User, Shield } from 'lucide-react';
 
+import logo from '../assets/logo.png';
+
 interface LoginPageProps {
   onLogin: (role: 'profesional' | 'cliente' | 'superadmin') => void;
 }
@@ -11,25 +13,23 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   const handleSubmit = (e: React.FormEvent, role: 'profesional' | 'cliente' | 'superadmin') => {
     e.preventDefault();
-    // Estético: entra sin verificar
-    onLogin(role);
+
+    // Save mock user data based on role
+    import('../lib/mockUsers').then(({ MOCK_USERS }) => {
+      localStorage.setItem("userProfile", JSON.stringify(MOCK_USERS[role]));
+      window.dispatchEvent(new Event("profile-updated"));
+      onLogin(role);
+    });
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 font-sans">
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
-        <div className="bg-emerald-600 p-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
-            <svg viewBox="0 0 100 100" className="h-10 w-10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="0" y="0" width="100" height="100" fill="white" rx="20" />
-              <path d="M 10 10 L 90 10 L 90 50 Q 45 25 10 45 Z" fill="#005A9C" />
-              <path d="M 5 45 Q 45 25 95 45" stroke="#0A6C35" strokeWidth="6" fill="none" />
-              <path d="M 5 68 Q 50 45 95 72" stroke="#0A6C35" strokeWidth="6" fill="none" />
-              <path d="M 5 92 Q 55 68 95 100" stroke="#0A6C35" strokeWidth="6" fill="none" />
-            </svg>
+        <div className="bg-white p-8 pb-4 text-center border-b border-slate-100">
+          <div className="mx-auto mb-2 flex h-32 w-full items-center justify-center">
+            <img src={logo} alt="TradeAgro Logo" className="h-full w-auto object-contain" />
           </div>
-          <h1 className="font-display text-3xl font-bold text-white">TradeAgro</h1>
-          <p className="mt-2 text-emerald-100">Panel de Administración</p>
+          <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Panel de Administración</p>
         </div>
 
         <div className="p-8">

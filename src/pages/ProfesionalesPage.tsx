@@ -185,7 +185,8 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
       {/* LIST VIEW */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredProfesionales.map((prof) => (
-          <MagneticEffect key={prof.id} className="rounded-2xl">
+          <div key={prof.id} className="h-full">
+            <MagneticEffect className="rounded-2xl">
             <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200 h-full">
               <div className="mb-6 flex items-start justify-between">
               <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-white shadow-sm flex items-center justify-center">
@@ -243,7 +244,8 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
               </div>
             </div>
           </div>
-        </MagneticEffect>
+            </MagneticEffect>
+          </div>
         ))}
         
         {filteredProfesionales.length === 0 && (

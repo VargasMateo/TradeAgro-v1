@@ -180,7 +180,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </h3>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
           {stats.map((stat, i) => (
-            <MagneticEffect key={i} className="rounded-2xl">
+            <div key={i} className="h-full">
+              <MagneticEffect className="rounded-2xl">
               <div
                 className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
               >
@@ -205,7 +206,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                   </h3>
                 </div>
               </div>
-            </MagneticEffect>
+              </MagneticEffect>
+            </div>
           ))}
         </div>
       </div>

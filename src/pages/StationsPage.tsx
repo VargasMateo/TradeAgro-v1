@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { 
-  Sun, 
-  Cloud, 
-  CloudRain, 
-  Wind, 
-  Droplets, 
-  Calendar, 
+import {
+  Sun,
+  Cloud,
+  CloudRain,
+  Wind,
+  Droplets,
+  Calendar,
   MapPin,
   Search,
   Filter,
@@ -150,11 +150,11 @@ const stations = [
 const generateDays = (count: number) => {
   const days = [];
   const today = new Date();
-  
+
   for (let i = 0; i < count; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
-    
+
     let label = '';
     if (i === 0) label = 'Hoy';
     else if (i === 1) label = 'Mañana';
@@ -164,9 +164,9 @@ const generateDays = (count: number) => {
       label = date.toLocaleDateString('es-ES', { weekday: 'short' });
       label = label.charAt(0).toUpperCase() + label.slice(1);
     }
-    
+
     const dateStr = date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-    
+
     days.push({
       key: date.toISOString().split('T')[0], // YYYY-MM-DD
       label,
@@ -181,7 +181,7 @@ export default function StationsPage() {
   const [days] = useState(() => generateDays(14)); // Generate 14 days
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [scrollIndex, setScrollIndex] = useState(0);
-  
+
   const VISIBLE_DAYS = 3; // Number of days visible at once
 
   const handlePrev = () => {
@@ -206,7 +206,7 @@ export default function StationsPage() {
             Monitoreo climático en tiempo real de sus campos.
           </p>
         </div>
-        
+
         {/* Day Filter / Slider */}
         <div className="flex items-center gap-2 rounded-xl bg-slate-100 p-1">
           <button
@@ -260,17 +260,18 @@ export default function StationsPage() {
         {stations.map((station) => {
           // Logic to cycle through mock data for extended days
           const mockKeys = ['today', 'tomorrow', 'next'];
-          const key = selectedDayIndex < 3 
-            ? mockKeys[selectedDayIndex] 
+          const key = selectedDayIndex < 3
+            ? mockKeys[selectedDayIndex]
             : mockKeys[selectedDayIndex % 3];
-            
+
           const weather = (station.weather as any)[key];
           const config = weatherConfig[weather.condition] || weatherConfig["Despejado"];
           const WeatherIcon = config.icon;
 
           return (
-            <MagneticEffect key={station.id} className="rounded-[2rem]">
-              <div 
+            <div key={station.id} className="h-full">
+              <MagneticEffect className="rounded-[2rem]">
+              <div
                 className={cn(
                   "group relative overflow-hidden rounded-[2rem] p-8 text-white shadow-lg transition-all hover:shadow-xl bg-gradient-to-br h-full",
                   config.gradient
@@ -278,7 +279,7 @@ export default function StationsPage() {
               >
                 {/* Background Pattern */}
                 <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-white/10 blur-3xl transition-transform group-hover:scale-110"></div>
-                
+
                 <div className="relative z-10">
                   {/* Header */}
                   <div className="flex items-start justify-between">
@@ -326,7 +327,8 @@ export default function StationsPage() {
                   </div>
                 </div>
               </div>
-            </MagneticEffect>
+              </MagneticEffect>
+            </div>
           );
         })}
       </div>

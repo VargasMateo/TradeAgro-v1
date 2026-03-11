@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { MOCK_USERS, UserProfile } from "../lib/mockUsers";
 import { 
   User, 
   Mail, 
@@ -11,26 +12,13 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 
-interface UserProfile {
-  name: string;
-  email: string;
-  role: string;
-  location: string;
-  description: string;
-  avatarUrl: string;
+interface ProfilePageProps {
+  userRole?: 'profesional' | 'cliente' | 'superadmin';
 }
 
-const DEFAULT_PROFILE: UserProfile = {
-  name: "Admin User",
-  email: "admin@tradeagro.com",
-  role: "Administrador General",
-  location: "Buenos Aires, Argentina",
-  description: "Responsable de la gestión operativa y supervisión de maquinaria agrícola. Especialista en optimización de recursos y logística de campo.",
-  avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-};
-
-export default function ProfilePage() {
-  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+export default function ProfilePage({ userRole = 'profesional' }: ProfilePageProps) {
+  const defaultProfile = MOCK_USERS[userRole];
+  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,12 +30,12 @@ export default function ProfilePage() {
       try {
         const parsed = JSON.parse(savedProfile);
         setProfile({
-          name: parsed.name || DEFAULT_PROFILE.name,
-          email: parsed.email || DEFAULT_PROFILE.email,
-          role: parsed.role || DEFAULT_PROFILE.role,
-          location: parsed.location || DEFAULT_PROFILE.location,
-          description: parsed.description || DEFAULT_PROFILE.description,
-          avatarUrl: parsed.avatarUrl || DEFAULT_PROFILE.avatarUrl
+          name: parsed.name || defaultProfile.name,
+          email: parsed.email || defaultProfile.email,
+          role: parsed.role || defaultProfile.role,
+          location: parsed.location || defaultProfile.location,
+          description: parsed.description || defaultProfile.description,
+          avatarUrl: parsed.avatarUrl || defaultProfile.avatarUrl
         });
       } catch (e) {
         console.error("Failed to parse profile from local storage", e);
@@ -72,7 +60,7 @@ export default function ProfilePage() {
     if (savedProfile) {
       setProfile(JSON.parse(savedProfile));
     } else {
-      setProfile(DEFAULT_PROFILE);
+      setProfile(defaultProfile);
     }
     setIsEditing(false);
   };

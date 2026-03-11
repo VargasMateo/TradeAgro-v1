@@ -23,11 +23,11 @@ export default function CreateJobModal() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const isOpen = searchParams.get('newJob') === 'true' || searchParams.get('editJob') !== null;
   const editJobId = searchParams.get('editJob');
   const [step, setStep] = useState<'form' | 'summary'>('form');
-  
+
   const [clients, setClients] = useState(() => {
     const stored = localStorage.getItem('clients');
     return stored ? JSON.parse(stored) : [
@@ -61,8 +61,8 @@ export default function CreateJobModal() {
 
   const clientSuggestions = clients.filter((c: any) => c.name.toLowerCase().includes(formData.client.toLowerCase()));
   const selectedClientObj = clients.find((c: any) => c.name === formData.client);
-  const availableFields = selectedClientObj 
-    ? (selectedClientObj.fields || []) 
+  const availableFields = selectedClientObj
+    ? (selectedClientObj.fields || [])
     : clients.flatMap((c: any) => c.fields || []);
   const fieldNames = availableFields.map((f: any) => typeof f === 'string' ? f : f.name);
   const fieldSuggestions = Array.from(new Set(fieldNames)).filter((f: any) => f && f.toLowerCase().includes(formData.field.toLowerCase()));
@@ -71,7 +71,7 @@ export default function CreateJobModal() {
   useEffect(() => {
     if (isOpen) {
       setStep('form');
-      
+
       if (editJobId) {
         const storedJobs = localStorage.getItem("jobs");
         if (storedJobs) {
@@ -82,7 +82,7 @@ export default function CreateJobModal() {
             const locationParts = jobToEdit.location.split(' - ');
             const field = locationParts[0] || '';
             const lot = locationParts[1] || '';
-            
+
             setFormData({
               client: jobToEdit.client || '',
               date: jobToEdit.date || '',
@@ -209,7 +209,7 @@ export default function CreateJobModal() {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:p-6">
       <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
@@ -217,8 +217,8 @@ export default function CreateJobModal() {
               {step === 'form' ? (editJobId ? 'Editar Carga de Trabajo' : 'Nueva Carga de Trabajo') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Trabajo')}
             </h2>
             <p className="text-sm text-slate-500">
-              {step === 'form' 
-                ? (editJobId ? 'Modifique los detalles del servicio.' : 'Complete los detalles para registrar un nuevo servicio.') 
+              {step === 'form'
+                ? (editJobId ? 'Modifique los detalles del servicio.' : 'Complete los detalles para registrar un nuevo servicio.')
                 : 'Revise los detalles antes de confirmar y guardar.'}
             </p>
           </div>
@@ -228,7 +228,7 @@ export default function CreateJobModal() {
                 Paso 2 de 2
               </div>
             )}
-            <button 
+            <button
               onClick={handleClose}
               className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             >
@@ -240,7 +240,7 @@ export default function CreateJobModal() {
         {/* Content Scrollable Area */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-3xl space-y-6 pb-4">
-            
+
             {/* FORM STEP */}
             <div className={step === 'form' ? 'block space-y-6' : 'hidden'}>
               {/* Datos Generales */}
@@ -256,7 +256,7 @@ export default function CreateJobModal() {
                   <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">Cliente</label>
                     <div className="relative">
-                      <input 
+                      <input
                         type="text"
                         name="client"
                         value={formData.client}
@@ -466,7 +466,7 @@ export default function CreateJobModal() {
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-slate-700">Servicio Principal</label>
                     <div className="relative">
-                      <select 
+                      <select
                         name="service"
                         value={formData.service}
                         onChange={handleInputChange}
@@ -496,7 +496,7 @@ export default function CreateJobModal() {
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-slate-700">Campaña</label>
                     <div className="relative">
-                      <select 
+                      <select
                         name="campaign"
                         value={formData.campaign}
                         onChange={handleInputChange}
@@ -645,7 +645,7 @@ export default function CreateJobModal() {
                   >
                     CANCELAR
                   </button>
-                  <button 
+                  <button
                     onClick={() => setStep('summary')}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
                   >
@@ -656,14 +656,14 @@ export default function CreateJobModal() {
               </>
             ) : (
               <>
-                <button 
+                <button
                   onClick={() => setStep('form')}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   ATRÁS
                 </button>
-                <button 
+                <button
                   onClick={handleSave}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
                 >
