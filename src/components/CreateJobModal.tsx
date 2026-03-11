@@ -106,7 +106,7 @@ export default function CreateJobModal() {
   const fieldNames = availableFields.map((f: any) => f.name);
   const fieldSuggestions = Array.from(new Set(fieldNames)).filter((f: any) => f && f.toLowerCase().includes(formData.field.toLowerCase()));
 
-  const selectedFieldObj = availableFields.find((f: any) => f.name.toLowerCase() === formData.field.toLowerCase());
+  const selectedFieldObj = availableFields.find((f: any) => f.name.trim().toLowerCase() === formData.field.trim().toLowerCase());
   const lotSuggestions = selectedFieldObj ? (selectedFieldObj.lots || []).filter((l: string) => l.toLowerCase().includes(formData.lot.toLowerCase())) : [];
 
   // Reset state when modal opens
@@ -539,7 +539,7 @@ export default function CreateJobModal() {
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
-                    {showLotSuggestions && lotSuggestions.length > 0 && (
+                    {showLotSuggestions && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {lotSuggestions.map((l: string) => (
                           <button
@@ -554,6 +554,29 @@ export default function CreateJobModal() {
                             {l}
                           </button>
                         ))}
+                        {selectedFieldObj && formData.lot.trim() !== '' && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
+                          <button
+                            type="button"
+                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
+                            onClick={() => {
+                              setClients((prev: any) => prev.map((c: any) => 
+                                c.id === selectedClientObj.id 
+                                  ? { 
+                                      ...c, 
+                                      fields: c.fields.map((f: any) => 
+                                        f.name === selectedFieldObj.name 
+                                          ? { ...f, lots: [...f.lots, formData.lot] } 
+                                          : f
+                                      ) 
+                                    } 
+                                  : c
+                              ));
+                              setShowLotSuggestions(false);
+                            }}
+                          >
+                            + Crear lote "{formData.lot}"
+                          </button>
+                        )}
                       </div>
                     )}
                     {errors.lot && (

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { Client, ClientField } from "../types/client";
 
 const initialClients: Client[] = [
@@ -93,6 +94,10 @@ export default function ClientsPage() {
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Delete Modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -169,10 +174,17 @@ export default function ClientsPage() {
     setView('form');
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('¿Está seguro de que desea eliminar este cliente?')) {
-      const newClients = clients.filter(c => c.id !== id);
+  const handleDelete = (client: Client) => {
+    setClientToDelete(client);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (clientToDelete) {
+      const newClients = clients.filter(c => c.id !== clientToDelete.id);
       saveToLocalStorage(newClients);
+      setIsDeleteModalOpen(false);
+      setClientToDelete(null);
     }
   };
 
@@ -229,13 +241,13 @@ export default function ClientsPage() {
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-64"
             />
           </div>
-          <button
-            onClick={handleAddNew}
+          <Link
+            to="?newClient=true"
             className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
             Nuevo Cliente
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -262,7 +274,7 @@ export default function ClientsPage() {
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(client.id)}
+                      onClick={() => handleDelete(client)}
                       className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
                       title="Eliminar"
                     >
@@ -331,6 +343,17 @@ export default function ClientsPage() {
         onClose={() => setView('list')}
         onSave={handleSaveDirect}
         editingClient={editingClient}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setClientToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Eliminar Cliente"
+        description={`¿Estás seguro de que deseas eliminar a "${clientToDelete?.name}"? Esta acción no se puede deshacer.`}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, Mail, Phone, MessageCircle, Plus, Edit2, Trash2, X } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 
 interface Profesional {
   id: number;
@@ -50,6 +51,10 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfesional, setEditingProfesional] = useState<Profesional | null>(null);
+  
+  // Delete Modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [profesionalToDelete, setProfesionalToDelete] = useState<Profesional | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -137,12 +142,19 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
     handleCloseModal();
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este profesional?')) {
-      const updatedProfesionales = profesionales.filter(p => p.id !== id);
+  const handleDelete = (profesional: Profesional) => {
+    setProfesionalToDelete(profesional);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (profesionalToDelete) {
+      const updatedProfesionales = profesionales.filter(p => p.id !== profesionalToDelete.id);
       setProfesionales(updatedProfesionales);
       localStorage.setItem('profesionales', JSON.stringify(updatedProfesionales));
       window.dispatchEvent(new Event('profesionales-updated'));
+      setIsDeleteModalOpen(false);
+      setProfesionalToDelete(null);
     }
   };
 
@@ -207,7 +219,7 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(prof.id)}
+                      onClick={() => handleDelete(prof)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100"
                       title="Eliminar"
                     >
@@ -353,6 +365,17 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
           </div>
         </div>
       )}
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setProfesionalToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Eliminar Profesional"
+        description={`¿Estás seguro de que deseas eliminar a "${profesionalToDelete?.name}"? Esta acción no se puede deshacer.`}
+      />
     </div>
   );
 }

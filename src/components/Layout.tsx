@@ -19,6 +19,7 @@ import { cn } from "../lib/utils";
 import { useState } from "react";
 import NotificationsDropdown from "./NotificationsDropdown";
 import CreateJobModal from "./CreateJobModal";
+import GlobalCreateClientModal from "./GlobalCreateClientModal";
 import { MOCK_USERS } from "../lib/mockUsers";
 
 export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
@@ -281,6 +282,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
       {/* Global Modals */}
       <CreateJobModal />
+      <GlobalCreateClientModal />
     </div>
   );
 }

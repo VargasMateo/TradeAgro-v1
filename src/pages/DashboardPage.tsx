@@ -159,8 +159,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             </MagneticEffect>
             <MagneticEffect className="rounded-2xl">
               <Link 
-                to="/clients"
-                state={{ openForm: true }}
+                to="?newClient=true"
                 className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] lg:h-32 lg:gap-3"
               >
                 <div className="rounded-full bg-slate-100 p-1.5 lg:p-2">
