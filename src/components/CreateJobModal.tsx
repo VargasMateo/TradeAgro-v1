@@ -53,14 +53,16 @@ export default function CreateJobModal() {
     title: '',
     field: searchParams.get('field') || '',
     hectares: '',
-    service: 'Cosecha',
+    service: '',
     secondaryService: '',
-    campaign: '2023/24',
+    campaign: '',
     lot: '',
     number: '',
     amount: '',
     notes: ''
   });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const clientSuggestions = clients.filter((c: any) => c.name.toLowerCase().includes(formData.client.toLowerCase()));
   const selectedClientObj = clients.find((c: any) => c.name === formData.client);
@@ -113,6 +115,7 @@ export default function CreateJobModal() {
         field: searchParams.get('field') || prev.field,
       }));
     }
+    setErrors({});
   }, [isOpen, searchParams, editJobId]);
 
   const handleClose = () => {
@@ -132,6 +135,42 @@ export default function CreateJobModal() {
       ...prev,
       [name]: value
     }));
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleContinue = () => {
+    const newErrors: Record<string, string> = {};
+    const requiredFields = [
+      { key: 'client', label: 'El cliente es obligatorio' },
+      { key: 'date', label: 'La fecha es obligatoria' },
+      { key: 'title', label: 'El título es obligatorio' },
+      { key: 'field', label: 'El campo es obligatorio' },
+      { key: 'lot', label: 'El lote es obligatorio' },
+      { key: 'hectares', label: 'Las hectáreas son obligatorias' },
+      { key: 'amount', label: 'El importe es obligatorio' },
+      { key: 'service', label: 'El servicio es obligatorio' },
+      { key: 'campaign', label: 'La campaña es obligatoria' },
+    ];
+
+    requiredFields.forEach(field => {
+      if (!formData[field.key as keyof typeof formData]?.toString().trim()) {
+        newErrors[field.key] = field.label;
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      // Scroll to first error? For now just set state.
+      return;
+    }
+
+    setStep('summary');
   };
 
   const handleSave = () => {
@@ -257,7 +296,9 @@ export default function CreateJobModal() {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div className="space-y-1.5 relative">
-                    <label className="text-sm font-semibold text-slate-700">Cliente</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Cliente <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
@@ -270,10 +311,20 @@ export default function CreateJobModal() {
                         onFocus={() => setShowClientSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
                         placeholder="Buscar o crear cliente..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        className={cn(
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          errors.client 
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
                       />
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
+                    {errors.client && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.client}
+                      </p>
+                    )}
                     {showClientSuggestions && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {clientSuggestions.map((c: any) => (
@@ -303,29 +354,53 @@ export default function CreateJobModal() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Fecha</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Fecha <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <input
                         type="date"
                         name="date"
                         value={formData.date}
                         onChange={handleInputChange}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        className={cn(
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          errors.date 
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
                       />
                       <CalendarIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
+                    {errors.date && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.date}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-sm font-semibold text-slate-700">Título de la carga</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Título de la carga <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       name="title"
                       value={formData.title}
                       onChange={handleInputChange}
                       placeholder="Ej: Cosecha de Maíz - Lote 4"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      className={cn(
+                        "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                        errors.title 
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      )}
                     />
+                    {errors.title && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.title}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -341,7 +416,9 @@ export default function CreateJobModal() {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div className="space-y-1.5 relative">
-                    <label className="text-sm font-semibold text-slate-700">Campo</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Campo <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       name="field"
@@ -353,8 +430,18 @@ export default function CreateJobModal() {
                       onFocus={() => setShowFieldSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowFieldSuggestions(false), 200)}
                       placeholder="Buscar o crear campo..."
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      className={cn(
+                        "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                        errors.field 
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      )}
                     />
+                    {errors.field && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.field}
+                      </p>
+                    )}
                     {showFieldSuggestions && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {fieldSuggestions.map((f: string) => (
@@ -393,15 +480,27 @@ export default function CreateJobModal() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Lote</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Lote <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       name="lot"
                       value={formData.lot}
                       onChange={handleInputChange}
                       placeholder="Identificador"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      className={cn(
+                        "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                        errors.lot 
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      )}
                     />
+                    {errors.lot && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.lot}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -417,7 +516,9 @@ export default function CreateJobModal() {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Hectáreas</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Hectáreas <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <input
                         type="number"
@@ -425,14 +526,26 @@ export default function CreateJobModal() {
                         value={formData.hectares}
                         onChange={handleInputChange}
                         placeholder="0.00"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        className={cn(
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                          errors.hectares 
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">HA</span>
                     </div>
+                    {errors.hectares && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.hectares}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Importe (USD)</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Importe (USD) <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">U$S</span>
                       <input
@@ -441,9 +554,19 @@ export default function CreateJobModal() {
                         value={formData.amount}
                         onChange={handleInputChange}
                         placeholder="0.00"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        className={cn(
+                          "w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                          errors.amount 
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
                       />
                     </div>
+                    {errors.amount && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.amount}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -459,14 +582,22 @@ export default function CreateJobModal() {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Servicio Principal</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Servicio Principal <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <select
                         name="service"
                         value={formData.service}
-                        onChange={handleInputChange}
-                        className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                         onChange={handleInputChange}
+                        className={cn(
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          errors.service 
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
                       >
+                        <option value="">Seleccionar...</option>
                         <option value="Cosecha">Cosecha</option>
                         <option value="Siembra">Siembra</option>
                         <option value="Fumigación">Fumigación</option>
@@ -474,6 +605,11 @@ export default function CreateJobModal() {
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
+                    {errors.service && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.service}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
@@ -489,19 +625,32 @@ export default function CreateJobModal() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Campaña</label>
+                    <label className="text-sm font-semibold text-slate-700">
+                      Campaña <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <select
                         name="campaign"
                         value={formData.campaign}
                         onChange={handleInputChange}
-                        className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        className={cn(
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          errors.campaign 
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
                       >
+                        <option value="">Seleccionar...</option>
                         <option value="2023/24">2023/24</option>
                         <option value="2022/23">2022/23</option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
+                    {errors.campaign && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.campaign}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -641,7 +790,7 @@ export default function CreateJobModal() {
                     CANCELAR
                   </button>
                   <button
-                    onClick={() => setStep('summary')}
+                    onClick={handleContinue}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
                   >
                     CONTINUAR
