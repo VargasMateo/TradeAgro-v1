@@ -102,7 +102,6 @@ app.post('/api/clients', async (req, res) => {
       displayName,
       businessName, 
       cuit, 
-      ivaCondition, 
       email,
       phoneNumber,
       createdBy,
@@ -118,7 +117,6 @@ app.post('/api/clients', async (req, res) => {
       displayName: businessName || displayName,
       businessName: businessName || displayName,
       cuit: cuit,
-      ivaCondition: ivaCondition || 'RI',
       email: email,
       phoneNumber: phoneNumber,
       createdBy: createdBy || 'Admin'
@@ -180,9 +178,23 @@ app.get('/api/fields', async (req, res) => {
     res.json(fields);
   } catch (error) {
     console.error('[DATABASE ERROR] GET /api/fields:', error.message);
-    // If table doesn't exist yet, return empty list instead of 500
     if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
     res.status(500).json({ error: 'Failed to fetch fields', details: error.message });
+  }
+});
+
+/**
+ * Endpoint to fetch jobs (trabajos)
+ */
+app.get('/api/jobs', async (req, res) => {
+  console.log('[DEBUG] GET /api/jobs');
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM tbl_trabajos');
+    res.json(rows);
+  } catch (error) {
+    console.error('[DATABASE ERROR] GET /api/jobs:', error.message);
+    if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
+    res.status(500).json({ error: 'Failed to fetch jobs', details: error.message });
   }
 });
 

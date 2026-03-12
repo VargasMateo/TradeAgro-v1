@@ -23,7 +23,6 @@ export default function CreateClientModal({
     name: string;
     businessName: string;
     cuit: string;
-    ivaCondition: 'Responsable Inscripto' | 'Monotributista' | '';
     email: string;
     phone: string;
     fields: ClientField[];
@@ -31,7 +30,6 @@ export default function CreateClientModal({
     name: initialName,
     businessName: '',
     cuit: '',
-    ivaCondition: 'Responsable Inscripto',
     email: '',
     phone: '',
     fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
@@ -41,7 +39,6 @@ export default function CreateClientModal({
     name?: string;
     businessName?: string;
     cuit?: string;
-    ivaCondition?: string;
     email?: string;
     fields?: string;
   }>({});
@@ -65,7 +62,6 @@ export default function CreateClientModal({
         name: editingClient.name || '',
         businessName: editingClient.businessName || '',
         cuit: editingClient.cuit || '',
-        ivaCondition: editingClient.ivaCondition || '',
         email: editingClient.email || '',
         phone: editingClient.phone || '',
         fields: (editingClient.fields || []).map(f => ({
@@ -80,7 +76,6 @@ export default function CreateClientModal({
         name: initialName,
         businessName: '',
         cuit: '',
-        ivaCondition: 'Responsable Inscripto',
         email: '',
         phone: '',
         fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
@@ -101,10 +96,7 @@ export default function CreateClientModal({
     }
   };
 
-  const ivaMapping: Record<string, string> = {
-    'Responsable Inscripto': 'RI',
-    'Monotributista': 'MT'
-  };
+
 
   const handleSave = async () => {
     const newErrors: typeof errors = {};
@@ -123,9 +115,7 @@ export default function CreateClientModal({
       newErrors.cuit = 'CUIT inválido (11 dígitos)';
     }
 
-    if (!formData.ivaCondition) {
-      newErrors.ivaCondition = 'La condición de IVA es obligatoria';
-    }
+
 
     if (!formData.email.trim()) {
       newErrors.email = 'El email es obligatorio';
@@ -166,7 +156,6 @@ export default function CreateClientModal({
         displayName: formData.name,
         businessName: formData.businessName,
         cuit: formData.cuit,
-        ivaCondition: ivaMapping[formData.ivaCondition] || 'RI',
         email: formData.email,
         phoneNumber: formData.phone,
         createdBy: currentUserEmail,
@@ -198,7 +187,7 @@ export default function CreateClientModal({
         const clientData: Client = {
           id: data.id,
           ...formData,
-          ivaCondition: formData.ivaCondition as 'Responsable Inscripto' | 'Monotributista',
+
           initials: formData.name.substring(0, 2).toUpperCase(),
           color: editingClient?.color || "bg-emerald-100 text-emerald-700",
           fields: formData.fields,
@@ -321,40 +310,7 @@ export default function CreateClientModal({
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  Condición de IVA <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    name="ivaCondition"
-                    value={formData.ivaCondition}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setFormData(prev => ({ ...prev, ivaCondition: value as any }));
-                      if (errors.ivaCondition) {
-                        setErrors(prev => ({ ...prev, ivaCondition: undefined }));
-                      }
-                    }}
-                    className={cn(
-                      "w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                      errors.ivaCondition 
-                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
-                        : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
-                    )}
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="Responsable Inscripto">Responsable Inscripto</option>
-                    <option value="Monotributista">Monotributista</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                </div>
-                {errors.ivaCondition && (
-                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                    {errors.ivaCondition}
-                  </p>
-                )}
-              </div>
+
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

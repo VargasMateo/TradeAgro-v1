@@ -17,10 +17,8 @@ export interface Client {
   displayName: string;
   businessName: string;
   cuit: string;
-  ivaCondition: string; // Matches 'RI', 'CF', etc.
   email: string;
   phoneNumber?: string;
-  address?: string;
   createdBy: string;
   createdAt: string; // ISO string or timestamp
   deleted?: boolean;
