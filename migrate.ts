@@ -18,25 +18,31 @@ async function migrate() {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
     // 1. Handle tbl_trabajos dependencies
+    try { 
+        await connection.query('ALTER TABLE tbl_trabajos CHANGE COLUMN id id VARCHAR(36)');
+    } catch (e) {}
     console.log('Updating tbl_trabajos...');
     try { await connection.query('ALTER TABLE tbl_trabajos DROP FOREIGN KEY fk_trabajos_cliente'); } catch (e) {}
     try { 
-        await connection.query('ALTER TABLE tbl_trabajos CHANGE COLUMN id_cliente clientId VARCHAR(20)');
+        await connection.query('ALTER TABLE tbl_trabajos CHANGE COLUMN id_cliente clientId VARCHAR(36)');
     } catch (e) {
         try { 
-            await connection.query('ALTER TABLE tbl_trabajos ADD COLUMN IF NOT EXISTS clientId VARCHAR(20)');
+            await connection.query('ALTER TABLE tbl_trabajos ADD COLUMN IF NOT EXISTS clientId VARCHAR(36)');
             await connection.query('UPDATE tbl_trabajos SET clientId = id_cliente WHERE clientId IS NULL');
         } catch (err) {}
     }
 
     // 2. Handle tbl_auditoria dependencies
+    try { 
+        await connection.query('ALTER TABLE tbl_auditoria CHANGE COLUMN id id VARCHAR(36)');
+    } catch (e) {}
     console.log('Updating tbl_auditoria...');
     try { await connection.query('ALTER TABLE tbl_auditoria DROP FOREIGN KEY fk_auditoria_cliente'); } catch (e) {}
     try { 
-        await connection.query('ALTER TABLE tbl_auditoria CHANGE COLUMN id_cliente clientId VARCHAR(20)');
+        await connection.query('ALTER TABLE tbl_auditoria CHANGE COLUMN id_cliente clientId VARCHAR(36)');
     } catch (e) {
         try { 
-            await connection.query('ALTER TABLE tbl_auditoria ADD COLUMN IF NOT EXISTS clientId VARCHAR(20)');
+            await connection.query('ALTER TABLE tbl_auditoria ADD COLUMN IF NOT EXISTS clientId VARCHAR(36)');
             await connection.query('UPDATE tbl_auditoria SET clientId = id_cliente WHERE clientId IS NULL');
         } catch (err) {}
     }
@@ -44,7 +50,7 @@ async function migrate() {
     // 3. Update tbl_clientes (Robust Sync)
     console.log('Updating tbl_clientes (Robust Sync)...');
     const clientMappings = [
-        { old: 'id_cliente', new: 'id', type: 'VARCHAR(20)' },
+        { old: 'id_cliente', new: 'id', type: 'VARCHAR(36)' },
         { old: 'razon_social', new: 'displayName', type: 'VARCHAR(100)' },
         { old: 'iva', new: 'ivaCondition', type: 'VARCHAR(50)' },
         { old: 'telefono', new: 'phoneNumber', type: 'VARCHAR(50)' },
@@ -76,7 +82,7 @@ async function migrate() {
     // 4. Update tbl_campos
     console.log('Updating tbl_campos (Robust Sync)...');
     const fieldMappings = [
-        { old: 'client_id', new: 'clientId', type: 'VARCHAR(20)' },
+        { old: 'client_id', new: 'clientId', type: 'VARCHAR(36)' },
         { old: 'long', new: 'lng', type: 'DECIMAL(11, 8)' },
         { old: 'lot_names', new: 'lotNames', type: 'TEXT' }
     ];
@@ -98,6 +104,10 @@ async function migrate() {
     for (const col of obsFieldCols) {
         try { await connection.query(`ALTER TABLE tbl_campos DROP COLUMN ${col}`); } catch (e) {}
     }
+
+    try { 
+        await connection.query('ALTER TABLE tbl_campos CHANGE COLUMN id id VARCHAR(36)');
+    } catch (e) {}
 
     // 5. Restore Relationships
     console.log('Restoring foreign key constraints...');
