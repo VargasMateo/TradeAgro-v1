@@ -9,8 +9,9 @@ import { Client, ClientField } from "../types/client";
 
 const initialClients: Client[] = [
   {
-    id: 1,
+    id: '1',
     name: "AgroExport S.A.",
+    displayName: "AgroExport S.A.",
     businessName: "AgroExport Sociedad Anónima",
     cuit: "30-12345678-9",
     ivaCondition: "Responsable Inscripto",
@@ -18,16 +19,17 @@ const initialClients: Client[] = [
     phone: "+54 9 11 1234-5678",
     initials: "AE",
     color: "bg-emerald-100 text-emerald-700",
-    lat: -34.6037,
-    lng: -58.3816,
     fields: [
       { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
       { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
-    ]
+    ],
+    createdBy: 'Admin',
+    createdAt: new Date().toISOString()
   },
   {
-    id: 2,
+    id: '2',
     name: "Finca La Estela",
+    displayName: "Finca La Estela",
     businessName: "Estela Agricola S.R.L.",
     cuit: "30-87654321-0",
     ivaCondition: "Responsable Inscripto",
@@ -35,32 +37,35 @@ const initialClients: Client[] = [
     phone: "+54 9 351 9876-5432",
     initials: "FL",
     color: "bg-blue-100 text-blue-700",
-    lat: -31.4201,
-    lng: -64.1888,
     fields: [
-      { name: 'Campo Principal', lat: -31.4201, lng: -64.1888, lots: ['A1', 'A2'] },
+      { name: 'Campo Principal', lat: -31.4201, lng: -64.1800, lots: ['A1', 'A2'] },
       { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
-    ]
+    ],
+    createdBy: 'Admin',
+    createdAt: new Date().toISOString()
   },
   {
-    id: 3,
+    id: '3',
     name: "Juan Pérez",
+    displayName: "Juan Pérez",
+    businessName: "Juan Pérez",
     cuit: "20-55554444-3",
     ivaCondition: "Monotributista",
     email: "juan.perez@email.com",
     phone: "+54 9 341 5555-4444",
     initials: "JP",
     color: "bg-amber-100 text-amber-700",
-    lat: -31.6107,
-    lng: -60.6973,
     fields: [
       { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
       { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
-    ]
+    ],
+    createdBy: 'Admin',
+    createdAt: new Date().toISOString()
   },
   {
-    id: 4,
+    id: '4',
     name: "Cooperativa Sur",
+    displayName: "Cooperativa Sur",
     businessName: "Cooperativa de Trabajo Sur Ltda.",
     cuit: "33-11112222-4",
     ivaCondition: "Responsable Inscripto",
@@ -68,13 +73,14 @@ const initialClients: Client[] = [
     phone: "+54 9 299 1111-2222",
     initials: "CS",
     color: "bg-indigo-100 text-indigo-700",
-    lat: -38.9516,
-    lng: -68.0591,
-    fields: []
+    fields: [],
+    createdBy: 'Admin',
+    createdAt: new Date().toISOString()
   },
   {
-    id: 5,
+    id: '5',
     name: "Los Alamos",
+    displayName: "Los Alamos",
     businessName: "Los Alamos S.A.",
     cuit: "30-33339999-5",
     ivaCondition: "Responsable Inscripto",
@@ -82,9 +88,9 @@ const initialClients: Client[] = [
     phone: "+54 9 261 3333-9999",
     initials: "LA",
     color: "bg-rose-100 text-rose-700",
-    lat: -32.8895,
-    lng: -68.8458,
-    fields: []
+    fields: [],
+    createdBy: 'Admin',
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -112,26 +118,21 @@ export default function ClientsPage() {
   });
 
   useEffect(() => {
-    const loadClients = () => {
-      const storedClients = localStorage.getItem("clients");
-      if (storedClients) {
-        setClients(JSON.parse(storedClients));
-      } else {
-        localStorage.setItem("clients", JSON.stringify(initialClients));
+    const fetchClients = async () => {
+      try {
+        const response = await fetch('/api/clients');
+        const data = await response.json();
+        setClients(data);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        // Fallback or error state
       }
     };
 
-    loadClients();
+    fetchClients();
 
-    // Check for openForm state
-    if (location.state && (location.state as any).openForm) {
-      handleAddNew();
-      // Clear state to prevent reopening on refresh (optional, but good practice)
-      window.history.replaceState({}, document.title);
-    }
-
-    window.addEventListener('clients-updated', loadClients);
-    return () => window.removeEventListener('clients-updated', loadClients);
+    window.addEventListener('clients-updated', fetchClients);
+    return () => window.removeEventListener('clients-updated', fetchClients);
   }, [location]);
 
   const saveToLocalStorage = (newClients: Client[]) => {

@@ -82,10 +82,17 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const [userName, setUserName] = useState("Admin");
 
   useEffect(() => {
-    const storedClients = localStorage.getItem("clients");
-    if (storedClients) {
-      setClients(JSON.parse(storedClients));
-    }
+    const fetchClients = async () => {
+      try {
+        const response = await fetch('/api/clients');
+        const data = await response.json();
+        setClients(data);
+      } catch (error) {
+        console.error('Error fetching clients on dashboard:', error);
+      }
+    };
+
+    fetchClients();
     
     const loadProfile = () => {
       const storedProfile = localStorage.getItem("userProfile");
@@ -106,8 +113,10 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     loadProfile();
 
     window.addEventListener("profile-updated", loadProfile);
+    window.addEventListener("clients-updated", fetchClients);
     return () => {
       window.removeEventListener("profile-updated", loadProfile);
+      window.removeEventListener("clients-updated", fetchClients);
     };
   }, []);
 

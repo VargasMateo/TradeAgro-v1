@@ -27,14 +27,23 @@ async function migrate() {
         await connection.query('ALTER TABLE tbl_clientes CHANGE COLUMN registered_by created_by VARCHAR(50)');
     } catch (e) { /* already renamed or doesn't exist */ }
 
-    await connection.query(`
-      ALTER TABLE tbl_clientes 
-      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS created_by VARCHAR(50);
-    `).catch(err => {
-        // Fallback if IF NOT EXISTS fails in some MySQL versions
-        if (!err.message.includes('Duplicate column name')) throw err;
-    });
+    // Add columns one by one for robustness
+    const columnsToAdd = [
+        { name: 'created_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+        { name: 'created_by', type: 'VARCHAR(50)' },
+        { name: 'email', type: 'VARCHAR(100)' },
+        { name: 'telefono', type: 'VARCHAR(50)' },
+        { name: 'direccion', type: 'VARCHAR(255)' }
+    ];
+
+    for (const col of columnsToAdd) {
+        try {
+            await connection.query(`ALTER TABLE tbl_clientes ADD COLUMN ${col.name} ${col.type}`);
+            console.log(`Added column ${col.name} to tbl_clientes`);
+        } catch (e) {
+            // Already exists or other error
+        }
+    }
 
     // 2. Create tbl_campos
     console.log('Creating tbl_campos...');

@@ -30,22 +30,40 @@ app.get('/api/health', (req, res) => {
 
 // Endpoint to fetch clients from tbl_clientes
 app.get('/api/clients', async (req, res) => {
-  console.log('[DEBUG] GET /api/clients - Fetching all clients');
+  console.log('[DEBUG] GET /api/clients - Fetching all clients and fields');
   try {
-    const [rows]: any = await pool.query('SELECT * FROM tbl_clientes');
-    console.log(`[DEBUG] Found ${rows.length} clients`);
+    const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes');
+    const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
     
-    // Map database fields to the new English attributes
-    const clients = rows.map((row: any) => ({
+    // Process fields into a map for easy lookup
+    const fieldsByClient: Record<string, any[]> = {};
+    fieldRows.forEach((row: any) => {
+      if (!fieldsByClient[row.client_id]) {
+        fieldsByClient[row.client_id] = [];
+      }
+      fieldsByClient[row.client_id].push({
+        id: row.id,
+        name: row.name,
+        lat: parseFloat(row.lat) || 0,
+        lng: parseFloat(row.long) || 0, // Mapping long (DB) to lng (Frontend)
+        lots: row.lot_names ? JSON.parse(row.lot_names) : []
+      });
+    });
+
+    const clients = clientRows.map((row: any) => ({
       id: row.id_cliente,
+      name: row.razon_social, // Alias for frontend
       displayName: row.razon_social, 
       businessName: row.razon_social,
       cuit: row.cuit,
-      ivaCondition: row.iva,
+      ivaCondition: row.iva === 'RI' ? 'Responsable Inscripto' : 
+                    row.iva === 'MT' ? 'Monotributista' : row.iva,
       email: row.email ?? '',
+      phone: row.telefono ?? '', // Alias for frontend
       phoneNumber: row.telefono ?? '',
       createdBy: row.created_by ?? 'System',
       createdAt: row.created_at ?? new Date().toISOString(),
+      fields: fieldsByClient[row.id_cliente] || []
     }));
     
     res.json(clients);
@@ -56,10 +74,11 @@ app.get('/api/clients', async (req, res) => {
 });
 
 /** 
- * Generic endpoint to create a client 
+ * Unified endpoint to create a client and their fields in a single transaction
  */
 app.post('/api/clients', async (req, res) => {
-  console.log('[DEBUG] POST /api/clients - Data received:', JSON.stringify(req.body, null, 2));
+  console.log('[DEBUG] POST /api/clients - Unified creation initiated');
+  const connection = await pool.getConnection();
   
   try {
     const { 
@@ -69,40 +88,64 @@ app.post('/api/clients', async (req, res) => {
       ivaCondition, 
       email,
       phoneNumber,
-      createdBy 
+      createdBy,
+      fields // Array of fields from the modal
     } = req.body;
 
-    const randomId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
+    await connection.beginTransaction();
 
-    const dbData = {
-      id_cliente: randomId,
+    const randomClientId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const clientData = {
+      id_cliente: randomClientId,
       razon_social: businessName || displayName,
       cuit: cuit,
       iva: ivaCondition || 'RI',
+      email: email,
+      telefono: phoneNumber,
       estado: 1,
       created_by: createdBy || 'Admin'
-      // created_at is handled by DEFAULT CURRENT_TIMESTAMP in SQL
     };
 
-    console.log('[DEBUG] Executing SQL with data:', JSON.stringify(dbData, null, 2));
-    
-    const [result]: any = await pool.query('INSERT INTO tbl_clientes SET ?', [dbData]);
-    
-    console.log('[DEBUG] Insert successful! Result:', result);
+    console.log('[DEBUG] Inserting client:', randomClientId);
+    await connection.query('INSERT INTO tbl_clientes SET ?', [clientData]);
+
+    // Insert associated fields if any
+    if (fields && Array.isArray(fields)) {
+      console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
+      for (const field of fields) {
+        const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
+        const fieldData = {
+          id: fieldId,
+          client_id: randomClientId,
+          name: field.name,
+          lat: field.lat || 0,
+          "long": field.lng || 0, // Using lng from frontend, mapping to long col
+          lot_names: JSON.stringify(field.lots || [])
+        };
+        await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
+      }
+    }
+
+    await connection.commit();
+    console.log('[DEBUG] Transaction committed successfully');
+
     res.json({ 
       success: true, 
-      id: randomId, 
-      message: 'Client created successfully',
+      id: randomClientId, 
+      message: 'Client and fields created successfully',
       createdAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[DATABASE ERROR] POST /api/clients:', error.message);
+    await connection.rollback();
+    console.error('[DATABASE TRANSACTION ERROR] POST /api/clients:', error.message);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to create client', 
-      details: error.message,
-      sqlCode: error.code
+      error: 'Failed to create client and fields', 
+      details: error.message 
     });
+  } finally {
+    connection.release();
   }
 });
 

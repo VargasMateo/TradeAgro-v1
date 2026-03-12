@@ -11,8 +11,8 @@ export interface Client extends Omit<DBClient, 'ivaConditionId'> {
   // Mapping DB types to frontend needs
   initials?: string;
   color?: string;
-  lat?: number;
-  lng?: number;
+  name?: string; // Frontend alias for displayName
+  phone?: string; // Frontend alias for phoneNumber
   fields?: ClientField[];
   ivaCondition: 'Responsable Inscripto' | 'Monotributista'; // For backward compatibility in UI
 }

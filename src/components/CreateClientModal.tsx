@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, Trash2, ChevronDown } from "lucide-react";
+import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database } from "lucide-react";
 import { Client, ClientField } from "../types/client";
 import { cn } from "../lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -45,6 +46,19 @@ export default function CreateClientModal({
     fields?: string;
   }>({});
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [dialog, setDialog] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
+
   useEffect(() => {
     if (editingClient) {
       setFormData({
@@ -87,7 +101,12 @@ export default function CreateClientModal({
     }
   };
 
-  const handleSave = () => {
+  const ivaMapping: Record<string, string> = {
+    'Responsable Inscripto': 'RI',
+    'Monotributista': 'MT'
+  };
+
+  const handleSave = async () => {
     const newErrors: typeof errors = {};
     
     if (!formData.name.trim()) {
@@ -128,19 +147,82 @@ export default function CreateClientModal({
       return;
     }
 
-    const clientData: Client = {
-      id: editingClient?.id || Date.now(),
-      ...formData,
-      ivaCondition: formData.ivaCondition as 'Responsable Inscripto' | 'Monotributista',
-      initials: formData.name.substring(0, 2).toUpperCase(),
-      color: editingClient?.color || "bg-emerald-100 text-emerald-700",
-      lat: editingClient?.lat || (-31.4201 + (Math.random() - 0.5) * 2),
-      lng: editingClient?.lng || (-64.1888 + (Math.random() - 0.5) * 2),
-      fields: formData.fields
-    };
+    setIsSaving(true);
+    try {
+      // Get logged in user email for audit
+      let currentUserEmail = 'Admin';
+      const storedProfile = localStorage.getItem("userProfile");
+      if (storedProfile) {
+        try {
+          const profile = JSON.parse(storedProfile);
+          currentUserEmail = profile.email || 'Admin';
+        } catch (e) {
+          console.error("Failed to parse profile", e);
+        }
+      }
 
-    onSave(clientData);
-    onClose();
+      // Prepare data for backend
+      const payload = {
+        displayName: formData.name,
+        businessName: formData.businessName,
+        cuit: formData.cuit,
+        ivaCondition: ivaMapping[formData.ivaCondition] || 'RI',
+        email: formData.email,
+        phoneNumber: formData.phone,
+        createdBy: currentUserEmail,
+        fields: formData.fields.map(f => ({
+          name: f.name,
+          lat: f.lat,
+          lng: f.lng,
+          lots: f.lots
+        }))
+      };
+
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDialog({
+          show: true,
+          type: 'success',
+          title: 'Registro Exitoso',
+          message: `El cliente y sus ${formData.fields.length} campos han sido guardados en la base de datos.`
+        });
+        
+        // Finalize state
+        const clientData: Client = {
+          id: data.id,
+          ...formData,
+          ivaCondition: formData.ivaCondition as 'Responsable Inscripto' | 'Monotributista',
+          initials: formData.name.substring(0, 2).toUpperCase(),
+          color: editingClient?.color || "bg-emerald-100 text-emerald-700",
+          fields: formData.fields,
+          createdAt: data.createdAt,
+          createdBy: payload.createdBy
+        };
+        
+        // Local state update via parent if needed
+        onSave(clientData);
+        window.dispatchEvent(new Event('clients-updated'));
+      } else {
+        throw new Error(data.details || data.error || 'Failed to save');
+      }
+    } catch (err: any) {
+      console.error('Error saving client:', err);
+      setDialog({
+        show: true,
+        type: 'error',
+        title: 'Error de Guardado',
+        message: err.message
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -464,19 +546,81 @@ export default function CreateClientModal({
         <div className="flex items-center justify-end gap-4 border-t border-slate-100 p-6 bg-slate-50/50 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+            disabled={isSaving}
+            className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
           >
             CANCELAR
           </button>
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            disabled={isSaving}
+            className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100"
           >
-            <Save className="h-4 w-4" />
-            GUARDAR CLIENTE
+            {isSaving ? (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+              >
+                <Database className="h-4 w-4" />
+              </motion.div>
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {isSaving ? 'GUARDANDO...' : 'GUARDAR CLIENTE'}
           </button>
         </div>
       </div>
+
+      {/* Premium Success/Error Dialog */}
+      <AnimatePresence>
+        {dialog.show && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
+            >
+              <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl ${
+                dialog.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+              }`}>
+                {dialog.type === 'success' ? (
+                  <CheckCircle2 className="h-10 w-10" />
+                ) : (
+                  <AlertCircle className="h-10 w-10" />
+                )}
+              </div>
+              
+              <h3 className="mb-2 text-2xl font-black tracking-tight text-slate-900">
+                {dialog.title}
+              </h3>
+              
+              <p className="mb-8 text-sm font-medium leading-relaxed text-slate-500">
+                {dialog.message}
+              </p>
+              
+              <button
+                onClick={() => {
+                  setDialog({ ...dialog, show: false });
+                  if (dialog.type === 'success') {
+                    onClose();
+                  }
+                }}
+                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${
+                  dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
+                }`}
+              >
+                ENTENDIDO
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
