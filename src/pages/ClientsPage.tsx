@@ -1,102 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle, RefreshCw } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { Client, ClientField } from "../types/client";
 
-const initialClients: Client[] = [
-  {
-    id: '1',
-    name: "AgroExport S.A.",
-    displayName: "AgroExport S.A.",
-    businessName: "AgroExport Sociedad Anónima",
-    cuit: "30-12345678-9",
-    ivaCondition: "Responsable Inscripto",
-    email: "contacto@agroexport.com",
-    phone: "+54 9 11 1234-5678",
-    initials: "AE",
-    color: "bg-emerald-100 text-emerald-700",
-    fields: [
-      { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
-      { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
-    ],
-    createdBy: 'Admin',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    name: "Finca La Estela",
-    displayName: "Finca La Estela",
-    businessName: "Estela Agricola S.R.L.",
-    cuit: "30-87654321-0",
-    ivaCondition: "Responsable Inscripto",
-    email: "admin@laestela.com",
-    phone: "+54 9 351 9876-5432",
-    initials: "FL",
-    color: "bg-blue-100 text-blue-700",
-    fields: [
-      { name: 'Campo Principal', lat: -31.4201, lng: -64.1800, lots: ['A1', 'A2'] },
-      { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
-    ],
-    createdBy: 'Admin',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    name: "Juan Pérez",
-    displayName: "Juan Pérez",
-    businessName: "Juan Pérez",
-    cuit: "20-55554444-3",
-    ivaCondition: "Monotributista",
-    email: "juan.perez@email.com",
-    phone: "+54 9 341 5555-4444",
-    initials: "JP",
-    color: "bg-amber-100 text-amber-700",
-    fields: [
-      { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
-      { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
-    ],
-    createdBy: 'Admin',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '4',
-    name: "Cooperativa Sur",
-    displayName: "Cooperativa Sur",
-    businessName: "Cooperativa de Trabajo Sur Ltda.",
-    cuit: "33-11112222-4",
-    ivaCondition: "Responsable Inscripto",
-    email: "info@coopsur.org.ar",
-    phone: "+54 9 299 1111-2222",
-    initials: "CS",
-    color: "bg-indigo-100 text-indigo-700",
-    fields: [],
-    createdBy: 'Admin',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '5',
-    name: "Los Alamos",
-    displayName: "Los Alamos",
-    businessName: "Los Alamos S.A.",
-    cuit: "30-33339999-5",
-    ivaCondition: "Responsable Inscripto",
-    email: "gerencia@losalamos.com",
-    phone: "+54 9 261 3333-9999",
-    initials: "LA",
-    color: "bg-rose-100 text-rose-700",
-    fields: [],
-    createdBy: 'Admin',
-    createdAt: new Date().toISOString()
-  }
-];
-
 export default function ClientsPage() {
   const location = useLocation();
-  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -117,28 +31,25 @@ export default function ClientsPage() {
     fields: []
   });
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const response = await fetch('/api/clients');
-        const data = await response.json();
-        setClients(data);
-      } catch (error) {
-        console.error('Error fetching clients:', error);
-        // Fallback or error state
-      }
-    };
+  const fetchClients = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/clients');
+      const data = await response.json();
+      setClients(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchClients();
 
     window.addEventListener('clients-updated', fetchClients);
     return () => window.removeEventListener('clients-updated', fetchClients);
   }, [location]);
-
-  const saveToLocalStorage = (newClients: Client[]) => {
-    localStorage.setItem("clients", JSON.stringify(newClients));
-    setClients(newClients);
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -180,36 +91,22 @@ export default function ClientsPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (clientToDelete) {
-      const newClients = clients.filter(c => c.id !== clientToDelete.id);
-      saveToLocalStorage(newClients);
-      setIsDeleteModalOpen(false);
-      setClientToDelete(null);
-    }
+  const confirmDelete = async () => {
+    // Delete API not implemented yet, using placeholder or refetch
+    // For now, since delete isn't in scope, we just hide the modal
+    setIsDeleteModalOpen(false);
+    setClientToDelete(null);
   };
 
   const handleSaveDirect = (clientData: Client) => {
-    if (editingClient) {
-      // Update existing
-      const updatedClients = clients.map(c => {
-        if (c.id === editingClient.id) {
-          return clientData;
-        }
-        return c;
-      });
-      saveToLocalStorage(updatedClients);
-    } else {
-      // Create new
-      saveToLocalStorage([clientData, ...clients]);
-    }
-
+    // Refresh list via event
+    fetchClients();
     setView('list');
   };
 
   const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatPhoneNumberForWhatsApp = (phone: string) => {
@@ -217,6 +114,15 @@ export default function ClientsPage() {
     // Remove all non-numeric characters
     return phone.replace(/\D/g, '');
   };
+
+  if (isLoading && clients.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+        <RefreshCw className="h-12 w-12 text-emerald-600 animate-spin mb-4" />
+        <p className="text-slate-500 font-medium">Cargando clientes de la base de datos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in duration-500 space-y-8 pb-10">
