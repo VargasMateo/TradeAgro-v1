@@ -79,7 +79,6 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     { path: "/dashboard", label: "Inicio", icon: Home },
     //{ path: "/calendar", label: "Calendario", icon: Calendar },
     { path: "/jobs", label: "Trabajos", icon: Briefcase },
-    { path: "/db-test", label: "DB Test", icon: Shield },
     //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
@@ -99,6 +98,9 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       { path: "/stations", label: "Estaciones", icon: Sun }
     );
   }
+
+  // Always append DB Test at the very end
+  navItems.push({ path: "/db-test", label: "DB Test", icon: Shield });
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
