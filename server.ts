@@ -1,5 +1,6 @@
 import express from 'express';
 import mysql from 'mysql2/promise';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import cors from 'cors';
 
@@ -111,10 +112,10 @@ app.post('/api/clients', async (req, res) => {
 
     await connection.beginTransaction();
 
-    const randomClientId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newClientId = crypto.randomUUID();
 
     const clientData = {
-      id: randomClientId,
+      id: newClientId,
       displayName: displayName,
       businessName: businessName,
       cuit: cuit,
@@ -124,17 +125,17 @@ app.post('/api/clients', async (req, res) => {
       createdBy: createdBy || 'Admin'
     };
 
-    console.log('[DEBUG] Inserting client:', randomClientId);
+    console.log('[DEBUG] Inserting client:', newClientId);
     await connection.query('INSERT INTO tbl_clientes SET ?', [clientData]);
 
     // Insert associated fields if any
     if (fields && Array.isArray(fields)) {
       console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
       for (const field of fields) {
-        const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
+        const fieldId = crypto.randomUUID();
         const fieldData = {
           id: fieldId,
-          clientId: randomClientId,
+          clientId: newClientId,
           name: field.name,
           lat: field.lat || 0,
           lng: field.lng || 0, 
@@ -149,7 +150,7 @@ app.post('/api/clients', async (req, res) => {
 
     res.json({ 
       success: true, 
-      id: randomClientId, 
+      id: newClientId, 
       message: 'Client and fields created successfully',
       createdAt: new Date().toISOString()
     });
