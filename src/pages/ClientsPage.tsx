@@ -188,14 +188,14 @@ export default function ClientsPage() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleEdit(client)}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-emerald-600"
+                      className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-emerald-600"
                       title="Editar"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(client)}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
                       title="Eliminar"
                     >
                       <Trash2 className="h-4 w-4" />
