@@ -22,7 +22,6 @@ export interface Client {
   phoneNumber?: string;
   createdBy: string;
   createdAt: string; // ISO string or timestamp
-  deleted?: boolean;
   deletedAt?: string;
 }
 

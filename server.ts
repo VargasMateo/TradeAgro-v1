@@ -33,7 +33,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/clients', async (req, res) => {
   console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
-    const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes WHERE deleted = 0 OR deleted IS NULL');
+    const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes WHERE deletedAt IS NULL');
     const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
     
     // Process fields into a map for easy lookup
@@ -76,7 +76,7 @@ app.delete('/api/clients/:id', async (req, res) => {
   console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
   try {
     const [result]: any = await pool.query(
-      'UPDATE tbl_clientes SET deleted = 1, deletedAt = NOW() WHERE id = ?',
+      'UPDATE tbl_clientes SET deletedAt = NOW() WHERE id = ?',
       [id]
     );
 
