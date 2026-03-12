@@ -17,22 +17,23 @@ async function migrate() {
   try {
     // 1. Update tbl_clientes
     console.log('Updating tbl_clientes...');
+    
+    // Rename columns if they exist from previous step
+    try {
+        await connection.query('ALTER TABLE tbl_clientes CHANGE COLUMN registered_at created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    } catch (e) { /* already renamed or doesn't exist */ }
+    
+    try {
+        await connection.query('ALTER TABLE tbl_clientes CHANGE COLUMN registered_by created_by VARCHAR(50)');
+    } catch (e) { /* already renamed or doesn't exist */ }
+
     await connection.query(`
       ALTER TABLE tbl_clientes 
-      ADD COLUMN IF NOT EXISTS registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS registered_by VARCHAR(50);
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS created_by VARCHAR(50);
     `).catch(err => {
-        if (err.code === 'ER_CANT_DROP_FIELD_OR_KEY') {
-            console.log('Columns already exist in tbl_clientes');
-        } else {
-            // IF NOT EXISTS is not supported in all MySQL versions for ADD COLUMN
-            // so we just catch the error if it already exists
-            if (err.message.includes('Duplicate column name')) {
-                console.log('Columns already exist.');
-            } else {
-                throw err;
-            }
-        }
+        // Fallback if IF NOT EXISTS fails in some MySQL versions
+        if (!err.message.includes('Duplicate column name')) throw err;
     });
 
     // 2. Create tbl_campos
@@ -43,7 +44,7 @@ async function migrate() {
         client_id VARCHAR(7),
         name VARCHAR(100),
         lat DECIMAL(10, 8),
-        long DECIMAL(11, 8),
+        \`long\` DECIMAL(11, 8),
         lot_names TEXT,
         FOREIGN KEY (client_id) REFERENCES tbl_clientes(id_cliente)
       );
@@ -51,9 +52,16 @@ async function migrate() {
 
     // In case table already existed without lat/long, add them
     try {
-        await connection.query('ALTER TABLE tbl_campos ADD COLUMN lat DECIMAL(10, 8), ADD COLUMN long DECIMAL(11, 8)');
+        await connection.query('ALTER TABLE tbl_campos ADD COLUMN lat DECIMAL(10, 8), ADD COLUMN \`long\` DECIMAL(11, 8)');
     } catch (e) {
         // Ignore if they already exist
+    }
+
+    // Optional: remove old location column if it exists
+    try {
+        await connection.query('ALTER TABLE tbl_campos DROP COLUMN location');
+    } catch (e) {
+        // Ignore if it doesn't exist
     }
 
     console.log('Migration completed successfully!');

@@ -20,16 +20,16 @@ export interface Client {
   ivaCondition: string; // Matches 'RI', 'CF', etc.
   email: string;
   phoneNumber?: string;
-  registeredBy: string;
-  registeredAt: string; // ISO string or timestamp
+  createdBy: string;
+  createdAt: string; // ISO string or timestamp
 }
 
 export interface Field {
   id: string;
   clientId: string;
   name: string;
-  lat: number;
-  long: number;
+  lat?: number;
+  long?: number;
   lotNames: string[];
 }
 

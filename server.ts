@@ -36,7 +36,6 @@ app.get('/api/clients', async (req, res) => {
     console.log(`[DEBUG] Found ${rows.length} clients`);
     
     // Map database fields to the new English attributes
-    // Added registered_at and registered_by mapping
     const clients = rows.map((row: any) => ({
       id: row.id_cliente,
       displayName: row.razon_social, 
@@ -45,8 +44,8 @@ app.get('/api/clients', async (req, res) => {
       ivaCondition: row.iva,
       email: row.email ?? '',
       phoneNumber: row.telefono ?? '',
-      registeredBy: row.registered_by ?? 'System',
-      registeredAt: row.registered_at ?? new Date().toISOString(),
+      createdBy: row.created_by ?? 'System',
+      createdAt: row.created_at ?? new Date().toISOString(),
     }));
     
     res.json(clients);
@@ -70,7 +69,7 @@ app.post('/api/clients', async (req, res) => {
       ivaCondition, 
       email,
       phoneNumber,
-      registeredBy 
+      createdBy 
     } = req.body;
 
     const randomId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -81,8 +80,8 @@ app.post('/api/clients', async (req, res) => {
       cuit: cuit,
       iva: ivaCondition || 'RI',
       estado: 1,
-      registered_by: registeredBy || 'Admin'
-      // registered_at is handled by DEFAULT CURRENT_TIMESTAMP in SQL
+      created_by: createdBy || 'Admin'
+      // created_at is handled by DEFAULT CURRENT_TIMESTAMP in SQL
     };
 
     console.log('[DEBUG] Executing SQL with data:', JSON.stringify(dbData, null, 2));
@@ -94,7 +93,7 @@ app.post('/api/clients', async (req, res) => {
       success: true, 
       id: randomId, 
       message: 'Client created successfully',
-      registeredAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     });
   } catch (error) {
     console.error('[DATABASE ERROR] POST /api/clients:', error.message);
@@ -118,7 +117,8 @@ app.get('/api/fields', async (req, res) => {
       id: row.id,
       clientId: row.client_id,
       name: row.name,
-      location: row.location,
+      lat: parseFloat(row.lat) || 0,
+      long: parseFloat(row.long) || 0,
       lotNames: row.lot_names ? JSON.parse(row.lot_names) : []
     }));
     res.json(fields);
@@ -136,14 +136,15 @@ app.get('/api/fields', async (req, res) => {
 app.post('/api/fields', async (req, res) => {
   console.log('[DEBUG] POST /api/fields - Data received:', req.body);
   try {
-    const { clientId, name, location, lotNames } = req.body;
+    const { clientId, name, lat, long: lng, lotNames } = req.body;
     const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
     
     const dbData = {
       id: fieldId,
       client_id: clientId,
       name,
-      location,
+      lat,
+      "long": lng,
       lot_names: JSON.stringify(lotNames || [])
     };
 

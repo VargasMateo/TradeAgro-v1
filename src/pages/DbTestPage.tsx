@@ -62,7 +62,7 @@ export default function DbTestPage() {
         ivaCondition: 'RI',
         email: 'test@tradeagro.com',
         phoneNumber: '2494123456',
-        registeredBy: 'Admin Test'
+        createdBy: 'Admin Test'
       };
 
       const response = await fetch('/api/clients', {
@@ -100,10 +100,12 @@ export default function DbTestPage() {
   const createMockField = async (clientId: string) => {
     setIsCreatingField(clientId);
     try {
+      // Coordinates around Tandil, AR (-37.3217, -59.1332)
       const mockField = {
         clientId,
         name: `Campo ${['Norte', 'Sur', 'Este', 'Oeste'][Math.floor(Math.random() * 4)]} ${Math.floor(Math.random() * 100)}`,
-        location: 'Tandil, Buenos Aires',
+        lat: -37.3 + (Math.random() * 0.1),
+        long: -59.1 + (Math.random() * 0.1),
         lotNames: ['Lote A1', 'Lote B2']
       };
 
@@ -202,10 +204,10 @@ export default function DbTestPage() {
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Reg por: {client.registeredBy}
+                    Creado por: {client.createdBy}
                   </span>
                   <span className="text-[9px] text-slate-300">
-                    {new Date(client.registeredAt).toLocaleDateString()}
+                    {new Date(client.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>
@@ -252,7 +254,9 @@ export default function DbTestPage() {
                           <MapPin className="h-3 w-3 text-slate-400 mt-0.5" />
                           <div>
                             <p className="text-[11px] font-bold text-slate-700">{field.name}</p>
-                            <p className="text-[9px] text-slate-400">{field.location}</p>
+                            <p className="text-[9px] text-slate-400">
+                              Lat: {field.lat?.toFixed(4)}, Long: {field.long?.toFixed(4)}
+                            </p>
                           </div>
                         </div>
                       ))
