@@ -35,13 +35,18 @@ app.get('/api/clients', async (req, res) => {
     const [rows]: any = await pool.query('SELECT * FROM tbl_clientes');
     console.log(`[DEBUG] Found ${rows.length} clients`);
     
-    // Map database fields to English attributes defined in src/types/database.ts
+    // Map database fields to the new English attributes
+    // Added registered_at and registered_by mapping
     const clients = rows.map((row: any) => ({
       id: row.id_cliente,
+      displayName: row.razon_social, 
       businessName: row.razon_social,
       cuit: row.cuit,
-      iva: row.iva,
-      isActive: row.estado === 1,
+      ivaCondition: row.iva,
+      email: row.email ?? '',
+      phoneNumber: row.telefono ?? '',
+      registeredBy: row.registered_by ?? 'System',
+      registeredAt: row.registered_at ?? new Date().toISOString(),
     }));
     
     res.json(clients);
@@ -53,37 +58,44 @@ app.get('/api/clients', async (req, res) => {
 
 /** 
  * Generic endpoint to create a client 
- * Maps to the now confirmed columns: id_cliente, razon_social, cuit, iva, estado
  */
 app.post('/api/clients', async (req, res) => {
   console.log('[DEBUG] POST /api/clients - Data received:', JSON.stringify(req.body, null, 2));
   
   try {
     const { 
+      displayName,
       businessName, 
       cuit, 
-      iva, 
-      isActive 
+      ivaCondition, 
+      email,
+      phoneNumber,
+      registeredBy 
     } = req.body;
 
-    // Generate a random 7-char ID for id_cliente (e.g., CL-1234)
     const randomId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Map to DB columns
     const dbData = {
       id_cliente: randomId,
-      razon_social: businessName,
+      razon_social: businessName || displayName,
       cuit: cuit,
-      iva: iva || 'RI', // Default to Responsable Inscripto short code
-      estado: isActive === false ? 0 : 1
+      iva: ivaCondition || 'RI',
+      estado: 1,
+      registered_by: registeredBy || 'Admin'
+      // registered_at is handled by DEFAULT CURRENT_TIMESTAMP in SQL
     };
-    
+
     console.log('[DEBUG] Executing SQL with data:', JSON.stringify(dbData, null, 2));
     
     const [result]: any = await pool.query('INSERT INTO tbl_clientes SET ?', [dbData]);
     
     console.log('[DEBUG] Insert successful! Result:', result);
-    res.json({ success: true, id: randomId, message: 'Client created successfully' });
+    res.json({ 
+      success: true, 
+      id: randomId, 
+      message: 'Client created successfully',
+      registeredAt: new Date().toISOString()
+    });
   } catch (error) {
     console.error('[DATABASE ERROR] POST /api/clients:', error.message);
     res.status(500).json({ 
@@ -92,6 +104,54 @@ app.post('/api/clients', async (req, res) => {
       details: error.message,
       sqlCode: error.code
     });
+  }
+});
+
+/**
+ * Endpoint to fetch fields (campos)
+ */
+app.get('/api/fields', async (req, res) => {
+  console.log('[DEBUG] GET /api/fields');
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM tbl_campos');
+    const fields = rows.map((row: any) => ({
+      id: row.id,
+      clientId: row.client_id,
+      name: row.name,
+      location: row.location,
+      lotNames: row.lot_names ? JSON.parse(row.lot_names) : []
+    }));
+    res.json(fields);
+  } catch (error) {
+    console.error('[DATABASE ERROR] GET /api/fields:', error.message);
+    // If table doesn't exist yet, return empty list instead of 500
+    if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
+    res.status(500).json({ error: 'Failed to fetch fields', details: error.message });
+  }
+});
+
+/**
+ * Endpoint to create a field
+ */
+app.post('/api/fields', async (req, res) => {
+  console.log('[DEBUG] POST /api/fields - Data received:', req.body);
+  try {
+    const { clientId, name, location, lotNames } = req.body;
+    const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
+    
+    const dbData = {
+      id: fieldId,
+      client_id: clientId,
+      name,
+      location,
+      lot_names: JSON.stringify(lotNames || [])
+    };
+
+    await pool.query('INSERT INTO tbl_campos SET ?', [dbData]);
+    res.json({ success: true, id: fieldId });
+  } catch (error) {
+    console.error('[DATABASE ERROR] POST /api/fields:', error.message);
+    res.status(500).json({ error: 'Failed to create field', details: error.message });
   }
 });
 

@@ -13,18 +13,24 @@ export interface User {
 }
 
 export interface Client {
-  id: number;
+  id: string;
+  displayName: string;
   businessName: string;
-  fantasyName?: string;
   cuit: string;
-  ivaConditionId: number;
-  address?: string;
-  city?: string;
-  state?: string;
-  phone?: string;
+  ivaCondition: string; // Matches 'RI', 'CF', etc.
   email: string;
-  isActive: boolean;
-  registeredAt?: string;
+  phoneNumber?: string;
+  registeredBy: string;
+  registeredAt: string; // ISO string or timestamp
+}
+
+export interface Field {
+  id: string;
+  clientId: string;
+  name: string;
+  lat: number;
+  long: number;
+  lotNames: string[];
 }
 
 export type JobStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';

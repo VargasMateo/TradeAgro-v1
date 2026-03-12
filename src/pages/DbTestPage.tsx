@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X } from 'lucide-react';
-import { Client } from '../types/database';
+import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers } from 'lucide-react';
+import { Client, Field } from '../types/database';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DbTestPage() {
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [fields, setFields] = useState<Field[]>([]);
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
   
   // Custom Dialog State
   const [dialog, setDialog] = useState<{
@@ -38,14 +40,29 @@ export default function DbTestPage() {
     }
   };
 
+  const fetchFields = async () => {
+    try {
+      const response = await fetch('/api/fields');
+      if (response.ok) {
+        const data = await response.json();
+        setFields(data);
+      }
+    } catch (err) {
+      console.error('Fetch fields error:', err);
+    }
+  };
+
   const createMockClient = async () => {
     setIsCreating(true);
     try {
       const mockData = {
-        businessName: `Empresa Test ${Math.floor(Math.random() * 1000)}`,
+        displayName: `Empresa Test ${Math.floor(Math.random() * 1000)}`,
+        businessName: 'Test Business Name S.A.',
         cuit: '20123456789',
-        iva: 'RI',
-        isActive: true
+        ivaCondition: 'RI',
+        email: 'test@tradeagro.com',
+        phoneNumber: '2494123456',
+        registeredBy: 'Admin Test'
       };
 
       const response = await fetch('/api/clients', {
@@ -80,13 +97,55 @@ export default function DbTestPage() {
     }
   };
 
+  const createMockField = async (clientId: string) => {
+    setIsCreatingField(clientId);
+    try {
+      const mockField = {
+        clientId,
+        name: `Campo ${['Norte', 'Sur', 'Este', 'Oeste'][Math.floor(Math.random() * 4)]} ${Math.floor(Math.random() * 100)}`,
+        location: 'Tandil, Buenos Aires',
+        lotNames: ['Lote A1', 'Lote B2']
+      };
+
+      const response = await fetch('/api/fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockField)
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setDialog({
+          show: true,
+          type: 'success',
+          title: 'Campo Creado',
+          message: `Nuevo campo asociado al cliente ${clientId}`
+        });
+        await fetchFields();
+      } else {
+        throw new Error(data.details || data.error);
+      }
+    } catch (err: any) {
+      setDialog({
+        show: true,
+        type: 'error',
+        title: 'Error Creando Campo',
+        message: err.message
+      });
+    } finally {
+      setIsCreatingField(null);
+    }
+  };
+
   useEffect(() => {
     fetchClients();
+    fetchFields();
   }, []);
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 relative pb-20">
       {/* Header Section */}
+      {/* ... previous content remains mostly same but I'll update it for brevity or just replace fully if needed ... */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className={`p-4 rounded-2xl shadow-lg shadow-emerald-100 ${
@@ -135,32 +194,72 @@ export default function DbTestPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               key={client.id}
-              className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/5 transition-all"
+              className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/5 transition-all flex flex-col"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
                   <User className="h-6 w-6" />
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                  client.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                }`}>
-                  {client.isActive ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Reg por: {client.registeredBy}
+                  </span>
+                  <span className="text-[9px] text-slate-300">
+                    {new Date(client.registeredAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
               
-              <h3 className="font-bold text-lg text-slate-900 mb-1 leading-tight">{client.businessName}</h3>
-              <div className="space-y-2 mt-4">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">CUIT</span>
-                  <span className="text-slate-700 font-bold">{client.cuit}</span>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-slate-900 mb-1 leading-tight">{client.displayName}</h3>
+                <p className="text-xs text-slate-400 truncate mb-4">{client.businessName}</p>
+
+                <div className="space-y-2 mt-4 pt-4 border-t border-slate-50">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400 font-medium">CUIT</span>
+                    <span className="text-slate-700 font-bold">{client.cuit}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400 font-medium">Condición IVA</span>
+                    <span className="text-slate-700 font-bold">{client.ivaCondition}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">IVA</span>
-                  <span className="text-slate-700 font-bold">{client.iva}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">ID</span>
-                  <span className="text-slate-400 font-mono">{client.id}</span>
+
+                {/* Campos Section */}
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-900">
+                      <Layers className="h-4 w-4 text-emerald-500" />
+                      <span className="text-[11px] font-black uppercase tracking-widest">Campos</span>
+                    </div>
+                    <button
+                      onClick={() => createMockField(client.id)}
+                      disabled={isCreatingField === client.id}
+                      className="p-1 rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors"
+                    >
+                      {isCreatingField === client.id ? (
+                        <div className="animate-spin h-3 w-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full" />
+                      ) : (
+                        <PlusCircle className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                    {fields.filter(f => f.clientId === client.id).length > 0 ? (
+                      fields.filter(f => f.clientId === client.id).map(field => (
+                        <div key={field.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                          <MapPin className="h-3 w-3 text-slate-400 mt-0.5" />
+                          <div>
+                            <p className="text-[11px] font-bold text-slate-700">{field.name}</p>
+                            <p className="text-[9px] text-slate-400">{field.location}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-slate-300 italic py-2">Sin campos asociados</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
