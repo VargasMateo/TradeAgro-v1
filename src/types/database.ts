@@ -20,8 +20,11 @@ export interface Client {
   ivaCondition: string; // Matches 'RI', 'CF', etc.
   email: string;
   phoneNumber?: string;
+  address?: string;
   createdBy: string;
   createdAt: string; // ISO string or timestamp
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface Field {

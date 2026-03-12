@@ -30,46 +30,63 @@ app.get('/api/health', (req, res) => {
 
 // Endpoint to fetch clients from tbl_clientes
 app.get('/api/clients', async (req, res) => {
-  console.log('[DEBUG] GET /api/clients - Fetching all clients and fields');
+  console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
-    const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes');
+    const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes WHERE deleted = 0 OR deleted IS NULL');
     const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
     
     // Process fields into a map for easy lookup
     const fieldsByClient: Record<string, any[]> = {};
     fieldRows.forEach((row: any) => {
-      if (!fieldsByClient[row.client_id]) {
-        fieldsByClient[row.client_id] = [];
+      if (!fieldsByClient[row.clientId]) {
+        fieldsByClient[row.clientId] = [];
       }
-      fieldsByClient[row.client_id].push({
+      fieldsByClient[row.clientId].push({
         id: row.id,
         name: row.name,
         lat: parseFloat(row.lat) || 0,
-        lng: parseFloat(row.long) || 0, // Mapping long (DB) to lng (Frontend)
-        lots: row.lot_names ? JSON.parse(row.lot_names) : []
+        lng: parseFloat(row.lng) || 0,
+        lotNames: row.lotNames ? JSON.parse(row.lotNames) : []
       });
     });
 
     const clients = clientRows.map((row: any) => ({
-      id: row.id_cliente,
-      name: row.razon_social, // Alias for frontend
-      displayName: row.razon_social, 
-      businessName: row.razon_social,
-      cuit: row.cuit,
-      ivaCondition: row.iva === 'RI' ? 'Responsable Inscripto' : 
-                    row.iva === 'MT' ? 'Monotributista' : row.iva,
-      email: row.email ?? '',
-      phone: row.telefono ?? '', // Alias for frontend
-      phoneNumber: row.telefono ?? '',
-      createdBy: row.created_by ?? 'System',
-      createdAt: row.created_at ?? new Date().toISOString(),
-      fields: fieldsByClient[row.id_cliente] || []
+      ...row,
+      // Mapping for frontend compatibility
+      name: row.displayName,
+      phone: row.phoneNumber,
+      ivaCondition: row.ivaCondition === 'RI' ? 'Responsable Inscripto' : 
+                    row.ivaCondition === 'MT' ? 'Monotributista' : row.ivaCondition,
+      fields: fieldsByClient[row.id] || []
     }));
     
     res.json(clients);
   } catch (error) {
     console.error('[DATABASE ERROR] GET /api/clients:', error.message);
     res.status(500).json({ error: 'Failed to fetch clients', details: error.message });
+  }
+});
+
+/** 
+ * Soft delete a client
+ */
+app.delete('/api/clients/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
+  try {
+    const [result]: any = await pool.query(
+      'UPDATE tbl_clientes SET deleted = 1, deletedAt = NOW() WHERE id = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    res.json({ success: true, message: 'Client soft-deleted successfully' });
+  } catch (error) {
+    console.error('[DATABASE ERROR] DELETE /api/clients:', error.message);
+    res.status(500).json({ error: 'Failed to delete client', details: error.message });
   }
 });
 
@@ -97,14 +114,14 @@ app.post('/api/clients', async (req, res) => {
     const randomClientId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const clientData = {
-      id_cliente: randomClientId,
-      razon_social: businessName || displayName,
+      id: randomClientId,
+      displayName: businessName || displayName,
+      businessName: businessName || displayName,
       cuit: cuit,
-      iva: ivaCondition || 'RI',
+      ivaCondition: ivaCondition || 'RI',
       email: email,
-      telefono: phoneNumber,
-      estado: 1,
-      created_by: createdBy || 'Admin'
+      phoneNumber: phoneNumber,
+      createdBy: createdBy || 'Admin'
     };
 
     console.log('[DEBUG] Inserting client:', randomClientId);
@@ -117,11 +134,11 @@ app.post('/api/clients', async (req, res) => {
         const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
         const fieldData = {
           id: fieldId,
-          client_id: randomClientId,
+          clientId: randomClientId,
           name: field.name,
           lat: field.lat || 0,
-          "long": field.lng || 0, // Using lng from frontend, mapping to long col
-          lot_names: JSON.stringify(field.lots || [])
+          lng: field.lng || 0, 
+          lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
       }
@@ -157,12 +174,8 @@ app.get('/api/fields', async (req, res) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM tbl_campos');
     const fields = rows.map((row: any) => ({
-      id: row.id,
-      clientId: row.client_id,
-      name: row.name,
-      lat: parseFloat(row.lat) || 0,
-      long: parseFloat(row.long) || 0,
-      lotNames: row.lot_names ? JSON.parse(row.lot_names) : []
+      ...row,
+      lotNames: row.lotNames ? JSON.parse(row.lotNames) : []
     }));
     res.json(fields);
   } catch (error) {
@@ -184,11 +197,11 @@ app.post('/api/fields', async (req, res) => {
     
     const dbData = {
       id: fieldId,
-      client_id: clientId,
+      clientId: clientId,
       name,
       lat,
-      "long": lng,
-      lot_names: JSON.stringify(lotNames || [])
+      lng,
+      lotNames: JSON.stringify(lotNames || [])
     };
 
     await pool.query('INSERT INTO tbl_campos SET ?', [dbData]);

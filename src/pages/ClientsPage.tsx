@@ -92,10 +92,25 @@ export default function ClientsPage() {
   };
 
   const confirmDelete = async () => {
-    // Delete API not implemented yet, using placeholder or refetch
-    // For now, since delete isn't in scope, we just hide the modal
-    setIsDeleteModalOpen(false);
-    setClientToDelete(null);
+    if (!clientToDelete) return;
+
+    try {
+      const response = await fetch(`/api/clients/${clientToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        fetchClients();
+        setIsDeleteModalOpen(false);
+        setClientToDelete(null);
+      } else {
+        throw new Error(data.error || 'Failed to delete');
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      alert('Error al eliminar el cliente');
+    }
   };
 
   const handleSaveDirect = (clientData: Client) => {
