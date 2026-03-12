@@ -16,6 +16,7 @@ import ProfesionalesPage from "./pages/ProfesionalesPage";
 import StationsPage from "./pages/StationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
+import DbTestPage from "./pages/DbTestPage";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
           <Route path="/profile" element={<ProfilePage userRole={userRole} />} />
+          <Route path="/db-test" element={<DbTestPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Layout>

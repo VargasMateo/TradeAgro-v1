@@ -1,3 +1,5 @@
+import { Client as DBClient } from './database';
+
 export interface ClientField {
   name: string;
   lat?: number;
@@ -5,17 +7,12 @@ export interface ClientField {
   lots: string[];
 }
 
-export interface Client {
-  id: string | number;
-  name: string; // Nombre Completo
-  businessName?: string; // Razón Social
-  cuit: string;
-  ivaCondition: 'Responsable Inscripto' | 'Monotributista';
-  email: string;
-  phone: string;
+export interface Client extends Omit<DBClient, 'ivaConditionId'> {
+  // Mapping DB types to frontend needs
   initials?: string;
   color?: string;
   lat?: number;
   lng?: number;
   fields?: ClientField[];
+  ivaCondition: 'Responsable Inscripto' | 'Monotributista'; // For backward compatibility in UI
 }

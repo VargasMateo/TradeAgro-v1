@@ -79,6 +79,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     { path: "/dashboard", label: "Inicio", icon: Home },
     //{ path: "/calendar", label: "Calendario", icon: Calendar },
     { path: "/jobs", label: "Trabajos", icon: Briefcase },
+    { path: "/db-test", label: "DB Test", icon: Shield },
     //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
