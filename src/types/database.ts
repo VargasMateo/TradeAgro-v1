@@ -31,7 +31,7 @@ export interface Field {
   clientId: string;
   name: string;
   lat?: number;
-  long?: number;
+  lng?: number;
   lotNames: string[];
 }
 
