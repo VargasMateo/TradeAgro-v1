@@ -10,6 +10,8 @@ export default function DbTestPage() {
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'trabajos' | null>(null);
   
   // Custom Dialog State
   const [dialog, setDialog] = useState<{
@@ -138,6 +140,41 @@ export default function DbTestPage() {
       setIsCreatingField(null);
     }
   };
+  
+  const resetDatabase = async () => {
+    if (!resetTarget) return;
+    setIsResetting(true);
+    try {
+      const endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' : resetTarget === 'campos' ? 'fields' : 'jobs'}`;
+      const response = await fetch(endpoint, {
+        method: 'POST'
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setDialog({
+          show: true,
+          type: 'success',
+          title: 'Tabla Limpia',
+          message: `Se han eliminado todos los registros de la tabla ${resetTarget}.`
+        });
+        if (resetTarget === 'clientes') await fetchClients();
+        if (resetTarget === 'campos') await fetchFields();
+      } else {
+        throw new Error(data.error || 'Failed to reset table');
+      }
+    } catch (err: any) {
+      setDialog({
+        show: true,
+        type: 'error',
+        title: 'Error de Reset',
+        message: err.message
+      });
+    } finally {
+      setIsResetting(false);
+      setResetTarget(null);
+    }
+  };
 
   useEffect(() => {
     fetchClients();
@@ -172,18 +209,47 @@ export default function DbTestPage() {
           </div>
         </div>
 
-        <button
-          onClick={createMockClient}
-          disabled={isCreating || status !== 'connected'}
-          className="group relative flex items-center gap-3 bg-slate-900 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-slate-200 transition-all active:scale-95 disabled:opacity-50"
-        >
-          {isCreating ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white" />
-          ) : (
-            <PlusCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
-          )}
-          <span>Crear Cliente Mock</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            <button
+              onClick={() => setResetTarget('clientes')}
+              disabled={isResetting || status !== 'connected'}
+              className="flex items-center gap-2 hover:bg-white hover:text-rose-600 text-slate-500 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+              <span className="text-xs">Clientes</span>
+            </button>
+            <button
+              onClick={() => setResetTarget('campos')}
+              disabled={isResetting || status !== 'connected'}
+              className="flex items-center gap-2 hover:bg-white hover:text-rose-600 text-slate-500 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+              <span className="text-xs">Campos</span>
+            </button>
+            <button
+              onClick={() => setResetTarget('trabajos')}
+              disabled={isResetting || status !== 'connected'}
+              className="flex items-center gap-2 hover:bg-white hover:text-rose-600 text-slate-500 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+              <span className="text-xs">Trabajos</span>
+            </button>
+          </div>
+
+          <button
+            onClick={createMockClient}
+            disabled={isCreating || status !== 'connected'}
+            className="group relative flex items-center gap-3 bg-slate-900 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-slate-200 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isCreating ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white" />
+            ) : (
+              <PlusCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
+            )}
+            <span>Crear Cliente Mock</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Grid */}
@@ -315,6 +381,43 @@ export default function DbTestPage() {
                   }`}
                 >
                   ENTENDIDO
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reset Confirmation Dialog */}
+      <AnimatePresence>
+        {resetTarget && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden p-10 text-center"
+            >
+              <div className="h-24 w-24 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-8">
+                <AlertCircle className="h-12 w-12" />
+              </div>
+              <h2 className="text-3xl font-black text-slate-900 mb-4">¿Borrar {resetTarget}?</h2>
+              <p className="text-slate-500 font-medium mb-10 leading-relaxed">
+                Esta acción eliminará <span className="text-rose-600 font-bold underline">TODOS</span> los registros de la tabla <span className="uppercase font-black text-slate-900">{resetTarget}</span> de forma permanente.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setResetTarget(null)}
+                  className="py-4 rounded-2xl font-black text-slate-500 hover:bg-slate-50 transition-colors"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={resetDatabase}
+                  disabled={isResetting}
+                  className="py-4 rounded-2xl font-black text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                >
+                  {isResetting ? 'BORRANDO...' : 'SÍ, BORRAR'}
                 </button>
               </div>
             </motion.div>
