@@ -224,7 +224,8 @@ export default function CreateClientModal({
                   name="cuit"
                   value={formData.cuit}
                   onChange={handleInputChange}
-                  placeholder="20-12345678-9"
+                  maxLength={11}
+                  placeholder="20123456789"
                   className={cn(
                     "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
                     errors.cuit 
