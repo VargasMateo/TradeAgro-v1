@@ -71,6 +71,78 @@ app.get('/api/clients', async (req, res) => {
 /** 
  * Soft delete a client
  */
+// Update client and fields unified endpoint
+app.put('/api/clients/:id', async (req, res) => {
+  console.log(`[DEBUG] PUT /api/clients/${req.params.id} - Unified update initiated`);
+  const connection = await pool.getConnection();
+
+  try {
+    const clientId = req.params.id;
+    const {
+      displayName,
+      businessName,
+      cuit,
+      ivaCondition,
+      email,
+      phoneNumber,
+      fields // Array of fields from the modal
+    } = req.body;
+
+    await connection.beginTransaction();
+
+    // 1. Update main client data
+    const clientData = {
+      displayName: displayName,
+      businessName: businessName,
+      cuit: cuit,
+      ivaCondition: ivaCondition || 'RI',
+      email: email,
+      phoneNumber: phoneNumber
+    };
+
+    console.log('[DEBUG] Updating client:', clientId);
+    await connection.query('UPDATE tbl_clientes SET ? WHERE id = ?', [clientData, clientId]);
+
+    // 2. Replace fields (delete existing, insert new)
+    console.log('[DEBUG] Replacing associated fields');
+    await connection.query('DELETE FROM tbl_campos WHERE clientId = ?', [clientId]);
+
+    if (fields && Array.isArray(fields)) {
+      console.log(`[DEBUG] Inserting ${fields.length} updated fields`);
+      for (const field of fields) {
+        const fieldData = {
+          id: field.id || crypto.randomUUID(),
+          clientId: clientId,
+          name: field.name,
+          lat: field.lat || 0,
+          lng: field.lng || 0,
+          lotNames: JSON.stringify(field.lots || [])
+        };
+        await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
+      }
+    }
+
+    await connection.commit();
+    console.log('[DEBUG] Transaction committed successfully');
+
+    res.json({
+      success: true,
+      id: clientId,
+      message: 'Client and fields updated successfully'
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('[DATABASE TRANSACTION ERROR] PUT /api/clients/:id:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update client and fields',
+      details: error.message
+    });
+  } finally {
+    connection.release();
+  }
+});
+
 app.delete('/api/clients/:id', async (req, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);

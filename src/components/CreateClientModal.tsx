@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database } from "lucide-react";
-import { Client, ClientField } from "../types/client";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { Client, ClientField } from "../types/client";
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -95,7 +95,7 @@ export default function CreateClientModal({
       ...prev,
       [name]: value
     }));
-    
+
     if (errors[name as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
@@ -110,7 +110,7 @@ export default function CreateClientModal({
 
   const handleSave = async () => {
     const newErrors: typeof errors = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = 'El nombre es obligatorio';
     }
@@ -173,6 +173,7 @@ export default function CreateClientModal({
         phoneNumber: formData.phone,
         createdBy: currentUserEmail,
         fields: formData.fields.map(f => ({
+          id: f.id,
           name: f.name,
           lat: f.lat,
           lng: f.lng,
@@ -180,8 +181,11 @@ export default function CreateClientModal({
         }))
       };
 
-      const response = await fetch('/api/clients', {
-        method: 'POST',
+      const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients';
+      const method = editingClient ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -192,22 +196,24 @@ export default function CreateClientModal({
         setDialog({
           show: true,
           type: 'success',
-          title: 'Registro Exitoso',
-          message: `El cliente y sus ${formData.fields.length} campos han sido guardados en la base de datos.`
+          title: editingClient ? 'Actualización Exitosa' : 'Registro Exitoso',
+          message: editingClient
+            ? `Los datos del cliente y sus campos han sido actualizados.`
+            : `El cliente y sus ${formData.fields.length} campos han sido guardados en la base de datos.`
         });
-        
+
         // Finalize state
         const clientData: Client = {
           id: data.id,
           ...formData,
           ivaCondition: formData.ivaCondition as 'Responsable Inscripto' | 'Monotributista',
           initials: formData.name.substring(0, 2).toUpperCase(),
-          color: editingClient?.color || "bg-emerald-100 text-emerald-700",
+          color: "bg-emerald-100 text-emerald-700",
           fields: formData.fields,
           createdAt: data.createdAt,
           createdBy: payload.createdBy
         };
-        
+
         // Local state update via parent if needed
         onSave(clientData);
         window.dispatchEvent(new Event('clients-updated'));
@@ -262,8 +268,8 @@ export default function CreateClientModal({
                   placeholder="Ej: Juan Pérez"
                   className={cn(
                     "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                    errors.name 
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                    errors.name
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                       : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                   )}
                 />
@@ -285,8 +291,8 @@ export default function CreateClientModal({
                   placeholder="Ej: AgroExport S.A."
                   className={cn(
                     "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                    errors.businessName 
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                    errors.businessName
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                       : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                   )}
                 />
@@ -312,8 +318,8 @@ export default function CreateClientModal({
                   placeholder="20123456789"
                   className={cn(
                     "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                    errors.cuit 
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                    errors.cuit
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                       : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                   )}
                 />
@@ -340,8 +346,8 @@ export default function CreateClientModal({
                     }}
                     className={cn(
                       "w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                      errors.ivaCondition 
-                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                      errors.ivaCondition
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                         : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                     )}
                   >
@@ -372,8 +378,8 @@ export default function CreateClientModal({
                   placeholder="contacto@ejemplo.com"
                   className={cn(
                     "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                    errors.email 
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                    errors.email
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                       : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                   )}
                 />
@@ -501,7 +507,7 @@ export default function CreateClientModal({
                             AGREGAR LOTE
                           </button>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           {field.lots.map((lot, lIndex) => (
                             <div key={lIndex} className="flex gap-2 items-center">
@@ -576,36 +582,35 @@ export default function CreateClientModal({
       {/* Premium Success/Error Dialog */}
       <AnimatePresence>
         {dialog.show && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
             >
-              <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl ${
-                dialog.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-              }`}>
+              <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl ${dialog.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                }`}>
                 {dialog.type === 'success' ? (
                   <CheckCircle2 className="h-10 w-10" />
                 ) : (
                   <AlertCircle className="h-10 w-10" />
                 )}
               </div>
-              
+
               <h3 className="mb-2 text-2xl font-black tracking-tight text-slate-900">
                 {dialog.title}
               </h3>
-              
+
               <p className="mb-8 text-sm font-medium leading-relaxed text-slate-500">
                 {dialog.message}
               </p>
-              
+
               <button
                 onClick={() => {
                   setDialog({ ...dialog, show: false });
@@ -613,9 +618,8 @@ export default function CreateClientModal({
                     onClose();
                   }
                 }}
-                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${
-                  dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
-                }`}
+                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
+                  }`}
               >
                 ENTENDIDO
               </button>
