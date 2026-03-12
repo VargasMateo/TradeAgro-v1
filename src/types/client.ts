@@ -14,6 +14,7 @@ export interface Client extends Omit<DBClient, 'ivaConditionId'> {
   name?: string; // Frontend alias for displayName
   phone?: string; // Frontend alias for phoneNumber
   fields?: ClientField[];
+  ivaCondition: 'Responsable Inscripto' | 'Monotributista'; // For backward compatibility in UI
   deleted?: boolean;
   deletedAt?: string;
 }

@@ -17,6 +17,7 @@ export interface Client {
   displayName: string;
   businessName: string;
   cuit: string;
+  ivaCondition: string; // Matches 'RI', 'CF', etc.
   email: string;
   phoneNumber?: string;
   createdBy: string;

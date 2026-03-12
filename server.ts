@@ -102,6 +102,7 @@ app.post('/api/clients', async (req, res) => {
       displayName,
       businessName, 
       cuit, 
+      ivaCondition, 
       email,
       phoneNumber,
       createdBy,
@@ -114,9 +115,10 @@ app.post('/api/clients', async (req, res) => {
 
     const clientData = {
       id: randomClientId,
-      displayName: businessName || displayName,
-      businessName: businessName || displayName,
+      displayName: displayName,
+      businessName: businessName,
       cuit: cuit,
+      ivaCondition: ivaCondition || 'RI',
       email: email,
       phoneNumber: phoneNumber,
       createdBy: createdBy || 'Admin'

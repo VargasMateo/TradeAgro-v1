@@ -46,6 +46,7 @@ async function migrate() {
     const clientMappings = [
         { old: 'id_cliente', new: 'id', type: 'VARCHAR(20)' },
         { old: 'razon_social', new: 'displayName', type: 'VARCHAR(100)' },
+        { old: 'iva', new: 'ivaCondition', type: 'VARCHAR(50)' },
         { old: 'telefono', new: 'phoneNumber', type: 'VARCHAR(50)' },
         { old: 'is_deleted', new: 'deleted', type: 'TINYINT(1) DEFAULT 0' },
         { old: 'deleted_at', new: 'deletedAt', type: 'TIMESTAMP NULL' },
@@ -68,7 +69,7 @@ async function migrate() {
     try { await connection.query('ALTER TABLE tbl_clientes ADD COLUMN IF NOT EXISTS businessName VARCHAR(100)'); } catch (e) {}
 
     // Drop obsolete columns from tbl_clientes
-    const obsClientCols = ['id_cliente', 'razon_social', 'iva', 'ivaCondition', 'telefono', 'direccion', 'address', 'is_deleted', 'deleted_at', 'created_by', 'created_at', 'estado'];
+    const obsClientCols = ['id_cliente', 'razon_social', 'iva', 'telefono', 'direccion', 'address', 'is_deleted', 'deleted_at', 'created_by', 'created_at', 'estado'];
     for (const col of obsClientCols) {
         try { await connection.query(`ALTER TABLE tbl_clientes DROP COLUMN ${col}`); } catch (e) {}
     }

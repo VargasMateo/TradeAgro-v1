@@ -214,6 +214,9 @@ export default function ClientsPage() {
                     <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600">
                       CUIT: {client.cuit}
                     </span>
+                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">
+                      {client.ivaCondition}
+                    </span>
                   </div>
                 </div>
 
