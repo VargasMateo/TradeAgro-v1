@@ -19,7 +19,6 @@ import {
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import CreateClientModal from "./CreateClientModal";
-import { Client } from "../types/client";
 
 export default function CreateJobModal() {
   const navigate = useNavigate();
@@ -33,37 +32,37 @@ export default function CreateJobModal() {
   const [clients, setClients] = useState(() => {
     const stored = localStorage.getItem('clients');
     return stored ? JSON.parse(stored) : [
-      { 
-        id: '1', 
-        name: 'AgroExport S.A.', 
-        businessName: 'AgroExport Sociedad Anónima', 
-        cuit: '30-12345678-9', 
-        ivaCondition: 'Responsable Inscripto', 
+      {
+        id: '1',
+        name: 'AgroExport S.A.',
+        businessName: 'AgroExport Sociedad Anónima',
+        cuit: '30-12345678-9',
+        ivaCondition: 'Responsable Inscripto',
         fields: [
           { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
           { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
-        ] 
+        ]
       },
-      { 
-        id: '2', 
-        name: "Finca La Estela", 
-        businessName: "Estela Agricola S.R.L.", 
-        cuit: "30-87654321-0", 
-        ivaCondition: "Responsable Inscripto", 
+      {
+        id: '2',
+        name: "Finca La Estela",
+        businessName: "Estela Agricola S.R.L.",
+        cuit: "30-87654321-0",
+        ivaCondition: "Responsable Inscripto",
         fields: [
           { name: 'Campo Principal', lat: -31.4201, lng: -64.1888, lots: ['A1', 'A2'] },
           { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
-        ] 
+        ]
       },
-      { 
-        id: '3', 
-        name: 'Juan Pérez', 
-        cuit: '20-55554444-3', 
-        ivaCondition: 'Monotributista', 
+      {
+        id: '3',
+        name: 'Juan Pérez',
+        cuit: '20-55554444-3',
+        ivaCondition: 'Monotributista',
         fields: [
           { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
           { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
-        ] 
+        ]
       },
     ];
   });
@@ -94,12 +93,12 @@ export default function CreateJobModal() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const clientSuggestions = clients.filter((c: any) => 
-    c.name.toLowerCase().includes(formData.client.toLowerCase()) || 
+  const clientSuggestions = clients.filter((c: any) =>
+    c.name.toLowerCase().includes(formData.client.toLowerCase()) ||
     (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()))
   );
-  const selectedClientObj = clients.find((c: any) => 
-    c.name.toLowerCase() === formData.client.toLowerCase() || 
+  const selectedClientObj = clients.find((c: any) =>
+    c.name.toLowerCase() === formData.client.toLowerCase() ||
     (c.businessName && c.businessName.toLowerCase() === formData.client.toLowerCase())
   );
   const availableFields = selectedClientObj ? (selectedClientObj.fields || []) : [];
@@ -350,8 +349,8 @@ export default function CreateJobModal() {
                         placeholder="Buscar o crear cliente..."
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
-                          errors.client 
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          errors.client
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
                       />
@@ -403,8 +402,8 @@ export default function CreateJobModal() {
                         onChange={handleInputChange}
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
-                          errors.date 
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          errors.date
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
                       />
@@ -429,8 +428,8 @@ export default function CreateJobModal() {
                       placeholder="Ej: Cosecha de Maíz - Lote 4"
                       className={cn(
                         "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                        errors.title 
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                        errors.title
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
@@ -470,8 +469,8 @@ export default function CreateJobModal() {
                       placeholder="Buscar o crear campo..."
                       className={cn(
                         "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                        errors.field 
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                        errors.field
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
@@ -534,8 +533,8 @@ export default function CreateJobModal() {
                       placeholder="Identificador"
                       className={cn(
                         "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                        errors.lot 
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                        errors.lot
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
@@ -559,16 +558,16 @@ export default function CreateJobModal() {
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
                             onClick={() => {
-                              setClients((prev: any) => prev.map((c: any) => 
-                                c.id === selectedClientObj.id 
-                                  ? { 
-                                      ...c, 
-                                      fields: c.fields.map((f: any) => 
-                                        f.name === selectedFieldObj.name 
-                                          ? { ...f, lots: [...f.lots, formData.lot] } 
-                                          : f
-                                      ) 
-                                    } 
+                              setClients((prev: any) => prev.map((c: any) =>
+                                c.id === selectedClientObj.id
+                                  ? {
+                                    ...c,
+                                    fields: c.fields.map((f: any) =>
+                                      f.name === selectedFieldObj.name
+                                        ? { ...f, lots: [...f.lots, formData.lot] }
+                                        : f
+                                    )
+                                  }
                                   : c
                               ));
                               setShowLotSuggestions(false);
@@ -611,8 +610,8 @@ export default function CreateJobModal() {
                         placeholder="0.00"
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                          errors.hectares 
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          errors.hectares
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
                       />
@@ -639,8 +638,8 @@ export default function CreateJobModal() {
                         placeholder="0.00"
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                          errors.amount 
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          errors.amount
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
                       />
@@ -672,11 +671,11 @@ export default function CreateJobModal() {
                       <select
                         name="service"
                         value={formData.service}
-                         onChange={handleInputChange}
+                        onChange={handleInputChange}
                         className={cn(
                           "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
-                          errors.service 
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          errors.service
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
                       >
@@ -718,8 +717,8 @@ export default function CreateJobModal() {
                         onChange={handleInputChange}
                         className={cn(
                           "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
-                          errors.campaign 
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" 
+                          errors.campaign
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
                       >
