@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase } from 'lucide-react';
+import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase, Calendar } from 'lucide-react';
 import { Client, Field } from '../types/database';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -181,11 +181,11 @@ export default function DbTestPage() {
                 </div>
               ) : (
                 clients.map(client => (
-                  <div key={client.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 group">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-black text-slate-900 text-sm leading-tight">{client.displayName}</h3>
-                        <p className="text-[11px] text-slate-400 font-bold">{client.id}</p>
+                  <div key={client.id} className="p-5 rounded-3xl bg-emerald-50/50 hover:bg-white border border-emerald-100/50 shadow-sm transition-all group">
+                    <div className="flex items-start">
+                      <div className="flex-1">
+                        <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-emerald-700 transition-colors capitalize">{client.displayName}</h3>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-1 font-mono uppercase truncate">{client.id}</p>
                       </div>
                     </div>
                   </div>
@@ -219,19 +219,26 @@ export default function DbTestPage() {
                   <p className="text-xs font-bold uppercase">Sin Campos</p>
                 </div>
               ) : (
-                fields.map(field => (
-                  <div key={field.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
-                        <MapPin className="h-5 w-5" />
+                fields.map(field => {
+                  const clientAssoc = clients.find(c => c.id === field.clientId);
+                  return (
+                  <div key={field.id} className="p-5 rounded-3xl bg-blue-50/30 hover:bg-white border border-blue-100/50 shadow-sm transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <MapPin className="h-6 w-6" />
                       </div>
-                      <div>
-                        <h3 className="font-black text-slate-900 text-sm leading-tight">{field.name}</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">CL: {field.clientId}</p>
+                      <div className="flex-1 overflow-hidden">
+                        <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-blue-700 transition-colors truncate">{field.name}</h3>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                          <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
+                            {clientAssoc ? clientAssoc.displayName : 'Cliente Desconocido'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))
+                )})
               )}
             </div>
           </section>
@@ -261,19 +268,34 @@ export default function DbTestPage() {
                   <p className="text-xs font-bold uppercase">Sin Trabajos</p>
                 </div>
               ) : (
-                jobs.map(job => (
-                  <div key={job.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
-                    <h3 className="font-black text-slate-900 text-sm">{job.id}</h3>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white border border-slate-200 uppercase text-slate-500">
-                        {job.serviceType || 'Servicio'}
+                jobs.map(job => {
+                  const clientAssoc = clients.find(c => c.id === job.clientId);
+                  return (
+                  <div key={job.id} className="p-5 rounded-3xl bg-amber-50/30 hover:bg-white border border-amber-100/50 shadow-sm transition-all group">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 overflow-hidden">
+                        <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-amber-700 transition-colors truncate">
+                          {job.title || job.serviceType || `Trabajo #${job.id}`}
+                        </h3>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                          <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
+                            {clientAssoc ? clientAssoc.displayName : `CL: ${job.clientId}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                      <span className="text-[9px] font-black px-2.5 py-1 rounded-md bg-amber-100 text-amber-700 uppercase tracking-widest">
+                        {job.status || 'Pendiente'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-bold">
+                      <span className="text-[10px] text-slate-400 font-bold ml-auto flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3" />
                         {job.date ? new Date(job.date).toLocaleDateString() : '-'}
                       </span>
                     </div>
                   </div>
-                ))
+                )})
               )}
             </div>
           </section>

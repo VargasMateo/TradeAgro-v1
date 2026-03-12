@@ -112,11 +112,9 @@ export default function ClientsPage() {
       alert('Error al eliminar el cliente');
     }
   };
-
   const handleSaveDirect = (clientData: Client) => {
     // Refresh list via event
     fetchClients();
-    setView('list');
   };
 
   const filteredClients = clients.filter(client =>
