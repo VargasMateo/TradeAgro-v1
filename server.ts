@@ -35,7 +35,7 @@ app.get('/api/clients', async (req, res) => {
   try {
     const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes WHERE deletedAt IS NULL');
     const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
-    
+
     // Process fields into a map for easy lookup
     const fieldsByClient: Record<string, any[]> = {};
     fieldRows.forEach((row: any) => {
@@ -56,11 +56,11 @@ app.get('/api/clients', async (req, res) => {
       // Mapping for frontend compatibility
       name: row.displayName,
       phone: row.phoneNumber,
-      ivaCondition: row.ivaCondition === 'RI' ? 'Responsable Inscripto' : 
-                    row.ivaCondition === 'MT' ? 'Monotributista' : row.ivaCondition,
+      ivaCondition: row.ivaCondition === 'RI' ? 'Responsable Inscripto' :
+        row.ivaCondition === 'MT' ? 'Monotributista' : row.ivaCondition,
       fields: fieldsByClient[row.id] || []
     }));
-    
+
     res.json(clients);
   } catch (error) {
     console.error('[DATABASE ERROR] GET /api/clients:', error.message);
@@ -97,13 +97,13 @@ app.delete('/api/clients/:id', async (req, res) => {
 app.post('/api/clients', async (req, res) => {
   console.log('[DEBUG] POST /api/clients - Unified creation initiated');
   const connection = await pool.getConnection();
-  
+
   try {
-    const { 
+    const {
       displayName,
-      businessName, 
-      cuit, 
-      ivaCondition, 
+      businessName,
+      cuit,
+      ivaCondition,
       email,
       phoneNumber,
       createdBy,
@@ -138,7 +138,7 @@ app.post('/api/clients', async (req, res) => {
           clientId: newClientId,
           name: field.name,
           lat: field.lat || 0,
-          lng: field.lng || 0, 
+          lng: field.lng || 0,
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
@@ -148,19 +148,19 @@ app.post('/api/clients', async (req, res) => {
     await connection.commit();
     console.log('[DEBUG] Transaction committed successfully');
 
-    res.json({ 
-      success: true, 
-      id: newClientId, 
+    res.json({
+      success: true,
+      id: newClientId,
       message: 'Client and fields created successfully',
       createdAt: new Date().toISOString()
     });
   } catch (error) {
     await connection.rollback();
     console.error('[DATABASE TRANSACTION ERROR] POST /api/clients:', error.message);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to create client and fields', 
-      details: error.message 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create client and fields',
+      details: error.message
     });
   } finally {
     connection.release();
@@ -209,7 +209,7 @@ app.post('/api/fields', async (req, res) => {
   try {
     const { clientId, name, lat, long: lng, lotNames } = req.body;
     const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
-    
+
     const dbData = {
       id: fieldId,
       clientId: clientId,
@@ -225,12 +225,6 @@ app.post('/api/fields', async (req, res) => {
     console.error('[DATABASE ERROR] POST /api/fields:', error.message);
     res.status(500).json({ error: 'Failed to create field', details: error.message });
   }
-});
-
-// Backward compatibility (optional, can be removed)
-app.post('/api/clients/create-mock', async (req, res) => {
-  console.log('[DEBUG] POST /api/clients/create-mock - Creating random client');
-  res.redirect(307, '/api/clients'); 
 });
 
 /**
