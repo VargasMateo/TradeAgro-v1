@@ -574,7 +574,7 @@ export default function CreateClientModal({
             ) : (
               <Save className="h-4 w-4" />
             )}
-            {isSaving ? 'GUARDANDO...' : 'GUARDAR CLIENTE'}
+            {isSaving ? 'GUARDANDO...' : (editingClient ? 'GUARDAR CAMBIOS' : 'GUARDAR CLIENTE')}
           </button>
         </div>
       </div>

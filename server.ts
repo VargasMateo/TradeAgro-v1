@@ -47,7 +47,7 @@ app.get('/api/clients', async (req, res) => {
         name: row.name,
         lat: parseFloat(row.lat) || 0,
         lng: parseFloat(row.lng) || 0,
-        lotNames: row.lotNames ? JSON.parse(row.lotNames) : []
+        lots: row.lotNames ? JSON.parse(row.lotNames) : []
       });
     });
 
