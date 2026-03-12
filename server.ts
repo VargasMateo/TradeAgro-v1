@@ -114,8 +114,8 @@ app.put('/api/clients/:id', async (req, res) => {
           id: field.id || crypto.randomUUID(),
           clientId: clientId,
           name: field.name,
-          lat: field.lat || 0,
-          lng: field.lng || 0,
+          lat: field.lat ?? null,
+          lng: field.lng ?? null,
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
@@ -209,8 +209,8 @@ app.post('/api/clients', async (req, res) => {
           id: fieldId,
           clientId: newClientId,
           name: field.name,
-          lat: field.lat || 0,
-          lng: field.lng || 0,
+          lat: field.lat ?? null,
+          lng: field.lng ?? null,
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
@@ -286,8 +286,8 @@ app.post('/api/fields', async (req, res) => {
       id: fieldId,
       clientId: clientId,
       name,
-      lat,
-      lng,
+      lat: lat ?? null,
+      lng: lng ?? null,
       lotNames: JSON.stringify(lotNames || [])
     };
 
