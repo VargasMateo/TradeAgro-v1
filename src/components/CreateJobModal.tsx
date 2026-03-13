@@ -27,7 +27,7 @@ export default function CreateJobModal() {
 
   const isOpen = searchParams.get('newJob') === 'true' || searchParams.get('editJob') !== null;
   const editJobId = searchParams.get('editJob');
-  const [step, setStep] = useState<'form' | 'summary'>('form');
+  const [step, setStep] = useState<'form' | 'summary' | 'success'>('form');
 
   const [clients, setClients] = useState<any[]>([]);
 
@@ -248,18 +248,21 @@ export default function CreateJobModal() {
       const result = await response.json();
       console.log('Job saved successfully:', result);
 
-      handleClose();
-      
-      if (location.pathname !== '/jobs' && location.pathname !== '/dashboard' && !location.pathname.startsWith('/jobs/')) {
-        navigate('/jobs');
-      } else {
-        window.dispatchEvent(new Event('job-created'));
-      }
+      setStep('success');
     } catch (error: any) {
       console.error('Error saving job:', error);
       setErrors({ submit: error.message || 'Error al guardar el trabajo' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleFinishSuccess = () => {
+    handleClose();
+    if (location.pathname !== '/jobs' && location.pathname !== '/dashboard' && !location.pathname.startsWith('/jobs/')) {
+      navigate('/jobs');
+    } else {
+      window.dispatchEvent(new Event('job-created'));
     }
   };
 
@@ -788,6 +791,29 @@ export default function CreateJobModal() {
               </div>
             </div>
 
+            {/* SUCCESS STEP */}
+            <div className={step === 'success' ? 'block' : 'hidden'}>
+              <div className="flex flex-col items-center justify-center py-8 text-center animate-in zoom-in-95 duration-300">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                </div>
+                <h3 className="mb-2 text-2xl font-bold text-slate-900">
+                  ¡Trabajo Guardado!
+                </h3>
+                <p className="mb-8 text-slate-500 max-w-[280px]">
+                  El trabajo ha sido registrado exitosamente en el sistema.
+                </p>
+                <div className="flex w-full gap-3">
+                  <button
+                    onClick={handleFinishSuccess}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    ENTENDIDO
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* SUMMARY STEP */}
             <div className={step === 'summary' ? 'block space-y-6' : 'hidden'}>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -872,6 +898,7 @@ export default function CreateJobModal() {
         </div>
 
         {/* Footer Actions */}
+        {step !== 'success' && (
         <div className="border-t border-slate-200 bg-white px-6 py-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {step === 'form' ? (
@@ -926,13 +953,16 @@ export default function CreateJobModal() {
                 </button>
               </>
             )}
+            
+            {/* Show only on non-success steps */}
+            {step !== 'success' && errors.submit && (
+              <p className="mt-2 text-center text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
+                {errors.submit}
+              </p>
+            )}
           </div>
-          {errors.submit && (
-            <p className="mt-2 text-center text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
-              {errors.submit}
-            </p>
-          )}
         </div>
+        )}
 
       </div>
       <CreateClientModal
