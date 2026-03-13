@@ -85,10 +85,14 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchClients = async () => {
       try {
         const response = await fetch('/api/clients');
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
         const data = await response.json();
-        setClients(data);
+        setClients(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error fetching clients on dashboard:', error);
+        setClients([]);
       }
     };
 

@@ -29,46 +29,30 @@ export default function CreateJobModal() {
   const editJobId = searchParams.get('editJob');
   const [step, setStep] = useState<'form' | 'summary'>('form');
 
-  const [clients, setClients] = useState(() => {
-    const stored = localStorage.getItem('clients');
-    return stored ? JSON.parse(stored) : [
-      {
-        id: '1',
-        name: 'AgroExport S.A.',
-        businessName: 'AgroExport Sociedad Anónima',
-        cuit: '30-12345678-9',
-        ivaCondition: 'Responsable Inscripto',
-        fields: [
-          { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
-          { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
-        ]
-      },
-      {
-        id: '2',
-        name: "Finca La Estela",
-        businessName: "Estela Agricola S.R.L.",
-        cuit: "30-87654321-0",
-        ivaCondition: "Responsable Inscripto",
-        fields: [
-          { name: 'Campo Principal', lat: -31.4201, lng: -64.1888, lots: ['A1', 'A2'] },
-          { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
-        ]
-      },
-      {
-        id: '3',
-        name: 'Juan Pérez',
-        cuit: '20-55554444-3',
-        ivaCondition: 'Monotributista',
-        fields: [
-          { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
-          { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
-        ]
-      },
-    ];
-  });
+  const [clients, setClients] = useState<any[]>([]);
+
+  const fetchClients = async () => {
+    try {
+      const response = await fetch('/api/clients');
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      const data = await response.json();
+      setClients(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      // Fallback to localStorage if API fails
+      const stored = localStorage.getItem('clients');
+      if (stored) setClients(JSON.parse(stored));
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('clients', JSON.stringify(clients));
+    fetchClients();
+  }, []);
+
+  useEffect(() => {
+    if (clients.length > 0) {
+      localStorage.setItem('clients', JSON.stringify(clients));
+    }
   }, [clients]);
 
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
@@ -94,11 +78,11 @@ export default function CreateJobModal() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const clientSuggestions = clients.filter((c: any) =>
-    c.name.toLowerCase().includes(formData.client.toLowerCase()) ||
+    (c.name || '').toLowerCase().includes(formData.client.toLowerCase()) ||
     (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()))
   );
   const selectedClientObj = clients.find((c: any) =>
-    c.name.toLowerCase() === formData.client.toLowerCase() ||
+    (c.name || '').toLowerCase() === formData.client.toLowerCase() ||
     (c.businessName && c.businessName.toLowerCase() === formData.client.toLowerCase())
   );
   const availableFields = selectedClientObj ? (selectedClientObj.fields || []) : [];
@@ -222,6 +206,14 @@ export default function CreateJobModal() {
             client: formData.client || "Cliente Desconocido",
             location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
             service: formData.service,
+            title: formData.title,
+            fieldName: formData.field,
+            lotName: formData.lot,
+            hectares: parseFloat(formData.hectares) || 0,
+            amount: parseFloat(formData.amount) || 0,
+            campaign: formData.campaign,
+            secondaryService: formData.secondaryService,
+            notes: formData.notes,
             date: formData.date || job.date,
             iconName: getIconNameForService(formData.service),
             color: getColorForService(formData.service),
@@ -236,6 +228,14 @@ export default function CreateJobModal() {
         client: formData.client || "Cliente Desconocido",
         location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
         service: formData.service,
+        title: formData.title,
+        fieldName: formData.field,
+        lotName: formData.lot,
+        hectares: parseFloat(formData.hectares) || 0,
+        amount: parseFloat(formData.amount) || 0,
+        campaign: formData.campaign,
+        secondaryService: formData.secondaryService,
+        notes: formData.notes,
         date: formData.date || "Hoy, 08:00 AM",
         operator: "Asignación Pendiente", // Placeholder
         status: "Pendiente",
@@ -339,6 +339,7 @@ export default function CreateJobModal() {
                       <input
                         type="text"
                         name="client"
+                        autoComplete="off"
                         value={formData.client}
                         onChange={(e) => {
                           handleInputChange(e);
@@ -459,6 +460,7 @@ export default function CreateJobModal() {
                     <input
                       type="text"
                       name="field"
+                      autoComplete="off"
                       value={formData.field}
                       onChange={(e) => {
                         handleInputChange(e);
@@ -523,6 +525,7 @@ export default function CreateJobModal() {
                     <input
                       type="text"
                       name="lot"
+                      autoComplete="off"
                       value={formData.lot}
                       onChange={(e) => {
                         handleInputChange(e);

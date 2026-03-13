@@ -35,10 +35,14 @@ export default function ClientsPage() {
     try {
       setIsLoading(true);
       const response = await fetch('/api/clients');
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
       const data = await response.json();
       setClients(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching clients:', error);
+      setClients([]);
     } finally {
       setIsLoading(false);
     }

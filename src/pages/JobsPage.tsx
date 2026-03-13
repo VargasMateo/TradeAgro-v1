@@ -19,8 +19,11 @@ import {
   Trash2,
   ArrowRight,
   X,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import JobCard from "../components/JobCard";
 
 const initialJobs = [
   {
@@ -112,6 +115,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
   const [jobs, setJobs] = useState(initialJobs);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
 
   // Filter state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -376,103 +380,70 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="scrollbar-hide mb-6 flex w-full gap-1 overflow-x-auto rounded-2xl bg-slate-100/50 p-1 md:mb-8 md:w-fit md:gap-2">
-        {tabs.map((tab) => (
+      {/* Tabs & View Toggle */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-8">
+        {/* Tabs */}
+        <div className="scrollbar-hide flex w-full gap-1 overflow-x-auto rounded-2xl bg-slate-100/50 p-1 md:w-fit md:gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition-all md:flex-none md:px-6 md:text-sm",
+                activeTab === tab
+                  ? "bg-white text-[#2e7d32] shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* View Toggle */}
+        <div className="hidden items-center gap-1 rounded-2xl bg-slate-100/50 p-1 md:flex">
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => setViewMode('grid')}
             className={cn(
-              "flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition-all md:flex-none md:px-6 md:text-sm",
-              activeTab === tab
-                ? "bg-white text-[#2e7d32] shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+              "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+              viewMode === 'grid' ? "bg-white text-[#2e7d32] shadow-sm" : "text-slate-400 hover:text-slate-600"
             )}
+            title="Vista Cuadrícula"
           >
-            {tab}
+            <LayoutGrid className="h-4.5 w-4.5" />
           </button>
-        ))}
+          <button
+            onClick={() => setViewMode('table')}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+              viewMode === 'table' ? "bg-white text-[#2e7d32] shadow-sm" : "text-slate-400 hover:text-slate-600"
+            )}
+            title="Vista Lista"
+          >
+            <List className="h-4.5 w-4.5" />
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Card View */}
+      {/* Mobile Card View (Always Grid) */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {filteredJobs.map((job) => (
-          <div key={job.id} className={cn(
-            "rounded-2xl border border-slate-200 p-4 shadow-sm",
-            job.status === "En Proceso" && "bg-gradient-to-br from-amber-50 to-white",
-            job.status === "Pendiente" && "bg-gradient-to-br from-slate-50 to-white",
-            job.status === "Completado" && "bg-gradient-to-br from-emerald-50 to-white"
-          )}>
-            <div className="mb-3 flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl",
-                    job.color === "emerald" && "bg-emerald-50 text-emerald-600",
-                    job.color === "blue" && "bg-blue-50 text-blue-600",
-                    job.color === "orange" && "bg-orange-50 text-orange-600",
-                    job.color === "indigo" && "bg-indigo-50 text-indigo-600"
-                  )}
-                >
-                  {(() => {
-                    const IconComponent = getIcon(job.iconName);
-                    return <IconComponent className="h-5 w-5" />;
-                  })()}
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900">{job.service}</h3>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-medium text-slate-500">{job.id}</p>
-                    <span className="text-xs text-slate-300">•</span>
-                    <p className="text-xs text-slate-500">{job.date || "12 Oct 2023"}</p>
-                  </div>
-                </div>
-              </div>
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold",
-                  job.status === "En Proceso" && "bg-amber-50 text-amber-600",
-                  job.status === "Pendiente" && "bg-slate-100 text-slate-500",
-                  job.status === "Completado" && "bg-emerald-50 text-emerald-600"
-                )}
-              >
-                {job.status}
-              </span>
-            </div>
-
-            <div className="mb-4 space-y-2 rounded-xl bg-slate-50 p-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Cliente:</span>
-                <span className="font-medium text-slate-900">{job.client}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Ubicación:</span>
-                <span className="font-medium text-slate-900">{job.location}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Profesional:</span>
-                <div className="flex items-center gap-2">
-                  <img
-                    src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
-                    alt={job.operator}
-                    className="h-5 w-5 rounded-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className="font-medium text-slate-900">{job.operator}</span>
-                </div>
-              </div>
-            </div>
-
-            <Link to={`/jobs/${(job.id || '').replace('#', '')}`} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">
-              Ver Detalles
-            </Link>
-          </div>
+          <JobCard key={job.id} job={job} userRole={userRole} />
         ))}
       </div>
 
-      {/* Desktop Data Table */}
-      <div className="hidden overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-100 md:block">
-        <div className="overflow-x-auto">
+      {/* Desktop Views */}
+      <div className="hidden md:block">
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredJobs.map((job) => (
+              <JobCard key={job.id} job={job} userRole={userRole} />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-100">
+            <div className="overflow-x-auto">
+              {/* Existing Table Code will go here, I'll update it in next chunk */}
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-slate-50/50">
@@ -487,6 +458,9 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     Cliente & Ubicación
                   </th>
                 )}
+                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Superficie
+                </th>
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
                   Servicio
                 </th>
@@ -525,11 +499,21 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                           {job.client}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {job.location}
+                          {job.fieldName || job.location.split(' - ')[0]} - {job.lotName || job.location.split(' - ')[1]}
                         </span>
                       </div>
                     </td>
                   )}
+                  <td className="px-8 py-6">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-700">
+                        {job.hectares || '0'} HA
+                      </span>
+                      <span className="text-[10px] text-slate-400 uppercase font-medium">
+                        {job.campaign || '2023/24'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-3">
                       <div
@@ -542,7 +526,8 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                         )}
                       >
                         {(() => {
-                          const IconComponent = getIcon(job.iconName);
+                          const iconName = job.iconName || (job.service === 'Cosecha' ? 'Wheat' : 'Tractor');
+                          const IconComponent = iconMap[iconName] || Tractor;
                           return <IconComponent className="h-4 w-4" />;
                         })()}
                       </div>
@@ -628,8 +613,8 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
         {/* Pagination */}
         <div className="flex items-center justify-between border-t border-slate-100 px-8 py-6">
           <p className="text-sm text-slate-400">
-            Mostrando <span className="font-semibold text-slate-700">1-10</span>{" "}
-            de <span className="font-semibold text-slate-700">84</span> trabajos
+            Mostrando <span className="font-semibold text-slate-700">1-{filteredJobs.length}</span>{" "}
+            de <span className="font-semibold text-slate-700">{filteredJobs.length}</span> trabajos
           </p>
           <div className="flex items-center gap-1">
             <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
@@ -638,21 +623,13 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
             <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2e7d32] text-sm font-bold text-white shadow-sm">
               1
             </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100">
-              2
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100">
-              3
-            </button>
-            <span className="px-2 text-slate-300">...</span>
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100">
-              9
-            </button>
             <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
+      </div>
+        )}
       </div>
     </div>
   );
