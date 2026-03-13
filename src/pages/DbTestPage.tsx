@@ -275,7 +275,7 @@ export default function DbTestPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 overflow-hidden">
                         <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-amber-700 transition-colors truncate">
-                          {job.title || job.serviceType || `Trabajo #${job.id}`}
+                          {job.jobCode || `Job #${job.id}`} - {job.title || job.service}
                         </h3>
                         <div className="flex items-center gap-1.5 mt-1.5">
                           <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
@@ -291,7 +291,7 @@ export default function DbTestPage() {
                       </span>
                       <span className="text-[10px] text-slate-400 font-bold ml-auto flex items-center gap-1.5">
                         <Calendar className="h-3 w-3" />
-                        {job.date ? new Date(job.date).toLocaleDateString() : '-'}
+                        {job.date ? new Date(job.date).toLocaleDateString('es-AR') : '-'}
                       </span>
                     </div>
                   </div>

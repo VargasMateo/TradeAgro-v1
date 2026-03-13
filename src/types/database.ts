@@ -39,10 +39,10 @@ export type JobStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
 export interface Job {
   id: number;
   jobCode: string; // e.g., '#AG-1234'
-  clientId: number;
-  userId: number; // The professional/operator assigned
+  clientId: string;
+  userId: string; // The professional/operator assigned
   date: string;
-  serviceId: number;
+  service: string;
   title: string;
   description?: string;
   hectares: number;

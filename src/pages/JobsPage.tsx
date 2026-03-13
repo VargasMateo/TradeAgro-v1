@@ -117,8 +117,8 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
   // Get unique values for suggestions
   const uniqueValues = {
-    id: Array.from(new Set(jobs.map(j => j.id))),
-    date: Array.from(new Set(jobs.map(j => j.date))),
+    id: Array.from(new Set(jobs.map(j => j.jobCode || `#AG-${j.id}`))),
+    date: Array.from(new Set(jobs.map(j => j.date ? new Date(j.date).toLocaleDateString('es-AR') : ''))),
     client: Array.from(new Set(jobs.map(j => j.client))),
     location: Array.from(new Set(jobs.map(j => j.location))),
     service: Array.from(new Set(jobs.map(j => j.service))),
@@ -137,12 +137,12 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
     if (activeTab === "Completados" && job.status !== "Completado") return false;
 
     // Popup filters
-    if (filters.id && !job.id.toLowerCase().includes(filters.id.toLowerCase())) return false;
-    if (filters.date && !job.date.toLowerCase().includes(filters.date.toLowerCase())) return false;
-    if (filters.client && !job.client.toLowerCase().includes(filters.client.toLowerCase())) return false;
-    if (filters.location && !job.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
-    if (filters.service && !job.service.toLowerCase().includes(filters.service.toLowerCase())) return false;
-    if (filters.operator && !job.operator.toLowerCase().includes(filters.operator.toLowerCase())) return false;
+    if (filters.id && !(job.jobCode || '').toLowerCase().includes(filters.id.toLowerCase())) return false;
+    if (filters.date && !(job.date && new Date(job.date).toLocaleDateString('es-AR').toLowerCase().includes(filters.date.toLowerCase()))) return false;
+    if (filters.client && !(job.client || '').toLowerCase().includes(filters.client.toLowerCase())) return false;
+    if (filters.location && !(job.location || '').toLowerCase().includes(filters.location.toLowerCase())) return false;
+    if (filters.service && !(job.service || '').toLowerCase().includes(filters.service.toLowerCase())) return false;
+    if (filters.operator && !(job.operator || '').toLowerCase().includes(filters.operator.toLowerCase())) return false;
     if (filters.status && job.status !== filters.status) return false;
 
     return true;
@@ -400,7 +400,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
             <p className="text-base font-semibold text-slate-900">No pudimos obtener la información</p>
             <p className="text-sm text-slate-500 mt-1">{error}</p>
-            <button 
+            <button
               onClick={fetchJobs}
               className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
             >
@@ -425,191 +425,191 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-100">
             <div className="overflow-x-auto">
               {/* Existing Table Code will go here, I'll update it in next chunk */}
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-slate-50/50">
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  ID Trabajo
-                </th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Fecha
-                </th>
-                {(userRole === 'profesional' || userRole === 'superadmin') && (
-                  <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Cliente & Ubicación
-                  </th>
-                )}
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Superficie
-                </th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Servicio
-                </th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Profesional
-                </th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Estado
-                </th>
-                <th className="px-8 py-5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredJobs.map((job) => (
-                <tr
-                  key={job.id}
-                  onClick={() => navigate(`/jobs/${(job.id || '').replace('#', '')}`)}
-                  className="group cursor-pointer transition-colors hover:bg-slate-50/80"
-                >
-                  <td className="px-8 py-6">
-                    <span className="text-sm font-bold text-slate-400 group-hover:text-[#2e7d32] transition-colors">
-                      {job.id}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6">
-                    <span className="text-sm text-slate-500">
-                      {job.date || "12 Oct 2023"}
-                    </span>
-                  </td>
-                  {(userRole === 'profesional' || userRole === 'superadmin') && (
-                    <td className="px-8 py-6">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-900">
-                          {job.client}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {job.fieldName || job.location.split(' - ')[0]} - {job.lotName || job.location.split(' - ')[1]}
-                        </span>
-                      </div>
-                    </td>
-                  )}
-                  <td className="px-8 py-6">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">
-                        {job.hectares || '0'} HA
-                      </span>
-                      <span className="text-[10px] text-slate-400 uppercase font-medium">
-                        {job.campaign || '2023/24'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-lg",
-                          job.color === "emerald" && "bg-emerald-50 text-emerald-600",
-                          job.color === "blue" && "bg-blue-50 text-blue-600",
-                          job.color === "orange" && "bg-orange-50 text-orange-600",
-                          job.color === "indigo" && "bg-indigo-50 text-indigo-600"
-                        )}
-                      >
-                        {(() => {
-                          const iconName = job.iconName || (job.service === 'Cosecha' ? 'Wheat' : 'Tractor');
-                          const IconComponent = iconMap[iconName] || Tractor;
-                          return <IconComponent className="h-4 w-4" />;
-                        })()}
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">
-                        {job.service}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
-                        alt={job.operator}
-                        className="h-8 w-8 rounded-full object-cover border border-slate-200"
-                        referrerPolicy="no-referrer"
-                      />
-                      <span className="text-sm text-slate-600">
-                        {job.operator}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
-                        job.status === "En Proceso" &&
-                        "border-amber-100 bg-amber-50 text-amber-600",
-                        job.status === "Pendiente" &&
-                        "border-slate-200 bg-slate-100 text-slate-500",
-                        job.status === "Completado" &&
-                        "border-emerald-100 bg-emerald-50 text-emerald-600"
-                      )}
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                      ID Trabajo
+                    </th>
+                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Fecha
+                    </th>
+                    {(userRole === 'profesional' || userRole === 'superadmin') && (
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Cliente & Ubicación
+                      </th>
+                    )}
+                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Superficie
+                    </th>
+                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Servicio
+                    </th>
+                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Profesional
+                    </th>
+                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Estado
+                    </th>
+                    <th className="px-8 py-5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredJobs.map((job) => (
+                    <tr
+                      key={job.id}
+                      onClick={() => navigate(`/jobs/${String(job.id).replace('#', '')}`)}
+                      className="group cursor-pointer transition-colors hover:bg-slate-50/80"
                     >
-                      <span
-                        className={cn(
-                          "mr-2 h-1.5 w-1.5 rounded-full",
-                          job.status === "En Proceso" && "bg-amber-500",
-                          job.status === "Pendiente" && "bg-slate-400",
-                          job.status === "Completado" && "bg-emerald-500"
-                        )}
-                      ></span>
-                      {job.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                      <td className="px-8 py-6">
+                        <span className="text-sm font-bold text-slate-400 group-hover:text-[#2e7d32] transition-colors">
+                          {job.jobCode || `#AG-${job.id}`}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-sm text-slate-500">
+                          {job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
+                        </span>
+                      </td>
                       {(userRole === 'profesional' || userRole === 'superadmin') && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSearchParams({ editJob: (job.id || '').replace('#', '') });
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                            title="Editar"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                            title="Borrar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-slate-900">
+                              {job.client}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {job.fieldName || job.location.split(' - ')[0]} - {job.lotName || job.location.split(' - ')[1]}
+                            </span>
+                          </div>
+                        </td>
                       )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${(job.id || '').replace('#', '')}`); }}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
-                        title="Ir"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-700">
+                            {job.hectares || '0'} HA
+                          </span>
+                          <span className="text-[10px] text-slate-400 uppercase font-medium">
+                            {job.campaign || '2023/24'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "flex h-8 w-8 items-center justify-center rounded-lg",
+                              job.color === "emerald" && "bg-emerald-50 text-emerald-600",
+                              job.color === "blue" && "bg-blue-50 text-blue-600",
+                              job.color === "orange" && "bg-orange-50 text-orange-600",
+                              job.color === "indigo" && "bg-indigo-50 text-indigo-600"
+                            )}
+                          >
+                            {(() => {
+                              const iconName = job.iconName || (job.service === 'Cosecha' ? 'Wheat' : 'Tractor');
+                              const IconComponent = iconMap[iconName] || Tractor;
+                              return <IconComponent className="h-4 w-4" />;
+                            })()}
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">
+                            {job.service}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
+                            alt={job.operator}
+                            className="h-8 w-8 rounded-full object-cover border border-slate-200"
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="text-sm text-slate-600">
+                            {job.operator}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
+                            job.status === "En Proceso" &&
+                            "border-amber-100 bg-amber-50 text-amber-600",
+                            job.status === "Pendiente" &&
+                            "border-slate-200 bg-slate-100 text-slate-500",
+                            job.status === "Completado" &&
+                            "border-emerald-100 bg-emerald-50 text-emerald-600"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "mr-2 h-1.5 w-1.5 rounded-full",
+                              job.status === "En Proceso" && "bg-amber-500",
+                              job.status === "Pendiente" && "bg-slate-400",
+                              job.status === "Completado" && "bg-emerald-500"
+                            )}
+                          ></span>
+                          {job.status}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {(userRole === 'profesional' || userRole === 'superadmin') && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSearchParams({ editJob: String(job.id).replace('#', '') });
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                                title="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                title="Borrar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${String(job.id).replace('#', '')}`); }}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                            title="Ir"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-slate-100 px-8 py-6">
-          <p className="text-sm text-slate-400">
-            Mostrando <span className="font-semibold text-slate-700">1-{filteredJobs.length}</span>{" "}
-            de <span className="font-semibold text-slate-700">{filteredJobs.length}</span> trabajos
-          </p>
-          <div className="flex items-center gap-1">
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2e7d32] text-sm font-bold text-white shadow-sm">
-              1
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            {/* Pagination */}
+            <div className="flex items-center justify-between border-t border-slate-100 px-8 py-6">
+              <p className="text-sm text-slate-400">
+                Mostrando <span className="font-semibold text-slate-700">1-{filteredJobs.length}</span>{" "}
+                de <span className="font-semibold text-slate-700">{filteredJobs.length}</span> trabajos
+              </p>
+              <div className="flex items-center gap-1">
+                <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2e7d32] text-sm font-bold text-white shadow-sm">
+                  1
+                </button>
+                <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
         )}
       </div>
     </div>

@@ -265,33 +265,33 @@ app.get('/api/jobs', async (req, res) => {
   console.log('[DEBUG] GET /api/jobs - Fetching all jobs');
   try {
     const [rows]: any = await pool.query(`
-      SELECT t.*, c.displayName as clientName 
+      SELECT t.*, c.displayName as clientName
       FROM tbl_trabajos t
       LEFT JOIN tbl_clientes c ON t.clientId = c.id
-      ORDER BY t.created_at DESC
+      ORDER BY t.createdAt DESC
     `);
-    
+
     // Map database rows to frontend Job format
     const jobs = rows.map((row: any) => ({
-      id: `#AG-${row.id_trabajo}`,
-      dbId: row.id_trabajo,
+      id: row.id,
+      jobCode: row.jobCode || `#AG-${row.id}`,
       clientId: row.clientId,
       client: row.clientName || 'Cliente Desconocido',
-      date: row.fecha_trabajo ? new Date(row.fecha_trabajo).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Sin fecha',
-      location: row.campo ? `${row.campo}${row.lote ? ` - ${row.lote}` : ''}` : 'Ubicación pendiente',
-      service: row.servicio_principal || 'Sin servicio',
-      secondaryService: row.servicio_secundario || '',
-      title: row.titulo || row.servicio_principal,
-      fieldName: row.campo,
-      lotName: row.lote,
-      hectares: parseFloat(row.hectareas) || 0,
-      amount: parseFloat(row.importe) || 0,
-      campaign: row.campania,
-      notes: row.observaciones,
-      status: row.estado === 0 ? 'Pendiente' : row.estado === 1 ? 'En Proceso' : 'Completado',
-      operator: "Asignación Pendiente", // Placeholder for now
-      iconName: getIconNameForService(row.servicio_principal),
-      color: getColorForService(row.servicio_principal),
+      date: row.date,
+      location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
+      service: row.service || 'Sin servicio',
+      title: row.title || row.service,
+      fieldName: row.fieldName,
+      lotName: row.lotName,
+      hectares: parseFloat(row.hectares) || 0,
+      amountUsd: parseFloat(row.amountUsd) || 0,
+      campaign: row.campaign,
+      description: row.description,
+      status: row.status,
+      operator: "Asignación Pendiente",
+      iconName: getIconNameForService(row.service),
+      color: getColorForService(row.service),
+      createdAt: row.createdAt
     }));
 
     res.json(jobs);
@@ -306,7 +306,7 @@ app.get('/api/jobs', async (req, res) => {
  * Endpoint to create a job (trabajo)
  */
 app.post('/api/jobs', async (req, res) => {
-  console.log('[DEBUG] POST /api/jobs - Creating new job');
+  console.log('[DEBUG] POST /api/jobs - Creating new job:', JSON.stringify(req.body));
   try {
     const {
       clientId,
@@ -316,39 +316,60 @@ app.post('/api/jobs', async (req, res) => {
       lot,
       hectares,
       service,
-      secondaryService,
       campaign,
       amount,
       notes
     } = req.body;
 
+    // Clean numeric values
+    const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
+    const cleanHectares = typeof hectares === 'string' ? hectares.replace(/[^0-9.]/g, '') : hectares;
+
+    let finalClientId = clientId;
+
+    // If clientId is missing, try to find it by name
+    if (!finalClientId && req.body.client) {
+      const [clientRows]: any = await pool.query('SELECT id FROM tbl_clientes WHERE displayName = ? LIMIT 1', [req.body.client]);
+      if (clientRows.length > 0) {
+        finalClientId = clientRows[0].id;
+      }
+    }
+
     const dbData = {
-      clientId: clientId,
-      id_cliente: (clientId || '').substring(0, 7), // Legacy field
-      id_usuario: '1', // Placeholder for current user
-      fecha_trabajo: date || null,
-      titulo: title,
-      servicio_principal: service,
-      servicio_secundario: secondaryService || null,
-      campania: campaign || null,
-      campo: field || null,
-      lote: lot || null,
-      hectareas: parseFloat(hectares) || 0,
-      importe: parseFloat(amount) || 0,
-      observaciones: notes || null,
-      estado: 0, // 0: Pendiente
+      clientId: finalClientId || null,
+      userId: '1', // Legacy association placeholder
+      date: date || null,
+      title: title,
+      service: service,
+      campaign: campaign || null,
+      fieldName: field || null,
+      lotName: lot || null,
+      hectares: parseFloat(cleanHectares) || 0,
+      amountUsd: parseFloat(cleanAmount) || 0,
+      description: notes || null,
+      status: 'Pendiente',
     };
 
+    console.log('[DEBUG] Inserting into tbl_trabajos:', JSON.stringify(dbData));
     const [result]: any = await pool.query('INSERT INTO tbl_trabajos SET ?', [dbData]);
     
+    // Generate jobCode based on ID
+    const jobCode = `#AG-${result.insertId}`;
+    await pool.query('UPDATE tbl_trabajos SET jobCode = ? WHERE id = ?', [jobCode, result.insertId]);
+
     res.json({ 
       success: true, 
-      id: `#AG-${result.insertId}`,
-      dbId: result.insertId 
+      id: result.insertId,
+      jobCode: jobCode
     });
   } catch (error) {
-    console.error('[DATABASE ERROR] POST /api/jobs:', error.message);
-    res.status(500).json({ error: 'Failed to create job', details: error.message });
+    console.error('[DATABASE ERROR] POST /api/jobs:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create job', 
+      message: error.message,
+      code: error.code 
+    });
   }
 });
 

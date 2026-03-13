@@ -76,6 +76,7 @@ export default function CreateJobModal() {
     notes: ''
   });
 
+  const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const clientSuggestions = clients.filter((c: any) =>
@@ -210,6 +211,8 @@ export default function CreateJobModal() {
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
+    setErrors({});
     try {
       const response = await fetch('/api/jobs', {
         method: 'POST',
@@ -217,7 +220,10 @@ export default function CreateJobModal() {
         body: JSON.stringify(formData)
       });
 
-      if (!response.ok) throw new Error('Failed to save job');
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to save job');
+      }
 
       const result = await response.json();
       console.log('Job saved successfully:', result);
@@ -229,9 +235,11 @@ export default function CreateJobModal() {
       } else {
         window.dispatchEvent(new Event('job-created'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving job:', error);
-      setErrors({ submit: 'Error al guardar el trabajo' });
+      setErrors({ submit: error.message || 'Error al guardar el trabajo' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -878,14 +886,32 @@ export default function CreateJobModal() {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
+                  disabled={isSaving}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.98] sm:flex-none",
+                    isSaving ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02]"
+                  )}
                 >
-                  <Save className="h-4 w-4" />
-                  CONFIRMAR
+                  {isSaving ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      GUARDANDO...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      CONFIRMAR
+                    </>
+                  )}
                 </button>
               </>
             )}
           </div>
+          {errors.submit && (
+            <p className="mt-2 text-center text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
+              {errors.submit}
+            </p>
+          )}
         </div>
 
       </div>

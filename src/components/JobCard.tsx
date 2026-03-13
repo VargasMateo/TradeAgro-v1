@@ -53,11 +53,11 @@ export default function JobCard({ job, userRole }: JobCardProps) {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                {job.id}
+                {job.jobCode || `#AG-${job.id}`}
               </span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
               <span className="text-[10px] font-bold text-slate-500">
-                {job.date}
+                {job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : '-'}
               </span>
             </div>
             <h3 className="text-lg font-extrabold text-slate-900 line-clamp-1">
@@ -82,10 +82,10 @@ export default function JobCard({ job, userRole }: JobCardProps) {
             <MapPin className="h-3 w-3" /> UBICACIÓN
           </p>
           <p className="text-xs font-bold text-slate-800 line-clamp-1">
-            {job.fieldName || job.location.split(' - ')[0] || '-'}
+            {job.fieldName || (job.location && job.location.split(' - ')[0]) || '-'}
           </p>
           <p className="text-[10px] font-medium text-slate-500">
-            Lote: <span className="text-slate-700">{job.lotName || job.location.split(' - ')[1] || '-'}</span>
+            Lote: <span className="text-slate-700">{job.lotName || (job.location && job.location.split(' - ')[1]) || '-'}</span>
           </p>
         </div>
 
@@ -124,7 +124,7 @@ export default function JobCard({ job, userRole }: JobCardProps) {
 
       {/* Action Overlay */}
       <Link 
-        to={`/jobs/${(job.id || '').replace('#', '')}`}
+        to={`/jobs/${String(job.id).replace('#', '')}`}
         className="absolute inset-0 z-10"
         aria-label="Ver detalles"
       />
