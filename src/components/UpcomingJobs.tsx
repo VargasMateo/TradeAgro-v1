@@ -42,24 +42,30 @@ const initialJobs = [
 ];
 
 export default function UpcomingJobs() {
-  const [jobs, setJobs] = useState(initialJobs);
+  const [jobs, setJobs] = useState<any[]>([]);
 
-  const loadJobs = () => {
-    const storedJobs = localStorage.getItem("jobs");
-    if (storedJobs) {
-      const parsedJobs = JSON.parse(storedJobs);
-      // Filter for active/pending jobs and add mock dates if missing
+  const loadJobs = async () => {
+    try {
+      const response = await fetch('/api/jobs');
+      if (!response.ok) throw new Error('Failed to fetch jobs');
+      
+      const parsedJobs = await response.json();
+      
+      // Filter for active/pending jobs
       const activeJobs = parsedJobs
         .filter((job: any) => job.status !== "Completado")
         .slice(0, 5)
-        .map((job: any, index: number) => ({
+        .map((job: any) => ({
           ...job,
-          date: job.date || (index === 0 ? "Hoy, 08:00 AM" : index === 1 ? "Mañana, 07:30 AM" : "Jue 12, 09:00 AM")
+          date: job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' }) : "Pendiente de fecha",
+          location: `${job.fieldName || 'Campo N/A'} - ${job.lotName || 'Lote N/A'}`
         }));
 
-      if (activeJobs.length > 0) {
-        setJobs(activeJobs);
-      }
+      setJobs(activeJobs);
+    } catch (error) {
+      console.error('Error fetching upcoming jobs:', error);
+      // Fallback or empty state could go here
+      setJobs([]);
     }
   };
 
@@ -91,7 +97,7 @@ export default function UpcomingJobs() {
         {jobs.map((job) => (
           <Link
             key={job.id || Math.random()}
-            to={`/jobs/${(job.id || '').replace('#', '')}`}
+            to={`/jobs/${String(job.id).replace('#', '')}`}
             className={`snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] ${job.status === 'En Proceso'
               ? 'bg-gradient-to-br from-amber-50 to-white'
               : 'bg-gradient-to-br from-slate-50 to-white'
@@ -102,7 +108,7 @@ export default function UpcomingJobs() {
                 }`}>
                 {job.status}
               </span>
-              <span className="text-xs font-semibold text-slate-400">{job.id}</span>
+              <span className="text-xs font-semibold text-slate-400">{job.jobCode || `#AG-${job.id}`}</span>
             </div>
 
             <h4 className="font-bold text-slate-900 mb-1 truncate">{job.service}</h4>
