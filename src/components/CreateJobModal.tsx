@@ -146,6 +146,26 @@ export default function CreateJobModal() {
   }, [isOpen, searchParams, editJobId]);
 
   const handleClose = () => {
+    // Reset state
+    setStep('form');
+    setFormData({
+      clientId: '',
+      client: '',
+      date: '',
+      title: '',
+      field: '',
+      hectares: '',
+      service: '',
+      secondaryService: '',
+      campaign: '',
+      lot: '',
+      number: '',
+      amount: '',
+      notes: ''
+    });
+    setErrors({});
+    setIsSaving(false);
+    
     // Remove newJob and other related params from URL
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('newJob');
