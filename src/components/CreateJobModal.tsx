@@ -61,6 +61,7 @@ export default function CreateJobModal() {
   const [showLotSuggestions, setShowLotSuggestions] = useState(false);
 
   const [formData, setFormData] = useState({
+    clientId: '',
     client: searchParams.get('client') || '',
     date: searchParams.get('date') || '',
     title: '',
@@ -82,8 +83,11 @@ export default function CreateJobModal() {
     (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()))
   );
   const selectedClientObj = clients.find((c: any) =>
-    (c.name || '').toLowerCase() === formData.client.toLowerCase() ||
-    (c.businessName && c.businessName.toLowerCase() === formData.client.toLowerCase())
+    (formData.clientId && c.id === formData.clientId) ||
+    (!formData.clientId && (
+      (c.name || '').toLowerCase() === formData.client.toLowerCase() ||
+      (c.businessName && c.businessName.toLowerCase() === formData.client.toLowerCase())
+    ))
   );
   const availableFields = selectedClientObj ? (selectedClientObj.fields || []) : [];
   const fieldNames = availableFields.map((f: any) => f.name);
@@ -109,6 +113,7 @@ export default function CreateJobModal() {
             const lot = locationParts[1] || '';
 
             setFormData({
+              clientId: jobToEdit.clientId || '',
               client: jobToEdit.client || '',
               date: jobToEdit.date || '',
               title: jobToEdit.title || jobToEdit.service || '',
@@ -130,6 +135,7 @@ export default function CreateJobModal() {
       // Default for new job
       setFormData(prev => ({
         ...prev,
+        clientId: '',
         client: searchParams.get('client') || prev.client,
         date: searchParams.get('date') || prev.date,
         field: searchParams.get('field') || prev.field,
@@ -151,10 +157,20 @@ export default function CreateJobModal() {
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'client') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        clientId: '', // Reset ID when typing manually
+        field: '', // Clear field as it depends on client
+        lot: '' // Clear lot
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -201,23 +217,24 @@ export default function CreateJobModal() {
       // Update existing job
       jobs = jobs.map((job: any) => {
         if ((job.id || '').replace('#', '') === editJobId) {
-          return {
-            ...job,
-            client: formData.client || "Cliente Desconocido",
-            location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
-            service: formData.service,
-            title: formData.title,
-            fieldName: formData.field,
-            lotName: formData.lot,
-            hectares: parseFloat(formData.hectares) || 0,
-            amount: parseFloat(formData.amount) || 0,
-            campaign: formData.campaign,
-            secondaryService: formData.secondaryService,
-            notes: formData.notes,
-            date: formData.date || job.date,
-            iconName: getIconNameForService(formData.service),
-            color: getColorForService(formData.service),
-          };
+            return {
+              ...job,
+              clientId: formData.clientId,
+              client: formData.client || "Cliente Desconocido",
+              location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
+              service: formData.service,
+              title: formData.title,
+              fieldName: formData.field,
+              lotName: formData.lot,
+              hectares: parseFloat(formData.hectares) || 0,
+              amount: parseFloat(formData.amount) || 0,
+              campaign: formData.campaign,
+              secondaryService: formData.secondaryService,
+              notes: formData.notes,
+              date: formData.date || job.date,
+              iconName: getIconNameForService(formData.service),
+              color: getColorForService(formData.service),
+            };
         }
         return job;
       });
@@ -225,6 +242,7 @@ export default function CreateJobModal() {
       // Create new job object
       const newJob = {
         id: `#AG-${Math.floor(Math.random() * 9000) + 1000}`,
+        clientId: formData.clientId,
         client: formData.client || "Cliente Desconocido",
         location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
         service: formData.service,
@@ -370,7 +388,18 @@ export default function CreateJobModal() {
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col"
                             onClick={() => {
-                              setFormData(prev => ({ ...prev, client: c.name }));
+                              const hasSingleField = c.fields && c.fields.length === 1;
+                              const singleField = hasSingleField ? c.fields[0] : null;
+                              const hasSingleLot = singleField && singleField.lots && singleField.lots.length === 1;
+                              const singleLot = hasSingleLot ? singleField.lots[0] : '';
+                              
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                client: c.name, 
+                                clientId: c.id, 
+                                field: singleField ? singleField.name : '',
+                                lot: singleLot
+                              }));
                               setShowClientSuggestions(false);
                             }}
                           >
