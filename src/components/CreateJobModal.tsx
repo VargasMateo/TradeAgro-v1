@@ -362,7 +362,7 @@ export default function CreateJobModal() {
                         {errors.client}
                       </p>
                     )}
-                    {showClientSuggestions && (
+                    {showClientSuggestions && (clientSuggestions.length > 0 || (formData.client.trim() !== '' && !clients.some((c: any) => (c.name || '').toLowerCase() === formData.client.toLowerCase()))) && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {clientSuggestions.map((c: any) => (
                           <button
@@ -481,7 +481,7 @@ export default function CreateJobModal() {
                         {errors.field}
                       </p>
                     )}
-                    {showFieldSuggestions && (
+                    {showFieldSuggestions && (fieldSuggestions.length > 0 || (!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && formData.field.trim() !== '')) && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {fieldSuggestions.map((f: string) => (
                           <button
@@ -541,7 +541,7 @@ export default function CreateJobModal() {
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
-                    {showLotSuggestions && (
+                    {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && formData.lot.trim() !== '' && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {lotSuggestions.map((l: string) => (
                           <button
