@@ -424,7 +424,9 @@ app.post('/api/test/reset-fields', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-fields');
   const connection = await pool.getConnection();
   try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     await connection.query('TRUNCATE TABLE tbl_campos');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     res.json({ success: true, message: 'Fields reset successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to reset fields', details: error.message });
@@ -440,7 +442,9 @@ app.post('/api/test/reset-jobs', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-jobs');
   const connection = await pool.getConnection();
   try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     await connection.query('TRUNCATE TABLE tbl_trabajos');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     res.json({ success: true, message: 'Jobs reset successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to reset jobs', details: error.message });

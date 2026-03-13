@@ -21,8 +21,8 @@ export interface Client {
   email: string;
   phoneNumber?: string;
   createdBy: string;
-  createdAt: string; // ISO string or timestamp
-  deletedAt?: string;
+  createdAt: string; // timestamp
+  deletedAt?: string; // timestamp
 }
 
 export interface Field {
@@ -51,5 +51,5 @@ export interface Job {
   campaign: string;
   fieldName: string;
   lotName: string;
-  createdAt?: string;
+  createdAt?: string; // timestamp
 }
