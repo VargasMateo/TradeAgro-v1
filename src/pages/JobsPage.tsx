@@ -25,80 +25,7 @@ import {
 import { cn } from "../lib/utils";
 import JobCard from "../components/JobCard";
 
-const initialJobs = [
-  {
-    id: "#AG-8842",
-    date: "12 Oct 2023",
-    client: "AgroExport S.A.",
-    location: "Lote 24, Sector Norte",
-    service: "Siembra Maíz",
-    operator: "Carlos Méndez",
-    operatorImage: "https://picsum.photos/seed/carlos/100/100",
-    status: "En Proceso",
-    iconName: "Sprout",
-    color: "emerald",
-  },
-  {
-    id: "#AG-8841",
-    date: "11 Oct 2023",
-    client: "Finca La Estela",
-    location: "Parcela 12",
-    service: "Fumigación",
-    operator: "Roberto Díaz",
-    operatorImage: "https://picsum.photos/seed/roberto/100/100",
-    status: "Pendiente",
-    iconName: "Droplets",
-    color: "blue",
-  },
-  {
-    id: "#AG-8840",
-    date: "10 Oct 2023",
-    client: "Juan Pérez",
-    location: "Chacra 08",
-    service: "Cosecha Trigo",
-    operator: "Martín Luna",
-    operatorImage: "https://picsum.photos/seed/martin/100/100",
-    status: "Completado",
-    iconName: "Wheat",
-    color: "orange",
-  },
-  {
-    id: "#AG-8839",
-    date: "09 Oct 2023",
-    client: "Cooperativa Sur",
-    location: "Distrito Industrial",
-    service: "Fertilización",
-    operator: "Sergio Torres",
-    operatorImage: "https://picsum.photos/seed/sergio/100/100",
-    status: "En Proceso",
-    iconName: "Activity",
-    color: "indigo",
-  },
-  {
-    id: "#AG-8838",
-    date: "08 Oct 2023",
-    client: "Los Alamos",
-    location: "Sector 5",
-    service: "Riego",
-    operator: "Ana García",
-    operatorImage: "https://picsum.photos/seed/ana/100/100",
-    status: "Completado",
-    iconName: "Droplets",
-    color: "blue",
-  },
-  {
-    id: "#AG-8837",
-    date: "07 Oct 2023",
-    client: "Campo Verde",
-    location: "Lote 10",
-    service: "Siembra Soja",
-    operator: "Luis Perez",
-    operatorImage: "https://picsum.photos/seed/luis/100/100",
-    status: "Pendiente",
-    iconName: "Sprout",
-    color: "emerald",
-  },
-];
+// Initial jobs are now fetched from the database
 
 const iconMap: any = {
   Sprout,
@@ -112,7 +39,9 @@ const tabs = ["Todos", "Pendientes", "En Proceso", "Completados"];
 
 export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
   const [activeTab, setActiveTab] = useState("Todos");
-  const [jobs, setJobs] = useState(initialJobs);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
@@ -129,6 +58,34 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
     operator: "",
     status: "",
   });
+
+  const fetchJobs = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/jobs');
+      if (!response.ok) throw new Error('Failed to fetch jobs');
+      const data = await response.json();
+      setJobs(data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching jobs:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+
+    // Listen for new jobs created from the modal
+    const handleJobCreated = () => {
+      fetchJobs();
+    };
+
+    window.addEventListener('job-created', handleJobCreated);
+    return () => window.removeEventListener('job-created', handleJobCreated);
+  }, []);
 
   // Close filter popup when clicking outside
   useEffect(() => {
@@ -168,27 +125,6 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
     operator: Array.from(new Set(jobs.map(j => j.operator))),
   };
 
-  const loadJobs = () => {
-    const storedJobs = localStorage.getItem("jobs");
-    if (storedJobs) {
-      setJobs(JSON.parse(storedJobs));
-    } else {
-      localStorage.setItem("jobs", JSON.stringify(initialJobs));
-    }
-  };
-
-  useEffect(() => {
-    loadJobs();
-
-    const handleJobCreated = () => {
-      loadJobs();
-    };
-
-    window.addEventListener('job-created', handleJobCreated);
-    return () => {
-      window.removeEventListener('job-created', handleJobCreated);
-    };
-  }, []);
 
   const getIcon = (iconName: string) => {
     return iconMap[iconName] || Activity;
@@ -427,14 +363,59 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
       {/* Mobile Card View (Always Grid) */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
-        {filteredJobs.map((job) => (
-          <JobCard key={job.id} job={job} userRole={userRole} />
-        ))}
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center rounded-2xl bg-slate-50 border border-dashed border-slate-200">
+            <Activity className="h-6 w-6 animate-spin text-emerald-500" />
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl bg-red-50 p-6 text-center border border-red-100">
+            <AlertCircle className="mx-auto h-8 w-8 text-red-500 mb-2" />
+            <p className="text-sm font-medium text-red-800">Error al cargar trabajos</p>
+            <p className="text-xs text-red-600 mt-1">{error}</p>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="rounded-2xl bg-slate-50 p-8 text-center border border-dashed border-slate-200">
+            <Tractor className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+            <h3 className="text-sm font-semibold text-slate-900">No se encontraron trabajos</h3>
+            <p className="text-xs text-slate-500 mt-1">Intenta ajustar los filtros o crea uno nuevo.</p>
+          </div>
+        ) : (
+          filteredJobs.map((job) => (
+            <JobCard key={job.id} job={job} userRole={userRole} />
+          ))
+        )}
       </div>
 
       {/* Desktop Views */}
       <div className="hidden md:block">
-        {viewMode === 'grid' ? (
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center rounded-[2rem] bg-white border border-slate-100 shadow-sm">
+            <div className="text-center">
+              <Activity className="mx-auto h-8 w-8 animate-spin text-emerald-500 mb-3" />
+              <p className="text-sm font-medium text-slate-600">Cargando trabajos...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex h-64 flex-col items-center justify-center rounded-[2rem] bg-white border border-red-100 shadow-sm">
+            <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
+            <p className="text-base font-semibold text-slate-900">No pudimos obtener la información</p>
+            <p className="text-sm text-slate-500 mt-1">{error}</p>
+            <button 
+              onClick={fetchJobs}
+              className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="flex h-64 flex-col items-center justify-center rounded-[2rem] bg-white border border-dashed border-slate-200 shadow-sm">
+            <Tractor className="h-12 w-12 text-slate-200 mb-4" />
+            <h3 className="text-lg font-bold text-slate-900">Sin resultados</h3>
+            <p className="text-slate-500 text-sm max-w-xs text-center">
+              No hay trabajos que coincidan con los criterios seleccionados.
+            </p>
+          </div>
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredJobs.map((job) => (
               <JobCard key={job.id} job={job} userRole={userRole} />

@@ -259,19 +259,119 @@ app.get('/api/fields', async (req, res) => {
 });
 
 /**
- * Endpoint to fetch jobs (trabajos)
+ * Endpoint to fetch jobs (trabajos) with client info
  */
 app.get('/api/jobs', async (req, res) => {
-  console.log('[DEBUG] GET /api/jobs');
+  console.log('[DEBUG] GET /api/jobs - Fetching all jobs');
   try {
-    const [rows]: any = await pool.query('SELECT * FROM tbl_trabajos');
-    res.json(rows);
+    const [rows]: any = await pool.query(`
+      SELECT t.*, c.displayName as clientName 
+      FROM tbl_trabajos t
+      LEFT JOIN tbl_clientes c ON t.clientId = c.id
+      ORDER BY t.created_at DESC
+    `);
+    
+    // Map database rows to frontend Job format
+    const jobs = rows.map((row: any) => ({
+      id: `#AG-${row.id_trabajo}`,
+      dbId: row.id_trabajo,
+      clientId: row.clientId,
+      client: row.clientName || 'Cliente Desconocido',
+      date: row.fecha_trabajo ? new Date(row.fecha_trabajo).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Sin fecha',
+      location: row.campo ? `${row.campo}${row.lote ? ` - ${row.lote}` : ''}` : 'Ubicación pendiente',
+      service: row.servicio_principal || 'Sin servicio',
+      secondaryService: row.servicio_secundario || '',
+      title: row.titulo || row.servicio_principal,
+      fieldName: row.campo,
+      lotName: row.lote,
+      hectares: parseFloat(row.hectareas) || 0,
+      amount: parseFloat(row.importe) || 0,
+      campaign: row.campania,
+      notes: row.observaciones,
+      status: row.estado === 0 ? 'Pendiente' : row.estado === 1 ? 'En Proceso' : 'Completado',
+      operator: "Asignación Pendiente", // Placeholder for now
+      iconName: getIconNameForService(row.servicio_principal),
+      color: getColorForService(row.servicio_principal),
+    }));
+
+    res.json(jobs);
   } catch (error) {
     console.error('[DATABASE ERROR] GET /api/jobs:', error.message);
     if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
     res.status(500).json({ error: 'Failed to fetch jobs', details: error.message });
   }
 });
+
+/**
+ * Endpoint to create a job (trabajo)
+ */
+app.post('/api/jobs', async (req, res) => {
+  console.log('[DEBUG] POST /api/jobs - Creating new job');
+  try {
+    const {
+      clientId,
+      date,
+      title,
+      field,
+      lot,
+      hectares,
+      service,
+      secondaryService,
+      campaign,
+      amount,
+      notes
+    } = req.body;
+
+    const dbData = {
+      clientId: clientId,
+      id_cliente: (clientId || '').substring(0, 7), // Legacy field
+      id_usuario: '1', // Placeholder for current user
+      fecha_trabajo: date || null,
+      titulo: title,
+      servicio_principal: service,
+      servicio_secundario: secondaryService || null,
+      campania: campaign || null,
+      campo: field || null,
+      lote: lot || null,
+      hectareas: parseFloat(hectares) || 0,
+      importe: parseFloat(amount) || 0,
+      observaciones: notes || null,
+      estado: 0, // 0: Pendiente
+    };
+
+    const [result]: any = await pool.query('INSERT INTO tbl_trabajos SET ?', [dbData]);
+    
+    res.json({ 
+      success: true, 
+      id: `#AG-${result.insertId}`,
+      dbId: result.insertId 
+    });
+  } catch (error) {
+    console.error('[DATABASE ERROR] POST /api/jobs:', error.message);
+    res.status(500).json({ error: 'Failed to create job', details: error.message });
+  }
+});
+
+// Helper functions for backend mapping (similar to frontend)
+function getIconNameForService(service: string) {
+  switch (service) {
+    case 'Cosecha': return 'Wheat';
+    case 'Siembra': return 'Sprout';
+    case 'Fumigación': return 'Droplets';
+    case 'Fertilización': return 'Activity';
+    default: return 'Tractor';
+  }
+}
+
+function getColorForService(service: string) {
+  switch (service) {
+    case 'Cosecha': return 'orange';
+    case 'Siembra': return 'emerald';
+    case 'Fumigación': return 'blue';
+    case 'Fertilización': return 'indigo';
+    default: return 'emerald';
+  }
+}
 
 /**
  * Endpoint to create a field

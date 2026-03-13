@@ -209,75 +209,30 @@ export default function CreateJobModal() {
     setStep('summary');
   };
 
-  const handleSave = () => {
-    const storedJobs = localStorage.getItem("jobs");
-    let jobs = storedJobs ? JSON.parse(storedJobs) : [];
-
-    if (editJobId) {
-      // Update existing job
-      jobs = jobs.map((job: any) => {
-        if ((job.id || '').replace('#', '') === editJobId) {
-            return {
-              ...job,
-              clientId: formData.clientId,
-              client: formData.client || "Cliente Desconocido",
-              location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
-              service: formData.service,
-              title: formData.title,
-              fieldName: formData.field,
-              lotName: formData.lot,
-              hectares: parseFloat(formData.hectares) || 0,
-              amount: parseFloat(formData.amount) || 0,
-              campaign: formData.campaign,
-              secondaryService: formData.secondaryService,
-              notes: formData.notes,
-              date: formData.date || job.date,
-              iconName: getIconNameForService(formData.service),
-              color: getColorForService(formData.service),
-            };
-        }
-        return job;
+  const handleSave = async () => {
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
-    } else {
-      // Create new job object
-      const newJob = {
-        id: `#AG-${Math.floor(Math.random() * 9000) + 1000}`,
-        clientId: formData.clientId,
-        client: formData.client || "Cliente Desconocido",
-        location: formData.field ? `${formData.field} - ${formData.lot || 'Sin Lote'}` : "Ubicación pendiente",
-        service: formData.service,
-        title: formData.title,
-        fieldName: formData.field,
-        lotName: formData.lot,
-        hectares: parseFloat(formData.hectares) || 0,
-        amount: parseFloat(formData.amount) || 0,
-        campaign: formData.campaign,
-        secondaryService: formData.secondaryService,
-        notes: formData.notes,
-        date: formData.date || "Hoy, 08:00 AM",
-        operator: "Asignación Pendiente", // Placeholder
-        status: "Pendiente",
-        iconName: getIconNameForService(formData.service),
-        color: getColorForService(formData.service),
-      };
-      jobs = [newJob, ...jobs];
-    }
 
-    // Save to localStorage
-    localStorage.setItem("jobs", JSON.stringify(jobs));
+      if (!response.ok) throw new Error('Failed to save job');
 
-    // Simulate API call delay
-    setTimeout(() => {
+      const result = await response.json();
+      console.log('Job saved successfully:', result);
+
       handleClose();
-      // If we are not on jobs page, maybe we want to navigate there, or just stay and let the user see the success.
-      // For now, let's just close the modal.
-      if (location.pathname !== '/jobs' && location.pathname !== '/calendar' && !location.pathname.startsWith('/jobs/')) {
+      
+      if (location.pathname !== '/jobs' && location.pathname !== '/dashboard' && !location.pathname.startsWith('/jobs/')) {
         navigate('/jobs');
       } else {
-        // Dispatch an event so that the jobs list can update if we are on the jobs page
         window.dispatchEvent(new Event('job-created'));
       }
-    }, 500);
+    } catch (error) {
+      console.error('Error saving job:', error);
+      setErrors({ submit: 'Error al guardar el trabajo' });
+    }
   };
 
   const getIconNameForService = (service: string) => {
