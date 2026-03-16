@@ -1,14 +1,10 @@
 export type UserRole = 'profesional' | 'cliente' | 'admin';
 
-export interface Profesional {
+export interface User {
   id: number;
-  displayName: string;
   email: string;
-  phone?: string;
-  specialty?: string;
-  createdBy: string;
-  createdAt: string; // timestamp
-  deletedAt?: string; // timestamp
+  role: UserRole;
+  profile: Client | Profesional | Admin;
 }
 
 export interface Client {
@@ -22,6 +18,25 @@ export interface Client {
   createdBy: string;
   createdAt: string; // timestamp
   deletedAt?: string; // timestamp
+}
+
+export interface Profesional {
+  id: number;
+  displayName: string;
+  email: string;
+  phone?: string;
+  specialty?: string;
+  createdBy: string;
+  createdAt: string; // timestamp
+  deletedAt?: string; // timestamp
+}
+
+export interface Admin {
+  id: number;
+  displayName: string;
+  email: string;
+  createdBy: string;
+  createdAt: string; // timestamp
 }
 
 export interface Field {
