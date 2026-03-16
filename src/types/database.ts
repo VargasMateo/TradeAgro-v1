@@ -13,7 +13,7 @@ export interface User {
 }
 
 export interface Client {
-  id: string;
+  id: number;
   displayName: string;
   businessName: string;
   cuit: string;
@@ -27,7 +27,7 @@ export interface Client {
 
 export interface Field {
   id: string;
-  clientId: string;
+  clientId: number;
   name: string;
   lat?: number;
   lng?: number;
@@ -39,7 +39,7 @@ export type JobStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
 export interface Job {
   id: number;
   jobCode: string; // e.g., '#AG-1234'
-  clientId: string;
+  clientId: number;
   userId: string; // The professional/operator assigned
   date: string;
   service: string;

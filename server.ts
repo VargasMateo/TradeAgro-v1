@@ -184,10 +184,7 @@ app.post('/api/clients', async (req, res) => {
 
     await connection.beginTransaction();
 
-    const newClientId = crypto.randomUUID();
-
     const clientData = {
-      id: newClientId,
       displayName: displayName,
       businessName: businessName,
       cuit: cuit,
@@ -197,8 +194,10 @@ app.post('/api/clients', async (req, res) => {
       createdBy: createdBy || 'Admin'
     };
 
-    console.log('[DEBUG] Inserting client:', newClientId);
-    await connection.query('INSERT INTO tbl_clientes SET ?', [clientData]);
+    console.log('[DEBUG] Inserting new client');
+    const [clientResult]: any = await connection.query('INSERT INTO tbl_clientes SET ?', [clientData]);
+    const newClientId = clientResult.insertId;
+    console.log('[DEBUG] Inserted client with ID:', newClientId);
 
     // Insert associated fields if any
     if (fields && Array.isArray(fields)) {
