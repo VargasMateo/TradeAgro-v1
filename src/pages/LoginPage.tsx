@@ -4,7 +4,7 @@ import { ArrowRight, Eye, EyeOff, Shield, Briefcase, User } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 interface LoginPageProps {
-  onLogin: (role: 'profesional' | 'cliente' | 'admin') => void;
+  onLogin: (role: 'profesional' | 'client' | 'admin') => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {

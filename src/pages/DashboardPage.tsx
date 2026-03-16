@@ -77,7 +77,7 @@ const activities = [
   },
 ];
 
-export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [clients, setClients] = useState<any[]>([]);
   const [userName, setUserName] = useState("Admin");
 
@@ -152,8 +152,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       </div>
 
-      {/* Quick Actions - Only for profesional and superadmin */}
-      {(userRole === 'profesional' || userRole === 'superadmin') && (
+      {/* Quick Actions - Only for profesional and admin */}
+      {(userRole === 'profesional' || userRole === 'admin') && (
         <div className="space-y-4 order-2 lg:col-span-1">
           <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
             <Zap className="h-5 w-5 text-emerald-600" /> Acciones Rápidas
@@ -186,7 +186,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       )}
 
       {/* Stats Grid */}
-      <div className={`space-y-4 order-3 ${userRole === 'cliente' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
+      <div className={`space-y-4 order-3 ${userRole === 'client' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
         <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
           <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Trabajos
         </h3>
@@ -229,8 +229,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         <UpcomingJobs />
       </div>
 
-      {/* Map & Weather - Only for profesional and superadmin */}
-      {(userRole === 'profesional' || userRole === 'superadmin') && (
+      {/* Map & Weather - Only for profesional and admin */}
+      {(userRole === 'profesional' || userRole === 'admin') && (
         <div className="rounded-[2rem] bg-slate-100 p-6 lg:col-span-2 order-5">
           <div className="grid grid-cols-1 gap-8">
             {/* Map Section */}

@@ -20,7 +20,7 @@ import DbTestPage from "./pages/DbTestPage";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("authToken"));
-  const [userRole, setUserRole] = useState<'profesional' | 'cliente' | 'admin'>(() => {
+  const [userRole, setUserRole] = useState<'profesional' | 'client' | 'admin'>(() => {
     const saved = localStorage.getItem("userProfile");
     if (saved) {
       try {
@@ -61,7 +61,7 @@ export default function App() {
               <Route path="/stations" element={<StationsPage />} />
             </>
           )}
-          {(userRole === 'cliente' || userRole === 'admin') && (
+          {(userRole === 'client' || userRole === 'admin') && (
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
           <Route path="/profile" element={<ProfilePage userRole={userRole} />} />

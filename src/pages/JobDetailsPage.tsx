@@ -18,7 +18,7 @@ import {
 import Map from "../components/Map";
 import { cn } from "../lib/utils";
 
-export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [newObservation, setNewObservation] = useState("");
@@ -38,7 +38,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
     setObservations([...observations, {
       text: newObservation,
-      author: userRole === 'cliente' ? 'CLIENTE' : 'PROFESIONAL',
+      author: userRole === 'client' ? 'CLIENTE' : 'PROFESIONAL',
       date: formattedDate
     }]);
     setNewObservation("");
@@ -159,7 +159,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
               <Share2 className="h-4 w-4" />
               Compartir
             </button>
-            {(userRole === 'profesional' || userRole === 'superadmin') && (
+            {(userRole === 'profesional' || userRole === 'admin') && (
               <button
                 onClick={() => setSearchParams({ editJob: String(job.internalId) })}
                 className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"

@@ -67,7 +67,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
         displayName VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        role ENUM('admin', 'profesional', 'cliente') NOT NULL,
+        role ENUM('admin', 'profesional', 'client') NOT NULL,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -80,7 +80,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
       const defaultUsers = [
         { name: 'Admin TradeAgro', email: 'admin@tradeagro.com', pass: 'admin123', role: 'admin' },
         { name: 'Mateo Profesional', email: 'profesional@tradeagro.com', pass: 'prof123', role: 'profesional' },
-        { name: 'Cliente Estancia', email: 'cliente@tradeagro.com', pass: 'client123', role: 'cliente' }
+        { name: 'Cliente Estancia', email: 'cliente@tradeagro.com', pass: 'client123', role: 'client' }
       ];
 
       for (const u of defaultUsers) {

@@ -6,7 +6,7 @@ import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import CreateProfesionalModal from "../components/CreateProfesionalModal";
 import { Profesional } from "../types/database";
 
-export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [profesionales, setProfesionales] = useState<Profesional[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -111,7 +111,7 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-64"
             />
           </div>
-          {userRole === 'superadmin' && (
+          {userRole === 'admin' && (
             <button
               onClick={() => handleOpenModal()}
               className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95"
@@ -143,7 +143,7 @@ export default function ProfesionalesPage({ userRole = 'cliente' }: { userRole?:
                 />
               </div>
               <div className="flex gap-2">
-                {userRole === 'superadmin' && (
+                {userRole === 'admin' && (
                   <>
                     <button
                       onClick={() => handleOpenModal(prof)}

@@ -21,7 +21,7 @@ interface UserProfile {
 }
 
 interface ProfilePageProps {
-  userRole?: 'profesional' | 'cliente' | 'admin';
+  userRole?: 'profesional' | 'client' | 'admin';
 }
 
 export default function ProfilePage({ userRole = 'profesional' }: ProfilePageProps) {

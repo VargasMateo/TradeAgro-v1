@@ -21,7 +21,7 @@ import NotificationsDropdown from "./NotificationsDropdown";
 import CreateJobModal from "./CreateJobModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
 
-export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'admin' }) {
+export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'client' | 'admin' }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -101,7 +101,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/stations", label: "Estaciones", icon: Sun }
     );
-  } else if (userRole === 'cliente') {
+  } else if (userRole === 'client') {
     navItems.push(
       { path: "/profesionales", label: "Profesionales", icon: Users }
     );

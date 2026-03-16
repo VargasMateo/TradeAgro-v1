@@ -37,7 +37,7 @@ const iconMap: any = {
 
 const tabs = ["Todos", "Pendientes", "En Proceso", "Completados"];
 
-export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [activeTab, setActiveTab] = useState("Todos");
   const [jobs, setJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -222,7 +222,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                   </datalist>
                 </div>
 
-                {(userRole === 'profesional' || userRole === 'superadmin') && (
+                {(userRole === 'profesional' || userRole === 'admin') && (
                   <>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-slate-500">Cliente</label>
@@ -304,7 +304,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
             </div>
           )}
 
-          {(userRole === 'profesional' || userRole === 'superadmin') && (
+          {(userRole === 'profesional' || userRole === 'admin') && (
             <Link
               to="?newJob=true"
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 md:flex-none"
@@ -434,7 +434,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
                       Fecha
                     </th>
-                    {(userRole === 'profesional' || userRole === 'superadmin') && (
+                    {(userRole === 'profesional' || userRole === 'admin') && (
                       <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
                         Cliente & Ubicación
                       </th>
@@ -473,7 +473,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                           {job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
                         </span>
                       </td>
-                      {(userRole === 'profesional' || userRole === 'superadmin') && (
+                      {(userRole === 'profesional' || userRole === 'admin') && (
                         <td className="px-8 py-6">
                           <div className="flex flex-col">
                             <span className="text-sm font-semibold text-slate-900">
@@ -555,7 +555,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {(userRole === 'profesional' || userRole === 'superadmin') && (
+                          {(userRole === 'profesional' || userRole === 'admin') && (
                             <>
                               <button
                                 onClick={(e) => {

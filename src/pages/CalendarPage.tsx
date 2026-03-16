@@ -16,7 +16,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, ChevronDown 
 import { cn, getColorForClient } from "../lib/utils";
 import { Link, useNavigate } from "react-router-dom";
 
-export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(startOfToday());
   const [jobs, setJobs] = useState<any[]>([]);
@@ -135,7 +135,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
           {format(currentDate, "MMMM yyyy", { locale: es })}
         </div>
 
-        {(userRole === 'profesional' || userRole === 'superadmin') && (
+        {(userRole === 'profesional' || userRole === 'admin') && (
           <Link
             to="?newJob=true"
             className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 w-full md:w-auto"
@@ -232,7 +232,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                         <div 
                           key={dayIndex} 
                           onClick={() => {
-                            if (userRole === 'profesional' || userRole === 'superadmin') {
+                            if (userRole === 'profesional' || userRole === 'admin') {
                               const dateStr = format(day, "yyyy-MM-dd");
                               const clientStr = encodeURIComponent(clientGroup.clientName);
                               navigate(`?newJob=true&date=${dateStr}&client=${clientStr}`);
@@ -241,7 +241,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                           className={cn(
                             "p-1 md:p-2 border-r border-slate-100 last:border-r-0 h-24 md:h-32 overflow-y-auto transition-colors custom-scrollbar relative group/cell",
                             isToday(day) ? "bg-emerald-50/20" : "bg-white",
-                            (userRole === 'profesional' || userRole === 'superadmin') ? "hover:bg-slate-50/80 cursor-pointer" : ""
+                            (userRole === 'profesional' || userRole === 'admin') ? "hover:bg-slate-50/80 cursor-pointer" : ""
                           )}
                         >
                           {isToday(day) && (
@@ -303,7 +303,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                             <div 
                               key={dayIndex} 
                               onClick={() => {
-                                if (userRole === 'profesional' || userRole === 'superadmin') {
+                                if (userRole === 'profesional' || userRole === 'admin') {
                                   const dateStr = format(day, "yyyy-MM-dd");
                                   const clientStr = encodeURIComponent(clientGroup.clientName);
                                   const fieldStr = encodeURIComponent(field.location);
@@ -313,7 +313,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                               className={cn(
                                 "p-1 md:p-2 border-r border-slate-100 last:border-r-0 h-20 md:h-28 overflow-y-auto transition-colors custom-scrollbar relative group/cell",
                                 isToday(day) ? "bg-emerald-50/10" : "bg-slate-50/30",
-                                (userRole === 'profesional' || userRole === 'superadmin') ? "hover:bg-slate-100/80 cursor-pointer" : ""
+                                (userRole === 'profesional' || userRole === 'admin') ? "hover:bg-slate-100/80 cursor-pointer" : ""
                               )}
                             >
                               {isToday(day) && (
