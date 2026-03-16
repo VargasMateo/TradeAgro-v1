@@ -1,15 +1,15 @@
 export type UserRole = 'profesional' | 'cliente' | 'admin';
 
-export interface User {
+export interface Profesional {
   id: number;
-  name: string;
+  displayName: string;
   email: string;
   role: UserRole;
-  isActive: boolean;
   phone?: string;
-  avatarUrl?: string;
   specialty?: string;
-  createdAt?: string;
+  createdBy: string;
+  createdAt: string; // timestamp
+  deletedAt?: string; // timestamp
 }
 
 export interface Client {
