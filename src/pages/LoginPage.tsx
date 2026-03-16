@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Shield, Briefcase, User } from 'lucide-react';
 
 import logo from '../assets/logo.png';
 
@@ -10,6 +10,11 @@ interface LoginPageProps {
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const fillCredentials = (e: string, p: string) => {
+    setEmail(e);
+    setPassword(p);
+  };
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -125,8 +130,38 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               )}
             </button>
 
-            <div className="mt-6 border-t border-slate-100 pt-6">
-              <p className="text-center text-xs font-medium text-slate-400">
+            <div className="mt-8 border-t border-slate-100 pt-6">
+              <p className="mb-4 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Acceso Rápido (Temporal)</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('admin@tradeagro.com', 'admin123')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-purple-100 bg-purple-50/50 p-2 text-purple-700 transition-all hover:bg-purple-100 cursor-pointer"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Admin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('profesional@tradeagro.com', 'prof123')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-2 text-emerald-700 transition-all hover:bg-emerald-100 cursor-pointer"
+                >
+                  <Briefcase className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Prof.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('cliente@tradeagro.com', 'client123')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50/50 p-2 text-blue-700 transition-all hover:bg-blue-100 cursor-pointer"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Client</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-6 text-center">
+              <p className="text-xs font-medium text-slate-400">
                 ¿No tienes cuenta? <span className="text-emerald-600 hover:underline cursor-pointer">Contactar soporte</span>
               </p>
             </div>
