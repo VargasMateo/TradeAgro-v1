@@ -46,6 +46,22 @@ const JWT_SECRET = process.env.JWT_SECRET;
     console.log('[INIT] profesionals table ready');
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        displayName VARCHAR(255) NOT NULL,
+        cuit VARCHAR(20),
+        businessName VARCHAR(255),
+        email VARCHAR(255),
+        phoneNumber VARCHAR(50),
+        ivaCondition VARCHAR(100),
+        createdBy VARCHAR(255) DEFAULT 'Admin',
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deletedAt TIMESTAMP NULL
+      )
+    `);
+    console.log('[INIT] clients table ready');
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         displayName VARCHAR(255) NOT NULL,
@@ -125,11 +141,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Endpoint to fetch clients from tbl_clientes
+// Endpoint to fetch clients from clients
 app.get('/api/clients', async (req, res) => {
   console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
-    const [clientRows]: any = await pool.query('SELECT * FROM tbl_clientes WHERE deletedAt IS NULL');
+    const [clientRows]: any = await pool.query('SELECT * FROM clients WHERE deletedAt IS NULL');
     const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
 
     // Process fields into a map for easy lookup
@@ -197,7 +213,7 @@ app.put('/api/clients/:id', async (req, res) => {
     };
 
     console.log('[DEBUG] Updating client:', clientId);
-    await connection.query('UPDATE tbl_clientes SET ? WHERE id = ?', [clientData, clientId]);
+    await connection.query('UPDATE clients SET ? WHERE id = ?', [clientData, clientId]);
 
     // 2. Replace fields (delete existing, insert new)
     console.log('[DEBUG] Replacing associated fields');
@@ -242,7 +258,7 @@ app.delete('/api/clients/:id', async (req, res) => {
   console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
   try {
     const [result]: any = await pool.query(
-      'UPDATE tbl_clientes SET deletedAt = NOW() WHERE id = ?',
+      'UPDATE clients SET deletedAt = NOW() WHERE id = ?',
       [id]
     );
 
@@ -289,7 +305,7 @@ app.post('/api/clients', async (req, res) => {
     };
 
     console.log('[DEBUG] Inserting new client');
-    const [clientResult]: any = await connection.query('INSERT INTO tbl_clientes SET ?', [clientData]);
+    const [clientResult]: any = await connection.query('INSERT INTO clients SET ?', [clientData]);
     const newClientId = clientResult.insertId;
     console.log('[DEBUG] Inserted client with ID:', newClientId);
 
@@ -358,7 +374,7 @@ app.get('/api/jobs', async (req, res) => {
     const [rows]: any = await pool.query(`
       SELECT t.*, c.displayName as clientName
       FROM tbl_trabajos t
-      LEFT JOIN tbl_clientes c ON t.clientId = c.id
+      LEFT JOIN clients c ON t.clientId = c.id
       ORDER BY t.createdAt DESC
     `);
 
@@ -420,7 +436,7 @@ app.post('/api/jobs', async (req, res) => {
 
     // If clientId is missing, try to find it by name
     if (!finalClientId && req.body.client) {
-      const [clientRows]: any = await pool.query('SELECT id FROM tbl_clientes WHERE displayName = ? LIMIT 1', [req.body.client]);
+      const [clientRows]: any = await pool.query('SELECT id FROM clients WHERE displayName = ? LIMIT 1', [req.body.client]);
       if (clientRows.length > 0) {
         finalClientId = clientRows[0].id;
       }
@@ -492,7 +508,7 @@ app.put('/api/jobs/:id', async (req, res) => {
 
     // If clientId is missing, try to find it by name
     if (!finalClientId && req.body.client) {
-      const [clientRows]: any = await pool.query('SELECT id FROM tbl_clientes WHERE displayName = ? LIMIT 1', [req.body.client]);
+      const [clientRows]: any = await pool.query('SELECT id FROM clients WHERE displayName = ? LIMIT 1', [req.body.client]);
       if (clientRows.length > 0) {
         finalClientId = clientRows[0].id;
       }
@@ -585,7 +601,7 @@ app.post('/api/test/reset-clients', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.query('TRUNCATE TABLE tbl_clientes');
+    await connection.query('TRUNCATE TABLE clients');
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     res.json({ success: true, message: 'Clients reset successfully' });
   } catch (error) {
