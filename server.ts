@@ -108,10 +108,8 @@ app.put('/api/clients/:id', async (req, res) => {
     await connection.query('DELETE FROM tbl_campos WHERE clientId = ?', [clientId]);
 
     if (fields && Array.isArray(fields)) {
-      console.log(`[DEBUG] Inserting ${fields.length} updated fields`);
       for (const field of fields) {
         const fieldData = {
-          id: field.id || crypto.randomUUID(),
           clientId: clientId,
           name: field.name,
           lat: field.lat ?? null,
@@ -203,9 +201,7 @@ app.post('/api/clients', async (req, res) => {
     if (fields && Array.isArray(fields)) {
       console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
       for (const field of fields) {
-        const fieldId = crypto.randomUUID();
         const fieldData = {
-          id: fieldId,
           clientId: newClientId,
           name: field.name,
           lat: field.lat ?? null,
@@ -469,10 +465,7 @@ app.post('/api/fields', async (req, res) => {
   console.log('[DEBUG] POST /api/fields - Data received:', req.body);
   try {
     const { clientId, name, lat, long: lng, lotNames } = req.body;
-    const fieldId = `FLD-${Math.floor(Math.random() * 10000)}`;
-
     const dbData = {
-      id: fieldId,
       clientId: clientId,
       name,
       lat: lat ?? null,
@@ -480,8 +473,8 @@ app.post('/api/fields', async (req, res) => {
       lotNames: JSON.stringify(lotNames || [])
     };
 
-    await pool.query('INSERT INTO tbl_campos SET ?', [dbData]);
-    res.json({ success: true, id: fieldId });
+    const [result]: any = await pool.query('INSERT INTO tbl_campos SET ?', [dbData]);
+    res.json({ success: true, id: result.insertId });
   } catch (error) {
     console.error('[DATABASE ERROR] POST /api/fields:', error.message);
     res.status(500).json({ error: 'Failed to create field', details: error.message });
