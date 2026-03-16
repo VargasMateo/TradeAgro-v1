@@ -163,7 +163,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                     <button
                       onClick={handleCancel}
                       disabled={isLoading}
-                      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
                     >
                       <X className="h-4 w-4" />
                       Cancelar
@@ -171,7 +171,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                     <button
                       onClick={handleSave}
                       disabled={isLoading}
-                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Guardar
@@ -180,7 +180,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                 ) : (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 cursor-pointer"
                   >
                     Editar Perfil
                   </button>
