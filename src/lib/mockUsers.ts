@@ -7,7 +7,7 @@ export interface UserProfile {
   avatarUrl: string;
 }
 
-export const MOCK_USERS: Record<'profesional' | 'cliente' | 'superadmin', UserProfile> = {
+export const MOCK_USERS: Record<'profesional' | 'cliente' | 'admin', UserProfile> = {
   profesional: {
     name: "Mateo Vargas",
     email: "mateo.vargas@tradeagro.com",
@@ -24,7 +24,7 @@ export const MOCK_USERS: Record<'profesional' | 'cliente' | 'superadmin', UserPr
     description: "Empresa familiar dedicada a la producción de cereales y oleaginosas con enfoque sustentable.",
     avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   },
-  superadmin: {
+  admin: {
     name: "Admin TradeAgro",
     email: "admin@tradeagro.com",
     role: "Administrador del Sistema",

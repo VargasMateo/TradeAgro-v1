@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MOCK_USERS, UserProfile } from "../lib/mockUsers";
 import { 
   User, 
   Mail, 
@@ -12,36 +11,42 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 
+interface UserProfile {
+  name: string;
+  email: string;
+  role: string;
+  location: string;
+  description: string;
+  avatarUrl: string;
+}
+
 interface ProfilePageProps {
-  userRole?: 'profesional' | 'cliente' | 'superadmin';
+  userRole?: 'profesional' | 'cliente' | 'admin';
 }
 
 export default function ProfilePage({ userRole = 'profesional' }: ProfilePageProps) {
-  const defaultProfile = MOCK_USERS[userRole];
-  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const getDefaultProfile = (): UserProfile => {
+    const saved = localStorage.getItem("userProfile");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.displayName || parsed.name || "Usuario",
+          email: parsed.email || "",
+          role: parsed.role || userRole,
+          location: parsed.location || "",
+          description: parsed.description || "",
+          avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
+        };
+      } catch (e) { /* fall through */ }
+    }
+    return { name: "Usuario", email: "", role: userRole, location: "", description: "", avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+  };
+
+  const [profile, setProfile] = useState<UserProfile>(getDefaultProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const savedProfile = localStorage.getItem("userProfile");
-    if (savedProfile) {
-      try {
-        const parsed = JSON.parse(savedProfile);
-        setProfile({
-          name: parsed.name || defaultProfile.name,
-          email: parsed.email || defaultProfile.email,
-          role: parsed.role || defaultProfile.role,
-          location: parsed.location || defaultProfile.location,
-          description: parsed.description || defaultProfile.description,
-          avatarUrl: parsed.avatarUrl || defaultProfile.avatarUrl
-        });
-      } catch (e) {
-        console.error("Failed to parse profile from local storage", e);
-      }
-    }
-  }, []);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -55,13 +60,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
   };
 
   const handleCancel = () => {
-    // Revert changes by reloading from local storage or default
-    const savedProfile = localStorage.getItem("userProfile");
-    if (savedProfile) {
-      setProfile(JSON.parse(savedProfile));
-    } else {
-      setProfile(defaultProfile);
-    }
+    setProfile(getDefaultProfile());
     setIsEditing(false);
   };
 

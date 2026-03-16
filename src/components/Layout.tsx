@@ -20,7 +20,6 @@ import { useState } from "react";
 import NotificationsDropdown from "./NotificationsDropdown";
 import CreateJobModal from "./CreateJobModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
-import { MOCK_USERS } from "../lib/mockUsers";
 
 export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'admin' }) {
   const location = useLocation();
@@ -28,7 +27,22 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const [userProfile, setUserProfile] = useState(MOCK_USERS[userRole]);
+  const getInitialProfile = () => {
+    const saved = localStorage.getItem("userProfile");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.displayName || parsed.name || "Usuario",
+          email: parsed.email || "",
+          avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
+        };
+      } catch (e) { /* fall through */ }
+    }
+    return { name: "Usuario", email: "", avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+  };
+
+  const [userProfile, setUserProfile] = useState(getInitialProfile);
 
   useEffect(() => {
     const loadProfile = () => {
@@ -37,9 +51,9 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
         try {
           const parsed = JSON.parse(saved);
           setUserProfile({
-            name: parsed.name || "Admin User",
-            email: parsed.email || "admin@tradeagro.com",
-            avatarUrl: parsed.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+            name: parsed.displayName || parsed.name || "Usuario",
+            email: parsed.email || "",
+            avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
         } catch (e) {
           console.error("Error parsing user profile", e);
