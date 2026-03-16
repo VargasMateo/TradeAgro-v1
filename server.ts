@@ -111,6 +111,17 @@ async function initializeDatabase() {
       )
     `);
 
+    // Migration: Rename phone to phoneNumber if it accidentally exists
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM profesionals LIKE "phone"');
+      if (columns.length > 0) {
+        console.log('[INIT] Migrating profesionals: renaming phone to phoneNumber');
+        await connection.query('ALTER TABLE profesionals CHANGE phone phoneNumber VARCHAR(50)');
+      }
+    } catch (err) {
+      console.log('[INIT] Migration check for profesionals skipped or not needed.');
+    }
+
     // Extension: Clients
     console.log('[INIT] Creating clients table...');
     await connection.query(`
@@ -185,7 +196,7 @@ app.put('/api/profile', async (req, res) => {
   try {
     const { 
       id, displayName, email, location, description, role,
-      phone, specialty, // Prof fields
+      phoneNumber: profPhoneNumber, specialty, // Prof fields
       businessName, cuit, ivaCondition, phoneNumber // Client fields
     } = req.body;
 
@@ -203,7 +214,7 @@ app.put('/api/profile', async (req, res) => {
     if (role === 'profesional') {
       await connection.query(
         'UPDATE profesionals SET phoneNumber = ?, specialty = ? WHERE userId = ?',
-        [phoneNumber || null, specialty || null, id]
+        [profPhoneNumber || phoneNumber || null, specialty || null, id]
       );
     } else if (role === 'client') {
       await connection.query(
@@ -280,8 +291,8 @@ app.post('/api/login', async (req, res) => {
   try {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
-             p.phone, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
