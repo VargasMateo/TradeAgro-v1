@@ -24,6 +24,27 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Auto-create tables on startup
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS profesionals (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        displayName VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        specialty VARCHAR(255),
+        createdBy VARCHAR(255) DEFAULT 'Admin',
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deletedAt TIMESTAMP NULL
+      )
+    `);
+    console.log('[INIT] profesionals table ready');
+  } catch (err: any) {
+    console.error('[INIT ERROR] Failed to create tbl_profesionales:', err.message);
+  }
+})();
+
 // Test endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
@@ -532,6 +553,98 @@ app.post('/api/test/reset-jobs', async (req, res) => {
     res.status(500).json({ error: 'Failed to reset jobs', details: error.message });
   } finally {
     connection.release();
+  }
+});
+
+/**
+ * GET /api/profesionales — fetch active professionals
+ */
+app.get('/api/profesionales', async (req, res) => {
+  console.log('[DEBUG] GET /api/profesionales');
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM profesionals WHERE deletedAt IS NULL ORDER BY createdAt DESC');
+    res.json(rows);
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] GET /api/profesionales:', error.message);
+    if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
+    res.status(500).json({ error: 'Failed to fetch profesionales', details: error.message });
+  }
+});
+
+/**
+ * PUT /api/profesionales/:id — update an existing professional
+ */
+app.put('/api/profesionales/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`[DEBUG] PUT /api/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
+  try {
+    const { displayName, email, phone, specialty } = req.body;
+    const dbData = { displayName, email, phone, specialty };
+    
+    const [result]: any = await pool.query('UPDATE profesionals SET ? WHERE id = ?', [dbData, id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Profesional not found' });
+    }
+
+    res.json({ success: true, id });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] PUT /api/profesionales:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to update profesional', details: error.message });
+  }
+});
+
+/**
+ * DELETE /api/profesionales/:id — soft delete a professional
+ */
+app.delete('/api/profesionales/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`[DEBUG] DELETE /api/profesionales/${id} - Soft deleting profesional`);
+  try {
+    const [result]: any = await pool.query('UPDATE profesionals SET deletedAt = NOW() WHERE id = ?', [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Profesional not found' });
+    }
+
+    res.json({ success: true, message: 'Profesional deleted successfully' });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] DELETE /api/profesionales:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to delete profesional', details: error.message });
+  }
+});
+
+/**
+ * POST /api/profesionales — create a new professional
+ */
+app.post('/api/profesionales', async (req, res) => {
+  console.log('[DEBUG] POST /api/profesionales - Creating new profesional:', JSON.stringify(req.body));
+  try {
+    const { displayName, email, phone, specialty, createdBy } = req.body;
+
+    const dbData = {
+      displayName,
+      email,
+      phone: phone || null,
+      specialty: specialty || null,
+      createdBy: createdBy || 'Admin'
+    };
+
+    const [result]: any = await pool.query('INSERT INTO profesionals SET ?', [dbData]);
+
+    res.json({
+      success: true,
+      id: result.insertId,
+      message: 'Profesional created successfully',
+      createdAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] POST /api/profesionales:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create profesional',
+      details: error.message
+    });
   }
 });
 
