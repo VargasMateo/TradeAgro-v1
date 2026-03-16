@@ -46,8 +46,10 @@ export default function CreateJobModal() {
   };
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    if (isOpen) {
+      fetchClients();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (clients.length > 0) {
@@ -161,7 +163,7 @@ export default function CreateJobModal() {
     });
     setErrors({});
     setIsSaving(false);
-    
+
     // Remove newJob and other related params from URL
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('newJob');
@@ -378,11 +380,11 @@ export default function CreateJobModal() {
                               const singleField = hasSingleField ? c.fields[0] : null;
                               const hasSingleLot = singleField && singleField.lots && singleField.lots.length === 1;
                               const singleLot = hasSingleLot ? singleField.lots[0] : '';
-                              
-                              setFormData(prev => ({ 
-                                ...prev, 
-                                client: c.name, 
-                                clientId: c.id, 
+
+                              setFormData(prev => ({
+                                ...prev,
+                                client: c.name,
+                                clientId: c.id,
                                 field: singleField ? singleField.name : '',
                                 lot: singleLot
                               }));
@@ -899,69 +901,69 @@ export default function CreateJobModal() {
 
         {/* Footer Actions */}
         {step !== 'success' && (
-        <div className="border-t border-slate-200 bg-white px-6 py-4">
-          <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {step === 'form' ? (
-              <>
-                <div className="hidden text-sm text-slate-500 sm:block">
-                  <span className="font-bold text-slate-900">Resumen:</span> {editJobId ? 'Editando' : 'Nuevo'} trabajo de {formData.service} para {formData.client || '...'}
-                </div>
-                <div className="flex gap-3">
+          <div className="border-t border-slate-200 bg-white px-6 py-4">
+            <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {step === 'form' ? (
+                <>
+                  <div className="hidden text-sm text-slate-500 sm:block">
+                    <span className="font-bold text-slate-900">Resumen:</span> {editJobId ? 'Editando' : 'Nuevo'} trabajo de {formData.service} para {formData.client || '...'}
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleClose}
+                      className="flex-1 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
+                    >
+                      CANCELAR
+                    </button>
+                    <button
+                      onClick={handleContinue}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
+                    >
+                      CONTINUAR
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
                   <button
-                    onClick={handleClose}
-                    className="flex-1 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
+                    onClick={() => setStep('form')}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
                   >
-                    CANCELAR
+                    <ArrowLeft className="h-4 w-4" />
+                    ATRÁS
                   </button>
                   <button
-                    onClick={handleContinue}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.98] sm:flex-none",
+                      isSaving ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02]"
+                    )}
                   >
-                    CONTINUAR
-                    <ArrowRight className="h-4 w-4" />
+                    {isSaving ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        GUARDANDO...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        CONFIRMAR
+                      </>
+                    )}
                   </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setStep('form')}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  ATRÁS
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.98] sm:flex-none",
-                    isSaving ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02]"
-                  )}
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      GUARDANDO...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      CONFIRMAR
-                    </>
-                  )}
-                </button>
-              </>
-            )}
-            
-            {/* Show only on non-success steps */}
-            {step !== 'success' && errors.submit && (
-              <p className="mt-2 text-center text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
-                {errors.submit}
-              </p>
-            )}
+                </>
+              )}
+
+              {/* Show only on non-success steps */}
+              {step !== 'success' && errors.submit && (
+                <p className="mt-2 text-center text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
+                  {errors.submit}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
         )}
 
       </div>
