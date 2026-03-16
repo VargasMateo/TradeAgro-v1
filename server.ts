@@ -1005,6 +1005,48 @@ app.post('/api/profesionales', async (req, res) => {
     connection.release();
   }
 });
+/**
+ * GET /api/users — fetch all users from the system
+ */
+app.get('/api/users', async (req, res) => {
+  console.log('[DEBUG] GET /api/users');
+  try {
+    const [rows]: any = await pool.query(`
+      SELECT id, displayName, email, role, createdAt, createdBy
+      FROM users
+      ORDER BY createdAt DESC
+    `);
+    res.json(rows);
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] GET /api/users:', error.message);
+    res.status(500).json({ error: 'Failed to fetch users', details: error.message });
+  }
+});
+
+/**
+ * RESET USERS (Dev only) - Warning: This clears everything as all tables depend on users
+ */
+app.post('/api/test/reset-users', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-users');
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE tbl_trabajos');
+    await connection.query('TRUNCATE TABLE tbl_campos');
+    await connection.query('TRUNCATE TABLE clients');
+    await connection.query('TRUNCATE TABLE profesionals');
+    await connection.query('TRUNCATE TABLE users');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    await connection.commit();
+    res.json({ success: true, message: 'All users and dependent data reset successfully' });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ error: 'Failed to reset users', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
 
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);

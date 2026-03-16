@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DbTestPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [profesionales, setProfesionales] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
@@ -12,7 +14,7 @@ export default function DbTestPage() {
   
   const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'trabajos' | 'global' | null>(null);
+  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'trabajos' | 'profesionales' | 'usuarios' | 'global' | null>(null);
   
   const [dialog, setDialog] = useState<{
     show: boolean;
@@ -32,11 +34,34 @@ export default function DbTestPage() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setClients(data);
-      setStatus('connected');
     } catch (err: any) {
       console.error('Fetch error:', err);
       setErrorStatus(err.message);
       setStatus('error');
+    }
+  };
+
+  const fetchProfesionales = async () => {
+    try {
+      const response = await fetch('/api/profesionales');
+      if (response.ok) {
+        const data = await response.json();
+        setProfesionales(data);
+      }
+    } catch (err) {
+      console.error('Fetch profesionales error:', err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        setAllUsers(data);
+      }
+    } catch (err) {
+      console.error('Fetch users error:', err);
     }
   };
 
@@ -67,7 +92,14 @@ export default function DbTestPage() {
   useEffect(() => {
     const init = async () => {
       setStatus('loading');
-      await Promise.all([fetchClients(), fetchFields(), fetchJobs()]);
+      await Promise.all([
+        fetchClients(), 
+        fetchProfesionales(), 
+        fetchUsers(), 
+        fetchFields(), 
+        fetchJobs()
+      ]);
+      setStatus('connected');
     };
     init();
   }, []);
@@ -110,8 +142,14 @@ export default function DbTestPage() {
       let endpoint = '';
       if (resetTarget === 'global') {
         endpoint = '/api/test/reset-database';
+      } else if (resetTarget === 'usuarios') {
+        endpoint = '/api/test/reset-users';
       } else {
-        endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' : resetTarget === 'campos' ? 'fields' : 'jobs'}`;
+        endpoint = `/api/test/reset-${
+          resetTarget === 'clientes' ? 'clients' : 
+          resetTarget === 'campos' ? 'fields' : 
+          resetTarget === 'trabajos' ? 'jobs' : 'profesionals'
+        }`;
       }
 
       const response = await fetch(endpoint, { method: 'POST' });
@@ -123,7 +161,13 @@ export default function DbTestPage() {
           title: resetTarget === 'global' ? 'Sistema Reiniciado' : 'Tabla Limpia',
           message: resetTarget === 'global' ? 'Base de datos recreada y seeds cargados.' : `Registros de ${resetTarget} eliminados.`
         });
-        await Promise.all([fetchClients(), fetchFields(), fetchJobs()]);
+        await Promise.all([
+          fetchClients(), 
+          fetchProfesionales(), 
+          fetchUsers(), 
+          fetchFields(), 
+          fetchJobs()
+        ]);
       } else {
         throw new Error(data.error);
       }
@@ -308,6 +352,92 @@ export default function DbTestPage() {
                     </div>
                   </div>
                 )})
+              )}
+            </div>
+          </section>
+
+          {/* Section: Profesionales */}
+          <section className="flex flex-col bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <Briefcase className="h-5 w-5 text-indigo-600" />
+                <h2 className="font-black text-slate-900 uppercase tracking-widest">Profesionales</h2>
+                <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-1 rounded-lg">
+                  {profesionales.length}
+                </span>
+              </div>
+              <button 
+                onClick={() => setResetTarget('profesionales')}
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+              >
+                RESETEAR
+              </button>
+            </div>
+
+            <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              {profesionales.length === 0 ? (
+                <div className="py-20 text-center opacity-40">
+                  <User className="h-10 w-10 mx-auto mb-2" />
+                  <p className="text-xs font-bold uppercase">Sin Profesionales</p>
+                </div>
+              ) : (
+                profesionales.map(prof => (
+                  <div key={prof.id} className="p-5 rounded-3xl bg-indigo-50/30 hover:bg-white border border-indigo-100/50 shadow-sm transition-all group">
+                    <div className="flex items-start">
+                      <div className="flex-1">
+                        <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-indigo-700 transition-colors capitalize">{prof.displayName}</h3>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-1 font-mono uppercase truncate">{prof.email}</p>
+                        <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase truncate">{prof.specialty || 'Sin especialidad'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Section: Usuarios */}
+          <section className="flex flex-col bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <User className="h-5 w-5 text-slate-600" />
+                <h2 className="font-black text-slate-900 uppercase tracking-widest">Usuarios (Sist.)</h2>
+                <span className="bg-slate-100 text-slate-700 text-[10px] font-black px-2 py-1 rounded-lg">
+                  {allUsers.length}
+                </span>
+              </div>
+              <button 
+                onClick={() => setResetTarget('usuarios')}
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+              >
+                RESETEAR
+              </button>
+            </div>
+
+            <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              {allUsers.length === 0 ? (
+                <div className="py-20 text-center opacity-40">
+                  <User className="h-10 w-10 mx-auto mb-2" />
+                  <p className="text-xs font-bold uppercase">Sin Usuarios</p>
+                </div>
+              ) : (
+                allUsers.map(u => (
+                  <div key={u.id} className="p-5 rounded-3xl bg-slate-50 hover:bg-white border border-slate-100 shadow-sm transition-all group">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-[10px] font-black ${
+                        u.role === 'admin' ? 'bg-rose-100 text-rose-600' : 
+                        u.role === 'profesional' ? 'bg-indigo-100 text-indigo-600' : 
+                        'bg-emerald-100 text-emerald-600'
+                      }`}>
+                        {u.role.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <h3 className="font-extrabold text-slate-800 text-xs leading-tight group-hover:text-slate-900 transition-colors truncate">{u.displayName}</h3>
+                        <p className="text-[10px] text-slate-400 font-medium truncate">{u.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </section>
