@@ -132,7 +132,7 @@ export default function ClientsPage() {
     return phone.replace(/\D/g, '');
   };
 
-  if (isLoading && clients.length === 0) {
+  if (isLoading && clients.length === 0 && view === 'list') {
     return (
       <div className="flex flex-col items-center justify-center py-20 animate-pulse">
         <RefreshCw className="h-12 w-12 text-emerald-600 animate-spin mb-4" />
