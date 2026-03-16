@@ -103,34 +103,30 @@ export default function CreateJobModal() {
       setStep('form');
 
       if (editJobId) {
-        const storedJobs = localStorage.getItem("jobs");
-        if (storedJobs) {
-          const jobs = JSON.parse(storedJobs);
-          const jobToEdit = jobs.find((j: any) => (j.id || '').replace('#', '') === editJobId);
-          if (jobToEdit) {
-            // Try to parse location into field and lot
-            const locationParts = jobToEdit.location.split(' - ');
-            const field = locationParts[0] || '';
-            const lot = locationParts[1] || '';
-
-            setFormData({
-              clientId: jobToEdit.clientId || '',
-              client: jobToEdit.client || '',
-              date: jobToEdit.date || '',
-              title: jobToEdit.title || jobToEdit.service || '',
-              field: field || '',
-              hectares: jobToEdit.hectares || '',
-              service: jobToEdit.service || 'Cosecha',
-              secondaryService: jobToEdit.secondaryService || '',
-              campaign: jobToEdit.campaign || '2023/24',
-              lot: lot || '',
-              number: jobToEdit.number || '',
-              amount: jobToEdit.amount || '',
-              notes: jobToEdit.notes || ''
-            });
-            return;
-          }
-        }
+        fetch('/api/jobs')
+          .then(res => res.json())
+          .then(jobs => {
+            const jobToEdit = jobs.find((j: any) => String(j.id) === editJobId || (j.jobCode || '').replace('#', '') === editJobId);
+            if (jobToEdit) {
+              setFormData({
+                clientId: jobToEdit.clientId || '',
+                client: jobToEdit.client || '',
+                date: jobToEdit.date ? new Date(jobToEdit.date).toISOString().split('T')[0] : '',
+                title: jobToEdit.title || jobToEdit.service || '',
+                field: jobToEdit.fieldName || '',
+                hectares: jobToEdit.hectares !== null ? String(jobToEdit.hectares) : '',
+                service: jobToEdit.service || 'Cosecha',
+                secondaryService: jobToEdit.secondaryService || '',
+                campaign: jobToEdit.campaign || '2023/24',
+                lot: jobToEdit.lotName || '',
+                number: jobToEdit.number || '',
+                amount: jobToEdit.amountUsd !== null ? String(jobToEdit.amountUsd) : '',
+                notes: jobToEdit.description || ''
+              });
+            }
+          })
+          .catch(err => console.error("Error fetch job for edit:", err));
+        return;
       }
 
       // Default for new job
@@ -234,8 +230,12 @@ export default function CreateJobModal() {
     setIsSaving(true);
     setErrors({});
     try {
-      const response = await fetch('/api/jobs', {
-        method: 'POST',
+      const isEdit = !!editJobId;
+      const url = isEdit ? `/api/jobs/${editJobId}` : '/api/jobs';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });

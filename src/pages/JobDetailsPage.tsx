@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Share2,
@@ -44,38 +44,87 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
     setNewObservation("");
   };
 
-  // Mock data - in a real app this would come from an API or context based on the ID
-  const job = {
-    id: id || "#AG-8842",
-    status: "En Proceso",
-    created: "Oct 24, 2023",
-    updated: "hace 2 horas",
-    client: "AgroCorp Solutions",
-    location: "Campo Norte - Sector A",
-    priority: "Alta Prioridad",
-    assignedTo: "Carlos Méndez",
-    services: [
-      {
-        name: "Análisis de Suelo & Corrección de PH",
-        description: "Muestreo integral de los primeros 30cm en 15 puntos. Aplicación de cal para equilibrar la acidez basada en resultados de cosecha anterior.",
-        price: 1250.00,
-      },
-      {
-        name: "Revisión del Sistema de Riego",
-        description: "Verificación de válvulas de presión y limpieza de boquillas para el sistema de pivote del Sector A.",
-        price: 450.00,
-      },
-    ],
-    observation: "Las condiciones climáticas fueron desfavorables el martes. Retraso de 4 horas debido a fuertes lluvias. Los niveles de humedad del suelo están actualmente por encima de lo óptimo; se recomienda esperar 48 horas antes de iniciar operaciones con maquinaria pesada.",
-    observationAuthor: "NOTA POR ADMIN",
-    observationDate: "Oct 25, 09:15 AM",
-    files: [
-      { name: "Reporte_Suelo.pdf", size: "2.4 MB", type: "pdf" },
-      { name: "Foto_Campo_A1.jpg", size: "5.1 MB", type: "image" },
-      { name: "Bitacora_Trabajo_V2.docx", size: "124 KB", type: "doc" },
-    ],
-    coordinates: [-31.4201, -64.1888] as [number, number],
-  };
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [jobError, setJobError] = useState('');
+  const [job, setJob] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchJobDetails = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('/api/jobs');
+        if (!response.ok) throw new Error('Failed to load jobs');
+        
+        const data = await response.json();
+        // Fallback to searching by ID or JobCode
+        const foundJob = data.find((j: any) => String(j.id) === id || (j.jobCode || '').replace('#', '') === id);
+        
+        if (!foundJob) {
+          throw new Error('Trabajo no encontrado');
+        }
+
+        // Map database job to UI job
+        setJob({
+          id: foundJob.jobCode || `#AG-${foundJob.id}`,
+          internalId: foundJob.id,
+          status: foundJob.status,
+          created: foundJob.date ? new Date(foundJob.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
+          updated: "Hace un momento",
+          client: foundJob.client,
+          location: `${foundJob.fieldName || ''} ${foundJob.lotName ? `- ${foundJob.lotName}` : ''}`,
+          priority: "Estándar",
+          assignedTo: foundJob.operator || "Asignación Pendiente",
+          services: [
+            {
+              name: foundJob.service,
+              description: foundJob.description || `Trabajo en campo: ${foundJob.campaign || 'Campaña Actual'}, Superficie: ${foundJob.hectares || 0} ha.`,
+              price: Number(foundJob.amountUsd) || 0,
+            }
+          ],
+          observation: foundJob.description || "No hay observaciones iniciales registradas.",
+          observationAuthor: "SISTEMA",
+          observationDate: foundJob.createdAt ? new Date(foundJob.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
+          files: [
+             // Mock files for now since DB doesn't store them yet
+             { name: "Reporte_Suelo.pdf", size: "2.4 MB", type: "pdf" }
+          ],
+          coordinates: [-31.4201, -64.1888] as [number, number],
+        });
+
+      } catch (err: any) {
+        setJobError(err.message || 'Error al cargar detalles');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobDetails();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center animate-in fade-in">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2e7d32] border-t-transparent" />
+        <p className="mt-4 text-sm font-medium text-slate-500">Cargando detalles...</p>
+      </div>
+    );
+  }
+
+  if (jobError || !job) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
+        <h2 className="mb-2 text-2xl font-bold text-slate-900">Trabajo no encontrado</h2>
+        <p className="mb-6 text-slate-500">{jobError}</p>
+        <button
+          onClick={() => navigate('/jobs')}
+          className="rounded-xl bg-[#2e7d32] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-transform hover:scale-[1.02]"
+        >
+          Volver atrás
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in duration-500 pb-10">
@@ -112,7 +161,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             </button>
             {(userRole === 'profesional' || userRole === 'superadmin') && (
               <button
-                onClick={() => setSearchParams({ editJob: id || '' })}
+                onClick={() => setSearchParams({ editJob: String(job.internalId) })}
                 className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               >
                 <Edit className="h-4 w-4" />

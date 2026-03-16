@@ -373,6 +373,75 @@ app.post('/api/jobs', async (req, res) => {
   }
 });
 
+/**
+ * Endpoint to update an existing job (trabajo)
+ */
+app.put('/api/jobs/:id', async (req, res) => {
+  const jobId = req.params.id;
+  console.log(`[DEBUG] PUT /api/jobs/${jobId} - Updating job:`, JSON.stringify(req.body));
+  try {
+    const {
+      clientId,
+      date,
+      title,
+      field,
+      lot,
+      hectares,
+      service,
+      campaign,
+      amount,
+      notes
+    } = req.body;
+
+    // Clean numeric values
+    const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
+    const cleanHectares = typeof hectares === 'string' ? hectares.replace(/[^0-9.]/g, '') : hectares;
+
+    let finalClientId = clientId;
+
+    // If clientId is missing, try to find it by name
+    if (!finalClientId && req.body.client) {
+      const [clientRows]: any = await pool.query('SELECT id FROM tbl_clientes WHERE displayName = ? LIMIT 1', [req.body.client]);
+      if (clientRows.length > 0) {
+        finalClientId = clientRows[0].id;
+      }
+    }
+
+    const dbData = {
+      clientId: finalClientId || null,
+      date: date || null,
+      title: title,
+      service: service,
+      campaign: campaign || null,
+      fieldName: field || null,
+      lotName: lot || null,
+      hectares: parseFloat(cleanHectares) || 0,
+      amountUsd: parseFloat(cleanAmount) || 0,
+      description: notes || null,
+    };
+
+    console.log(`[DEBUG] Updating tbl_trabajos id ${jobId}:`, JSON.stringify(dbData));
+    const [result]: any = await pool.query('UPDATE tbl_trabajos SET ? WHERE id = ?', [dbData, jobId]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      id: jobId
+    });
+  } catch (error) {
+    console.error(`[DATABASE ERROR] PUT /api/jobs/${jobId}:`, error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update job', 
+      message: error.message,
+      code: error.code 
+    });
+  }
+});
+
 // Helper functions for backend mapping (similar to frontend)
 function getIconNameForService(service: string) {
   switch (service) {
