@@ -4,7 +4,6 @@ export interface Profesional {
   id: number;
   displayName: string;
   email: string;
-  role: UserRole;
   phone?: string;
   specialty?: string;
   createdBy: string;
