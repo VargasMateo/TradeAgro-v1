@@ -112,8 +112,8 @@ app.put('/api/clients/:id', async (req, res) => {
         const fieldData = {
           clientId: clientId,
           name: field.name,
-          lat: field.lat ?? null,
-          lng: field.lng ?? null,
+          lat: field.lat || null,
+          lng: field.lng || null,
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
@@ -204,8 +204,8 @@ app.post('/api/clients', async (req, res) => {
         const fieldData = {
           clientId: newClientId,
           name: field.name,
-          lat: field.lat ?? null,
-          lng: field.lng ?? null,
+          lat: field.lat || null,
+          lng: field.lng || null,
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
@@ -468,8 +468,8 @@ app.post('/api/fields', async (req, res) => {
     const dbData = {
       clientId: clientId,
       name,
-      lat: lat ?? null,
-      lng: lng ?? null,
+      lat: lat || null,
+      lng: lng || null,
       lotNames: JSON.stringify(lotNames || [])
     };
 
