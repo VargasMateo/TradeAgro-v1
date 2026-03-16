@@ -4,22 +4,43 @@ import { Tractor, ArrowRight, Briefcase, User, Shield } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 interface LoginPageProps {
-  onLogin: (role: 'profesional' | 'cliente' | 'superadmin') => void;
+  onLogin: (role: 'profesional' | 'cliente' | 'admin') => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent, role: 'profesional' | 'cliente' | 'superadmin') => {
-    e.preventDefault();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-    // Save mock user data based on role
-    import('../lib/mockUsers').then(({ MOCK_USERS }) => {
-      localStorage.setItem("userProfile", JSON.stringify(MOCK_USERS[role]));
-      window.dispatchEvent(new Event("profile-updated"));
-      onLogin(role);
-    });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userProfile", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("profile-updated"));
+        onLogin(data.user.role);
+      } else {
+        setError(data.error || 'Error al iniciar sesión');
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,6 +68,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Correo Electrónico</label>
               <input
@@ -74,31 +100,25 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, 'profesional')}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-xl bg-emerald-600 px-2 py-3 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/20 active:scale-[0.98]"
-              >
-                <Briefcase className="h-5 w-5" />
-                <span className="text-[10px] sm:text-xs text-center">Profesional</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, 'cliente')}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-xl bg-blue-600 px-2 py-3 font-bold text-white transition-all hover:bg-blue-700 hover:shadow-md hover:shadow-blue-600/20 active:scale-[0.98]"
-              >
-                <User className="h-5 w-5" />
-                <span className="text-[10px] sm:text-xs text-center">Cliente</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, 'superadmin')}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-xl bg-purple-600 px-2 py-3 font-bold text-white transition-all hover:bg-purple-700 hover:shadow-md hover:shadow-purple-600/20 active:scale-[0.98]"
-              >
-                <Shield className="h-5 w-5" />
-                <span className="text-[10px] sm:text-xs text-center">Superadmin</span>
-              </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-emerald-600 px-6 py-4 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
+            >
+              {isLoading ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <>
+                  <span>Iniciar Sesión</span>
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+
+            <div className="mt-6 border-t border-slate-100 pt-6">
+              <p className="text-center text-xs font-medium text-slate-400">
+                ¿No tienes cuenta? <span className="text-emerald-600 hover:underline cursor-pointer">Contactar soporte</span>
+              </p>
             </div>
           </form>
         </div>

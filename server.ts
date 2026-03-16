@@ -3,6 +3,8 @@ import mysql from 'mysql2/promise';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -24,6 +26,8 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+const JWT_SECRET = process.env.JWT_SECRET;
+
 // Auto-create tables on startup
 (async () => {
   try {
@@ -40,10 +44,81 @@ const pool = mysql.createPool({
       )
     `);
     console.log('[INIT] profesionals table ready');
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        displayName VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role ENUM('admin', 'profesional', 'cliente') NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('[INIT] users table ready');
+
+    // Seed default users if empty
+    const [userRows]: any = await pool.query('SELECT COUNT(*) as count FROM users');
+    if (userRows[0].count === 0) {
+      console.log('[INIT] Seeding default users...');
+      const defaultUsers = [
+        { name: 'Admin TradeAgro', email: 'admin@tradeagro.com', pass: 'admin123', role: 'admin' },
+        { name: 'Mateo Profesional', email: 'profesional@tradeagro.com', pass: 'prof123', role: 'profesional' },
+        { name: 'Cliente Estancia', email: 'cliente@tradeagro.com', pass: 'client123', role: 'cliente' }
+      ];
+
+      for (const u of defaultUsers) {
+        const hashedPass = await bcrypt.hash(u.pass, 10);
+        await pool.query('INSERT INTO users (displayName, email, password, role) VALUES (?, ?, ?, ?)',
+          [u.name, u.email, hashedPass, u.role]);
+      }
+      console.log('[INIT] Default users seeded');
+    }
   } catch (err: any) {
-    console.error('[INIT ERROR] Failed to create tbl_profesionales:', err.message);
+    console.error('[INIT ERROR] Failed to initialize database:', err.message);
   }
 })();
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  console.log(`[AUTH] Login attempt: ${email}`);
+
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log(`[AUTH] Failed: Invalid password for ${email}`);
+      return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+    }
+
+    console.log(`[AUTH] Success: ${email} logged in as ${user.role}`);
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error: any) {
+    console.error('[AUTH ERROR]:', error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 // Test endpoint
 app.get('/api/health', (req, res) => {
@@ -368,23 +443,23 @@ app.post('/api/jobs', async (req, res) => {
 
     console.log('[DEBUG] Inserting into tbl_trabajos:', JSON.stringify(dbData));
     const [result]: any = await pool.query('INSERT INTO tbl_trabajos SET ?', [dbData]);
-    
+
     // Generate jobCode based on ID
     const jobCode = `#AG-${result.insertId}`;
     await pool.query('UPDATE tbl_trabajos SET jobCode = ? WHERE id = ?', [jobCode, result.insertId]);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       id: result.insertId,
       jobCode: jobCode
     });
   } catch (error) {
     console.error('[DATABASE ERROR] POST /api/jobs:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to create job', 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create job',
       message: error.message,
-      code: error.code 
+      code: error.code
     });
   }
 });
@@ -438,22 +513,22 @@ app.put('/api/jobs/:id', async (req, res) => {
 
     console.log(`[DEBUG] Updating tbl_trabajos id ${jobId}:`, JSON.stringify(dbData));
     const [result]: any = await pool.query('UPDATE tbl_trabajos SET ? WHERE id = ?', [dbData, jobId]);
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Job not found' });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       id: jobId
     });
   } catch (error) {
     console.error(`[DATABASE ERROR] PUT /api/jobs/${jobId}:`, error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to update job', 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update job',
       message: error.message,
-      code: error.code 
+      code: error.code
     });
   }
 });
@@ -580,9 +655,9 @@ app.put('/api/profesionales/:id', async (req, res) => {
   try {
     const { displayName, email, phone, specialty } = req.body;
     const dbData = { displayName, email, phone, specialty };
-    
+
     const [result]: any = await pool.query('UPDATE profesionals SET ? WHERE id = ?', [dbData, id]);
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Profesional not found' });
     }
@@ -602,7 +677,7 @@ app.delete('/api/profesionales/:id', async (req, res) => {
   console.log(`[DEBUG] DELETE /api/profesionales/${id} - Soft deleting profesional`);
   try {
     const [result]: any = await pool.query('UPDATE profesionals SET deletedAt = NOW() WHERE id = ?', [id]);
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Profesional not found' });
     }

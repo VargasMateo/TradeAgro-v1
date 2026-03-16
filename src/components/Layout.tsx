@@ -22,7 +22,7 @@ import CreateJobModal from "./CreateJobModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
 import { MOCK_USERS } from "../lib/mockUsers";
 
-export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'admin' }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -91,7 +91,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     navItems.push(
       { path: "/profesionales", label: "Profesionales", icon: Users }
     );
-  } else if (userRole === 'superadmin') {
+  } else if (userRole === 'admin') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/profesionales", label: "Profesionales", icon: Users },

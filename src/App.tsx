@@ -19,8 +19,24 @@ import CalendarPage from "./pages/CalendarPage";
 import DbTestPage from "./pages/DbTestPage";
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<'profesional' | 'cliente' | 'superadmin'>('profesional');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("authToken"));
+  const [userRole, setUserRole] = useState<'profesional' | 'cliente' | 'admin'>(() => {
+    const saved = localStorage.getItem("userProfile");
+    if (saved) {
+      try {
+        return JSON.parse(saved).role || 'profesional';
+      } catch (e) {
+        return 'profesional';
+      }
+    }
+    return 'profesional';
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userProfile");
+    setIsAuthenticated(false);
+  };
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={(role) => {
@@ -31,7 +47,7 @@ export default function App() {
 
   return (
     <Router>
-      <Layout onLogout={() => setIsAuthenticated(false)} userRole={userRole}>
+      <Layout onLogout={handleLogout} userRole={userRole}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage userRole={userRole} />} />
@@ -39,13 +55,13 @@ export default function App() {
           <Route path="/jobs" element={<JobsPage userRole={userRole} />} />
           <Route path="/jobs/:id" element={<JobDetailsPage userRole={userRole} />} />
           <Route path="/reports" element={<ReportsPage userRole={userRole} />} />
-          {(userRole === 'profesional' || userRole === 'superadmin') && (
+          {(userRole === 'profesional' || userRole === 'admin') && (
             <>
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/stations" element={<StationsPage />} />
             </>
           )}
-          {(userRole === 'cliente' || userRole === 'superadmin') && (
+          {(userRole === 'cliente' || userRole === 'admin') && (
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
           <Route path="/profile" element={<ProfilePage userRole={userRole} />} />
