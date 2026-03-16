@@ -103,7 +103,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-600 cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -113,7 +113,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-emerald-600 px-6 py-4 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
+              className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-emerald-600 px-6 py-4 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 cursor-pointer"
             >
               {isLoading ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
