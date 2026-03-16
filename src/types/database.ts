@@ -2,42 +2,34 @@ export type UserRole = 'profesional' | 'client' | 'admin';
 
 export interface User {
   id: number;
+  displayName: string;
   email: string;
   role: UserRole;
-  profile: Client | Profesional | Admin;
+  createdAt: string;
+  createdBy: string;
 }
 
-export interface Client {
-  id: number;
-  displayName: string;
+export interface Client extends User {
+  role: 'client';
   businessName: string;
   cuit: string;
-  ivaCondition: string; // Matches 'RI', 'CF', etc.
-  email: string;
+  ivaCondition: string;
   phoneNumber?: string;
-  createdBy: string;
-  createdAt: string; // timestamp
-  deletedAt?: string; // timestamp
+  deletedAt?: string;
 }
 
-export interface Profesional {
-  id: number;
-  displayName: string;
-  email: string;
-  phone?: string;
+export interface Profesional extends User {
+  role: 'profesional';
+  phoneNumber?: string;
   specialty?: string;
-  createdBy: string;
-  createdAt: string; // timestamp
-  deletedAt?: string; // timestamp
+  deletedAt?: string;
 }
 
-export interface Admin {
-  id: number;
-  displayName: string;
-  email: string;
-  createdBy: string;
-  createdAt: string; // timestamp
+export interface Admin extends User {
+  role: 'admin';
 }
+
+export type AppUser = Client | Profesional | Admin;
 
 export interface Field {
   id: string;

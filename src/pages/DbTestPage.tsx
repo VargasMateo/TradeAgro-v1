@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase, Calendar } from 'lucide-react';
+import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase, Calendar, RefreshCw } from 'lucide-react';
 import { Client, Field } from '../types/database';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,7 +12,7 @@ export default function DbTestPage() {
   
   const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'trabajos' | null>(null);
+  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'trabajos' | 'global' | null>(null);
   
   const [dialog, setDialog] = useState<{
     show: boolean;
@@ -107,19 +107,23 @@ export default function DbTestPage() {
     if (!resetTarget) return;
     setIsResetting(true);
     try {
-      const endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' : resetTarget === 'campos' ? 'fields' : 'jobs'}`;
+      let endpoint = '';
+      if (resetTarget === 'global') {
+        endpoint = '/api/test/reset-database';
+      } else {
+        endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' : resetTarget === 'campos' ? 'fields' : 'jobs'}`;
+      }
+
       const response = await fetch(endpoint, { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         setDialog({
           show: true,
           type: 'success',
-          title: 'Tabla Limpia',
-          message: `Registros de ${resetTarget} eliminados.`
+          title: resetTarget === 'global' ? 'Sistema Reiniciado' : 'Tabla Limpia',
+          message: resetTarget === 'global' ? 'Base de datos recreada y seeds cargados.' : `Registros de ${resetTarget} eliminados.`
         });
-        if (resetTarget === 'clientes') await fetchClients();
-        if (resetTarget === 'campos') await fetchFields();
-        if (resetTarget === 'trabajos') await fetchJobs();
+        await Promise.all([fetchClients(), fetchFields(), fetchJobs()]);
       } else {
         throw new Error(data.error);
       }
@@ -149,7 +153,15 @@ export default function DbTestPage() {
               </p>
             </div>
           </div>
-          
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => setResetTarget('global')}
+              className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-rose-600 px-8 py-4 font-black text-white shadow-xl shadow-rose-200 transition-all hover:bg-rose-700 active:scale-95"
+            >
+              <RefreshCw className="h-5 w-5 animate-spin-slow group-hover:animate-spin" />
+              <span className="text-xs uppercase tracking-widest">Reiniciar Todo el Sistema</span>
+            </button>
+          </div>
         </div>
 
         {/* Sections Grid */}
@@ -313,7 +325,10 @@ export default function DbTestPage() {
               </div>
               <h2 className="text-2xl font-black text-slate-900 mb-2 underline decoration-rose-500 decoration-4">¿Estas seguro?</h2>
               <p className="text-slate-500 font-bold text-sm mb-8 leading-relaxed">
-                Vas a eliminar <span className="text-rose-600">TODOS</span> los registros de la tabla <span className="uppercase text-slate-900">{resetTarget}</span>. Esta acción no se puede deshacer.
+                {resetTarget === 'global' 
+                  ? 'Vas a borrar TODA la base de datos (usuarios, clientes, trabajos) y volver a cargar los SEEDS originales.' 
+                  : <>Vas a eliminar <span className="text-rose-600">TODOS</span> los registros de la tabla <span className="uppercase text-slate-900">{resetTarget}</span>. Esta acción no se puede deshacer.</>
+                }
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => setResetTarget(null)} className="py-4 font-black text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest text-xs">Cancelar</button>

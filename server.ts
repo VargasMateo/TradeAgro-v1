@@ -28,72 +28,249 @@ const pool = mysql.createPool({
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Auto-create tables on startup
-(async () => {
+const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool) => {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS profesionals (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        displayName VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        phone VARCHAR(50),
-        specialty VARCHAR(255),
-        createdBy VARCHAR(255) DEFAULT 'Admin',
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        deletedAt TIMESTAMP NULL
-      )
-    `);
-    console.log('[INIT] profesionals table ready');
+    console.log('[SEED] Checking if users table needs seeding...');
+    const [userRows]: any = await connection.query('SELECT COUNT(*) as count FROM users');
+    
+    if (userRows[0].count > 0) {
+      console.log(`[SEED] Table 'users' already has ${userRows[0].count} records. Skipping seed.`);
+      return;
+    }
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS clients (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        displayName VARCHAR(255) NOT NULL,
-        cuit VARCHAR(20),
-        businessName VARCHAR(255),
-        email VARCHAR(255),
-        phoneNumber VARCHAR(50),
-        ivaCondition VARCHAR(100),
-        createdBy VARCHAR(255) DEFAULT 'Admin',
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        deletedAt TIMESTAMP NULL
-      )
-    `);
-    console.log('[INIT] clients table ready');
+    console.log('[SEED] Starting default users insertion...');
+    const adminPass = await bcrypt.hash('admin123', 10);
+    const profPass = await bcrypt.hash('prof123', 10);
+    const clientPass = await bcrypt.hash('client123', 10);
 
-    await pool.query(`
+    // 1. Admin
+    console.log('[SEED] Inserting Admin...');
+    await connection.query(
+      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+      ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 'System']
+    );
+
+    // 2. Profesional
+    console.log('[SEED] Inserting Profesional...');
+    const [profRes]: any = await connection.query(
+      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+      ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 'System']
+    );
+    await connection.query(
+      'INSERT INTO profesionals (userId, specialty, phoneNumber) VALUES (?, ?, ?)',
+      [profRes.insertId, 'Ingeniero Agrónomo - Especialista en Riego', '+54 9 11 5555-1234']
+    );
+
+    // 3. Cliente
+    console.log('[SEED] Inserting Cliente...');
+    const [clientRes]: any = await connection.query(
+      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+      ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 'System']
+    );
+    await connection.query(
+      'INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber) VALUES (?, ?, ?, ?, ?)',
+      [clientRes.insertId, 'La Estancia S.A.', '20-12345678-9', 'Responsable Inscripto', '+54 9 351 987-6543']
+    );
+
+    console.log('[SEED] SUCCESS: Default users and extensions seeded.');
+  } catch (err: any) {
+    console.error('[SEED ERROR]:', err.message);
+    throw err; // Re-throw to be caught by initializeDatabase
+  }
+};
+
+async function initializeDatabase() {
+  console.log('[INIT] Starting full database initialization sequence...');
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+
+    // Base Users Table
+    console.log('[INIT] Creating users table...');
+    await connection.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         displayName VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         role ENUM('admin', 'profesional', 'client') NOT NULL,
+        createdBy VARCHAR(255) DEFAULT 'System',
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('[INIT] users table ready');
 
-    // Seed default users if empty
-    const [userRows]: any = await pool.query('SELECT COUNT(*) as count FROM users');
-    if (userRows[0].count === 0) {
-      console.log('[INIT] Seeding default users...');
-      const defaultUsers = [
-        { name: 'Admin TradeAgro', email: 'admin@tradeagro.com', pass: 'admin123', role: 'admin' },
-        { name: 'Mateo Profesional', email: 'profesional@tradeagro.com', pass: 'prof123', role: 'profesional' },
-        { name: 'Cliente Estancia', email: 'cliente@tradeagro.com', pass: 'client123', role: 'client' }
-      ];
+    // Extension: Professionals
+    console.log('[INIT] Creating profesionals table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS profesionals (
+        userId INT PRIMARY KEY,
+        phoneNumber VARCHAR(50),
+        specialty VARCHAR(255),
+        deletedAt TIMESTAMP NULL DEFAULT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
 
-      for (const u of defaultUsers) {
-        const hashedPass = await bcrypt.hash(u.pass, 10);
-        await pool.query('INSERT INTO users (displayName, email, password, role) VALUES (?, ?, ?, ?)',
-          [u.name, u.email, hashedPass, u.role]);
-      }
-      console.log('[INIT] Default users seeded');
-    }
+    // Extension: Clients
+    console.log('[INIT] Creating clients table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        userId INT PRIMARY KEY,
+        cuit VARCHAR(20),
+        businessName VARCHAR(255),
+        phoneNumber VARCHAR(50),
+        ivaCondition VARCHAR(100),
+        deletedAt TIMESTAMP NULL DEFAULT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Other tables
+    console.log('[INIT] Creating operational tables...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS tbl_campos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        clientId INT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        lat DECIMAL(10, 8),
+        lng DECIMAL(11, 8),
+        lotNames TEXT,
+        FOREIGN KEY (clientId) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS tbl_trabajos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        jobCode VARCHAR(50),
+        clientId INT,
+        userId VARCHAR(255),
+        date DATETIME,
+        title VARCHAR(255),
+        service VARCHAR(255),
+        campaign VARCHAR(100),
+        fieldName VARCHAR(255),
+        lotName VARCHAR(255),
+        hectares DECIMAL(10, 2),
+        amountUsd DECIMAL(10, 2),
+        description TEXT,
+        status VARCHAR(50),
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (clientId) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    console.log('[INIT] Schema ready. Calling seed...');
+    
+    await seedDefaultUsers(connection);
+    
+    console.log('[INIT] Database initialization completed successfully.');
   } catch (err: any) {
-    console.error('[INIT ERROR] Failed to initialize database:', err.message);
+    console.error('[INIT ERROR] Fatal during initialization:', err.message);
+  } finally {
+    connection.release();
   }
-})();
+}
+
+// Initial call
+initializeDatabase();
+
+/**
+ * UPDATE LOGGED-IN USER PROFILE
+ */
+app.put('/api/profile', async (req, res) => {
+  console.log('[DEBUG] PUT /api/profile - User self-update initiated');
+  const connection = await pool.getConnection();
+  try {
+    const { 
+      id, displayName, email, location, description, role,
+      phone, specialty, // Prof fields
+      businessName, cuit, ivaCondition, phoneNumber // Client fields
+    } = req.body;
+
+    if (!id) return res.status(400).json({ error: 'User ID is required' });
+
+    await connection.beginTransaction();
+
+    // 1. Update Base User
+    await connection.query(
+      'UPDATE users SET displayName = ?, email = ? WHERE id = ?',
+      [displayName, email, id]
+    );
+
+    // 2. Update Extension based on role
+    if (role === 'profesional') {
+      await connection.query(
+        'UPDATE profesionals SET phoneNumber = ?, specialty = ? WHERE userId = ?',
+        [phoneNumber || null, specialty || null, id]
+      );
+    } else if (role === 'client') {
+      await connection.query(
+        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ? WHERE userId = ?',
+        [businessName || null, cuit || null, ivaCondition || 'RI', phoneNumber || null, id]
+      );
+    }
+
+    await connection.commit();
+    
+    // Fetch updated user to return
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.id = ?
+    `, [id]);
+    
+    // Process nulls...
+    const userData = { ...rows[0] };
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+    res.json({ success: true, user: userData });
+  } catch (error: any) {
+    await connection.rollback();
+    console.error('[PROFILE UPDATE ERROR]:', error.message);
+    res.status(500).json({ error: 'Failed to update profile', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * RESET ENTIRE DATABASE (Dev only)
+ */
+app.post('/api/test/reset-database', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-database - FULL RESET requested');
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    
+    // Drop and recreate to ensure schema changes
+    const tables = ['tbl_trabajos', 'tbl_campos', 'clients', 'profesionals', 'users'];
+    for (const table of tables) {
+      await connection.query(`DROP TABLE IF EXISTS ${table}`);
+    }
+    
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    await connection.commit();
+    
+    // Re-initialize with full schema
+    console.log('[RESET] Re-initializing database...');
+    await initializeDatabase();
+    
+    res.json({ success: true, message: 'Database reset and re-seeded successfully' });
+  } catch (error: any) {
+    await connection.rollback();
+    console.error('[DATABASE RESET ERROR]:', error.message);
+    res.status(500).json({ error: 'Failed to reset database', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
 
 // Login endpoint
 app.post('/api/login', async (req, res) => {
@@ -101,7 +278,16 @@ app.post('/api/login', async (req, res) => {
   console.log(`[AUTH] Login attempt: ${email}`);
 
   try {
-    const [rows]: any = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.phone, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.email = ?
+    `, [email]);
+
     if (rows.length === 0) {
       return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
     }
@@ -116,19 +302,19 @@ app.post('/api/login', async (req, res) => {
     console.log(`[AUTH] Success: ${email} logged in as ${user.role}`);
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      JWT_SECRET!,
       { expiresIn: '24h' }
     );
+
+    // Filter out password and null fields to match polymorphic interface
+    const userData: any = { ...user };
+    delete userData.password;
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     res.json({
       success: true,
       token,
-      user: {
-        id: user.id,
-        displayName: user.displayName,
-        email: user.email,
-        role: user.role
-      }
+      user: userData
     });
   } catch (error: any) {
     console.error('[AUTH ERROR]:', error.message);
@@ -145,7 +331,12 @@ app.get('/api/health', (req, res) => {
 app.get('/api/clients', async (req, res) => {
   console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
-    const [clientRows]: any = await pool.query('SELECT * FROM clients WHERE deletedAt IS NULL');
+    const [clientRows]: any = await pool.query(`
+      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id
+      FROM clients c
+      JOIN users u ON c.userId = u.id
+      WHERE c.deletedAt IS NULL
+    `);
     const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
 
     // Process fields into a map for easy lookup
@@ -189,7 +380,7 @@ app.put('/api/clients/:id', async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
-    const clientId = req.params.id;
+    const userId = req.params.id; // Correct semantic: the id is the userId
     const {
       displayName,
       businessName,
@@ -202,27 +393,31 @@ app.put('/api/clients/:id', async (req, res) => {
 
     await connection.beginTransaction();
 
-    // 1. Update main client data
+    // 1. Update user data (Base)
+    await connection.query(
+      'UPDATE users SET displayName = ?, email = ? WHERE id = ?',
+      [displayName, email, userId]
+    );
+
+    // 2. Update client data (Extension)
     const clientData = {
-      displayName: displayName,
       businessName: businessName,
       cuit: cuit,
       ivaCondition: ivaCondition || 'RI',
-      email: email,
       phoneNumber: phoneNumber
     };
 
-    console.log('[DEBUG] Updating client:', clientId);
-    await connection.query('UPDATE clients SET ? WHERE id = ?', [clientData, clientId]);
+    console.log('[DEBUG] Updating client extension for userId:', userId);
+    await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
 
-    // 2. Replace fields (delete existing, insert new)
+    // 3. Replace fields (delete existing, insert new)
     console.log('[DEBUG] Replacing associated fields');
-    await connection.query('DELETE FROM tbl_campos WHERE clientId = ?', [clientId]);
+    await connection.query('DELETE FROM tbl_campos WHERE clientId = ?', [userId]);
 
     if (fields && Array.isArray(fields)) {
       for (const field of fields) {
         const fieldData = {
-          clientId: clientId,
+          clientId: userId,
           name: field.name,
           lat: field.lat || null,
           lng: field.lng || null,
@@ -237,7 +432,7 @@ app.put('/api/clients/:id', async (req, res) => {
 
     res.json({
       success: true,
-      id: clientId,
+      id: userId,
       message: 'Client and fields updated successfully'
     });
   } catch (error) {
@@ -257,8 +452,9 @@ app.delete('/api/clients/:id', async (req, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
   try {
+    // Soft delete in clients table
     const [result]: any = await pool.query(
-      'UPDATE clients SET deletedAt = NOW() WHERE id = ?',
+      'UPDATE clients SET deletedAt = NOW() WHERE userId = ?',
       [id]
     );
 
@@ -289,32 +485,38 @@ app.post('/api/clients', async (req, res) => {
       email,
       phoneNumber,
       createdBy,
+      password, // Optional, can default
       fields // Array of fields from the modal
     } = req.body;
 
     await connection.beginTransaction();
 
+    // 1. Create User first
+    const hashedPass = await bcrypt.hash(password || '123456', 10);
+    const [userResult]: any = await connection.query(
+      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+      [displayName, email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`, hashedPass, 'client', createdBy || 'Admin']
+    );
+    const newUserId = userResult.insertId;
+
+    // 2. Create Client extension record
     const clientData = {
-      displayName: displayName,
+      userId: newUserId,
       businessName: businessName,
       cuit: cuit,
       ivaCondition: ivaCondition || 'RI',
-      email: email,
-      phoneNumber: phoneNumber,
-      createdBy: createdBy || 'Admin'
+      phoneNumber: phoneNumber
     };
 
-    console.log('[DEBUG] Inserting new client');
-    const [clientResult]: any = await connection.query('INSERT INTO clients SET ?', [clientData]);
-    const newClientId = clientResult.insertId;
-    console.log('[DEBUG] Inserted client with ID:', newClientId);
+    console.log('[DEBUG] Inserting new client extension for userId:', newUserId);
+    await connection.query('INSERT INTO clients SET ?', [clientData]);
 
-    // Insert associated fields if any
+    // 3. Insert associated fields if any
     if (fields && Array.isArray(fields)) {
       console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
       for (const field of fields) {
         const fieldData = {
-          clientId: newClientId,
+          clientId: newUserId, // Note: clientId in tbl_campos is now linked to users.id
           name: field.name,
           lat: field.lat || null,
           lng: field.lng || null,
@@ -329,7 +531,7 @@ app.post('/api/clients', async (req, res) => {
 
     res.json({
       success: true,
-      id: newClientId,
+      id: newUserId,
       message: 'Client and fields created successfully',
       createdAt: new Date().toISOString()
     });
@@ -372,9 +574,9 @@ app.get('/api/jobs', async (req, res) => {
   console.log('[DEBUG] GET /api/jobs - Fetching all jobs');
   try {
     const [rows]: any = await pool.query(`
-      SELECT t.*, c.displayName as clientName
+      SELECT t.*, u.displayName as clientName
       FROM tbl_trabajos t
-      LEFT JOIN clients c ON t.clientId = c.id
+      LEFT JOIN users u ON t.clientId = u.id
       ORDER BY t.createdAt DESC
     `);
 
@@ -436,9 +638,12 @@ app.post('/api/jobs', async (req, res) => {
 
     // If clientId is missing, try to find it by name
     if (!finalClientId && req.body.client) {
-      const [clientRows]: any = await pool.query('SELECT id FROM clients WHERE displayName = ? LIMIT 1', [req.body.client]);
-      if (clientRows.length > 0) {
-        finalClientId = clientRows[0].id;
+      const [userRows]: any = await pool.query(
+        'SELECT id FROM users WHERE displayName = ? AND role = "client" LIMIT 1', 
+        [req.body.client]
+      );
+      if (userRows.length > 0) {
+        finalClientId = userRows[0].id;
       }
     }
 
@@ -508,9 +713,12 @@ app.put('/api/jobs/:id', async (req, res) => {
 
     // If clientId is missing, try to find it by name
     if (!finalClientId && req.body.client) {
-      const [clientRows]: any = await pool.query('SELECT id FROM clients WHERE displayName = ? LIMIT 1', [req.body.client]);
-      if (clientRows.length > 0) {
-        finalClientId = clientRows[0].id;
+      const [userRows]: any = await pool.query(
+        'SELECT id FROM users WHERE displayName = ? AND role = "client" LIMIT 1', 
+        [req.body.client]
+      );
+      if (userRows.length > 0) {
+        finalClientId = userRows[0].id;
       }
     }
 
@@ -600,12 +808,38 @@ app.post('/api/test/reset-clients', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-clients');
   const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.query('TRUNCATE TABLE clients');
+    // Delete fields and clients
+    await connection.query('TRUNCATE TABLE tbl_campos');
+    await connection.query('DELETE FROM clients');
+    // Delete users with role client
+    await connection.query('DELETE FROM users WHERE role = "client"');
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    await connection.commit();
     res.json({ success: true, message: 'Clients reset successfully' });
   } catch (error) {
+    await connection.rollback();
     res.status(500).json({ error: 'Failed to reset clients', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+app.post('/api/test/reset-profesionals', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-profesionals');
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('DELETE FROM profesionals');
+    await connection.query('DELETE FROM users WHERE role = "profesional"');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    await connection.commit();
+    res.json({ success: true, message: 'Professionals reset successfully' });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ error: 'Failed to reset professionals', details: error.message });
   } finally {
     connection.release();
   }
@@ -653,11 +887,21 @@ app.post('/api/test/reset-jobs', async (req, res) => {
 app.get('/api/profesionales', async (req, res) => {
   console.log('[DEBUG] GET /api/profesionales');
   try {
-    const [rows]: any = await pool.query('SELECT * FROM profesionals WHERE deletedAt IS NULL ORDER BY createdAt DESC');
-    res.json(rows);
+    const [rows]: any = await pool.query(`
+      SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id
+      FROM profesionals p
+      JOIN users u ON p.userId = u.id
+      WHERE p.deletedAt IS NULL
+      ORDER BY u.createdAt DESC
+    `);
+    // Ensure phoneNumber is consistently named in the response
+    const formatted = rows.map((r: any) => ({
+      ...r,
+      phoneNumber: r.phoneNumber
+    }));
+    res.json(formatted);
   } catch (error: any) {
     console.error('[DATABASE ERROR] GET /api/profesionales:', error.message);
-    if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
     res.status(500).json({ error: 'Failed to fetch profesionales', details: error.message });
   }
 });
@@ -666,22 +910,32 @@ app.get('/api/profesionales', async (req, res) => {
  * PUT /api/profesionales/:id — update an existing professional
  */
 app.put('/api/profesionales/:id', async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // userId
   console.log(`[DEBUG] PUT /api/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
+  const connection = await pool.getConnection();
   try {
-    const { displayName, email, phone, specialty } = req.body;
-    const dbData = { displayName, email, phone, specialty };
+    const { displayName, email, phoneNumber, specialty } = req.body;
+    
+    await connection.beginTransaction();
 
-    const [result]: any = await pool.query('UPDATE profesionals SET ? WHERE id = ?', [dbData, id]);
+    // 1. Update User base
+    await connection.query(
+      'UPDATE users SET displayName = ?, email = ? WHERE id = ?',
+      [displayName, email, id]
+    );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, error: 'Profesional not found' });
-    }
+    // 2. Update Profesional extension
+    const profData = { phoneNumber, specialty };
+    await connection.query('UPDATE profesionals SET ? WHERE userId = ?', [profData, id]);
 
+    await connection.commit();
     res.json({ success: true, id });
   } catch (error: any) {
+    await connection.rollback();
     console.error('[DATABASE ERROR] PUT /api/profesionales:', error.message);
     res.status(500).json({ success: false, error: 'Failed to update profesional', details: error.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -689,10 +943,10 @@ app.put('/api/profesionales/:id', async (req, res) => {
  * DELETE /api/profesionales/:id — soft delete a professional
  */
 app.delete('/api/profesionales/:id', async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // userId
   console.log(`[DEBUG] DELETE /api/profesionales/${id} - Soft deleting profesional`);
   try {
-    const [result]: any = await pool.query('UPDATE profesionals SET deletedAt = NOW() WHERE id = ?', [id]);
+    const [result]: any = await pool.query('UPDATE profesionals SET deletedAt = NOW() WHERE userId = ?', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Profesional not found' });
@@ -710,32 +964,45 @@ app.delete('/api/profesionales/:id', async (req, res) => {
  */
 app.post('/api/profesionales', async (req, res) => {
   console.log('[DEBUG] POST /api/profesionales - Creating new profesional:', JSON.stringify(req.body));
+  const connection = await pool.getConnection();
   try {
-    const { displayName, email, phone, specialty, createdBy } = req.body;
+    const { displayName, email, password, phoneNumber, specialty, createdBy } = req.body;
 
-    const dbData = {
-      displayName,
-      email,
-      phone: phone || null,
-      specialty: specialty || null,
-      createdBy: createdBy || 'Admin'
+    await connection.beginTransaction();
+
+    // 1. Create User first
+    const hashedPass = await bcrypt.hash(password || '123456', 10);
+    const [userResult]: any = await connection.query(
+      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+      [displayName, email, hashedPass, 'profesional', createdBy || 'Admin']
+    );
+    const newUserId = userResult.insertId;
+
+    // 2. Create Profesional extension
+    const profData = {
+      userId: newUserId,
+      phoneNumber: phoneNumber || null,
+      specialty: specialty || null
     };
+    await connection.query('INSERT INTO profesionals SET ?', [profData]);
 
-    const [result]: any = await pool.query('INSERT INTO profesionals SET ?', [dbData]);
-
+    await connection.commit();
     res.json({
       success: true,
-      id: result.insertId,
+      id: newUserId,
       message: 'Profesional created successfully',
       createdAt: new Date().toISOString()
     });
   } catch (error: any) {
+    await connection.rollback();
     console.error('[DATABASE ERROR] POST /api/profesionales:', error.message);
     res.status(500).json({
       success: false,
       error: 'Failed to create profesional',
       details: error.message
     });
+  } finally {
+    connection.release();
   }
 });
 
