@@ -135,10 +135,8 @@ export default function UpcomingJobs() {
             </Link>
           ))
         ) : (
-          <div className="w-full flex flex-col items-center justify-center py-10 px-6 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50/50">
-            <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 ring-8 ring-slate-50 transition-transform hover:scale-110">
-              <Calendar className="h-8 w-8 text-emerald-500 opacity-80" />
-            </div>
+          <div className="w-full flex flex-col items-center justify-center py-10 px-6 rounded-3xl border-2 border-dashed border-slate-100 bg-white">
+            <Calendar className="h-8 w-8 mb-6 text-slate-300" />
             <h4 className="text-slate-900 font-bold text-lg mb-2 text-center">No hay trabajos programados</h4>
             <p className="text-slate-500 text-sm text-center max-w-[320px] mb-8 leading-relaxed">
               Tu agenda está despejada por ahora...
