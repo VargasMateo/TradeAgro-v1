@@ -10,6 +10,7 @@ import {
   Menu,
   Sun,
   Users,
+  UserCheck,
   Calendar,
   Shield
 } from "lucide-react";
@@ -101,12 +102,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     );
   } else if (userRole === 'client') {
     navItems.push(
-      { path: "/profesionales", label: "Profesionales", icon: Users }
+      { path: "/profesionales", label: "Profesionales", icon: UserCheck }
     );
   } else if (userRole === 'admin') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
-      { path: "/profesionales", label: "Profesionales", icon: Users },
+      { path: "/profesionales", label: "Profesionales", icon: UserCheck },
       { path: "/stations", label: "Estaciones", icon: Sun },
       { path: "/db-test", label: "DB Test", icon: Shield },
     );
