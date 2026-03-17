@@ -482,7 +482,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                       </div>
 
                       {/* Bubble */}
-                      <div className={cn("max-w-[75%] space-y-1", isMine && "flex flex-col items-end")}>
+                      <div className={cn("max-w-[75%] min-w-0 space-y-1", isMine && "flex flex-col items-end")}>
                         <div className={cn("flex items-center gap-2", isMine && "flex-row-reverse")}>
                           <span className="text-xs font-bold text-slate-700">{obs.displayName}</span>
                           <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", roleBg)}>
@@ -490,7 +490,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                           </span>
                         </div>
                         <div className={cn(
-                          "w-fit rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                          "w-fit max-w-full rounded-2xl px-4 py-3 text-sm leading-relaxed break-all",
                           isMine
                             ? "bg-emerald-50 text-slate-800 rounded-tr-md"
                             : "bg-slate-50 text-slate-700 rounded-tl-md"
