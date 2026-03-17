@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  User, 
-  Mail, 
-  MapPin, 
-  Briefcase, 
-  Camera, 
-  Save, 
+import {
+  User,
+  Mail,
+  MapPin,
+  Briefcase,
+  Camera,
+  Save,
   X,
   Loader2
 } from "lucide-react";
@@ -108,7 +108,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -118,7 +118,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Left Column - Avatar & Quick Info */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
@@ -131,33 +131,32 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
             <div className="px-6 pb-6">
               <div className="relative -mt-16 mb-4 flex justify-center">
                 <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-white shadow-md">
-                  <img 
-                    src={profile.avatarUrl} 
-                    alt={profile.name} 
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile.name}
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                   />
                   {isEditing && (
-                    <button 
+                    <button
                       onClick={() => fileInputRef.current?.click()}
                       className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity hover:opacity-100"
                     >
                       <Camera className="h-8 w-8" />
                     </button>
                   )}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
                     accept="image/*"
                     onChange={handleImageUpload}
                   />
                 </div>
               </div>
-              
+
               <div className="text-center">
                 <h2 className="text-xl font-bold text-slate-900">{profile.name}</h2>
-                <p className="text-sm font-medium text-emerald-600">{profile.role}</p>
               </div>
 
               <div className="mt-6 space-y-4 border-t border-slate-100 pt-6">
@@ -175,7 +174,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
         </motion.div>
 
         {/* Right Column - Edit Form */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
@@ -214,9 +213,9 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                 )}
               </div>
             </div>
-            
+
             <div className="space-y-6">
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Nombre Completo</label>
                   <input
@@ -224,16 +223,6 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                     disabled={!isEditing}
                     value={profile.name}
                     onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                    className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:text-slate-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Rol / Cargo</label>
-                  <input
-                    type="text"
-                    disabled={!isEditing}
-                    value={profile.role}
-                    onChange={(e) => setProfile({ ...profile, role: e.target.value })}
                     className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:text-slate-500"
                   />
                 </div>
