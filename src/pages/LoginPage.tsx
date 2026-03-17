@@ -93,12 +93,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Contraseña</label>
-                <a href="#" className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
-                  ¿Olvidaste tu contraseña?
-                </a>
-              </div>
+              <label className="text-sm font-semibold text-slate-700">Contraseña</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -114,6 +109,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
+              </div>
+              <div className="flex justify-end">
+                <a href="#" className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
+                  ¿Olvidaste tu contraseña?
+                </a>
               </div>
             </div>
 
