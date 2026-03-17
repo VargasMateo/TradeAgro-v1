@@ -47,21 +47,9 @@ export default function CreateJobModal() {
     }
   };
 
-  const fetchProfesionales = async () => {
-    try {
-      const response = await fetch('/api/profesionales');
-      if (!response.ok) throw new Error('Failed to fetch profesionales');
-      const data = await response.json();
-      setProfesionales(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching profesionales:', error);
-    }
-  };
-
   useEffect(() => {
     if (isOpen) {
       fetchClients();
-      fetchProfesionales();
     }
   }, [isOpen]);
 
@@ -119,6 +107,10 @@ export default function CreateJobModal() {
     if (isOpen) {
       setStep('form');
 
+      const storedProfile = localStorage.getItem("userProfile");
+      const user = storedProfile ? JSON.parse(storedProfile) : null;
+      const currentUserId = user?.id ? String(user.id) : '';
+
       if (editJobId) {
         fetch('/api/jobs')
           .then(res => res.json())
@@ -139,7 +131,7 @@ export default function CreateJobModal() {
                 number: (orderToEdit as any).number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
                 notes: orderToEdit.description || '',
-                profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : ''
+                profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId
               });
             }
           })
@@ -154,6 +146,7 @@ export default function CreateJobModal() {
         client: searchParams.get('client') || prev.client,
         date: searchParams.get('date') || prev.date,
         field: searchParams.get('field') || prev.field,
+        profesionalId: currentUserId
       }));
     }
     setErrors({});
@@ -162,6 +155,10 @@ export default function CreateJobModal() {
   const handleClose = () => {
     // Reset state
     setStep('form');
+    const storedProfile = localStorage.getItem("userProfile");
+    const user = storedProfile ? JSON.parse(storedProfile) : null;
+    const currentUserId = user?.id ? String(user.id) : '';
+
     setFormData({
       clientId: '',
       client: '',
@@ -176,7 +173,7 @@ export default function CreateJobModal() {
       number: '',
       amount: '',
       notes: '',
-      profesionalId: ''
+      profesionalId: currentUserId
     });
     setErrors({});
     setIsSaving(false);
@@ -480,37 +477,6 @@ export default function CreateJobModal() {
                     )}
                   </div>
 
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-sm font-semibold text-slate-700">
-                      Profesional Asignado <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="profesionalId"
-                        value={formData.profesionalId}
-                        onChange={handleInputChange}
-                        className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
-                          errors.profesionalId
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
-                        )}
-                      >
-                        <option value="">Seleccionar profesional...</option>
-                        {profesionales.map((p: any) => (
-                          <option key={p.id} value={p.id}>
-                            {p.displayName} {p.specialty ? `(${p.specialty})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    </div>
-                    {errors.profesionalId && (
-                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
-                        {errors.profesionalId}
-                      </p>
-                    )}
-                  </div>
                 </div>
               </div>
 
