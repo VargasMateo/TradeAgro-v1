@@ -60,3 +60,13 @@ export interface WorkOrder {
   createdBy: string;
   deletedAt?: string;// timestamp
 }
+
+export interface WorkOrderObservation {
+  id: number;
+  workOrderId: number;
+  userId: number;
+  text: string;
+  displayName: string;
+  role: UserRole;
+  createdAt: string;
+}

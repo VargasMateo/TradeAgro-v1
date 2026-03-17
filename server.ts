@@ -240,6 +240,20 @@ async function initializeDatabase() {
       console.log('[INIT] work_order_attachments migration check skipped (table might not exist yet).');
     }
 
+    // Observations Table
+    console.log('[INIT] Creating work_order_observations table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS work_order_observations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        workOrderId INT NOT NULL,
+        userId INT NOT NULL,
+        text TEXT NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (workOrderId) REFERENCES work_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+
     // Migration: Rename userId INT to profesionalId INT if userId exists
     // And remove jobCode if it exists
     try {
@@ -376,7 +390,7 @@ app.post('/api/test/reset-database', async (req, res) => {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
     // Drop and recreate to ensure schema changes
-    const tables = ['work_order_attachments', 'work_orders', 'tbl_campos', 'clients', 'profesionals', 'users'];
+    const tables = ['work_order_observations', 'work_order_attachments', 'work_orders', 'tbl_campos', 'clients', 'profesionals', 'users'];
     for (const table of tables) {
       await connection.query(`DROP TABLE IF EXISTS ${table}`);
     }
@@ -995,6 +1009,63 @@ app.get('/api/jobs/:id/attachments', authenticateToken, async (req, res) => {
   } catch (error: any) {
     console.error(`[DATABASE ERROR] GET /api/jobs/${jobId}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
+  }
+});
+
+/**
+ * Fetch observations for a job
+ */
+app.get('/api/jobs/:id/observations', authenticateToken, async (req, res) => {
+  const jobId = req.params.id;
+  try {
+    const [rows]: any = await pool.query(
+      `SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
+              u.displayName, u.role
+       FROM work_order_observations o
+       JOIN users u ON o.userId = u.id
+       WHERE o.workOrderId = ?
+       ORDER BY o.createdAt ASC`,
+      [jobId]
+    );
+    res.json(rows);
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /api/jobs/${jobId}/observations:`, error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch observations' });
+  }
+});
+
+/**
+ * Create a new observation for a job
+ */
+app.post('/api/jobs/:id/observations', authenticateToken, async (req: any, res) => {
+  const jobId = req.params.id;
+  const userId = req.user.id;
+  const { text } = req.body;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ success: false, error: 'Text is required' });
+  }
+
+  try {
+    const [result]: any = await pool.query(
+      'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
+      [jobId, userId, text.trim()]
+    );
+
+    // Fetch the created observation with user info
+    const [rows]: any = await pool.query(
+      `SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
+              u.displayName, u.role
+       FROM work_order_observations o
+       JOIN users u ON o.userId = u.id
+       WHERE o.id = ?`,
+      [result.insertId]
+    );
+
+    res.json({ success: true, observation: rows[0] });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] POST /api/jobs/${jobId}/observations:`, error.message);
+    res.status(500).json({ success: false, error: 'Failed to create observation' });
   }
 });
 

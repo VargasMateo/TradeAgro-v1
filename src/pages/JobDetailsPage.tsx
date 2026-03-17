@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -32,27 +32,55 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
     if (profile) setCurrentUser(JSON.parse(profile));
   }, []);
   const [newObservation, setNewObservation] = useState("");
-  const [observations, setObservations] = useState<{ text: string, author: string, date: string }[]>([
-    {
-      text: "Las condiciones climáticas fueron desfavorables el martes. Retraso de 4 horas debido a fuertes lluvias. Los niveles de humedad del suelo están actualmente por encima de lo óptimo; se recomienda esperar 48 horas antes de iniciar operaciones con maquinaria pesada.",
-      author: "NOTA POR ADMIN",
-      date: "Oct 25, 09:15 AM"
+  const [observations, setObservations] = useState<any[]>([]);
+  const [loadingObservations, setLoadingObservations] = useState(true);
+  const observationsEndRef = useRef<HTMLDivElement>(null);
+
+  const fetchObservations = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const response = await fetch(`/api/jobs/${id}/observations`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setObservations(data);
+      }
+    } catch (err) {
+      console.error('Error fetching observations:', err);
+    } finally {
+      setLoadingObservations(false);
     }
-  ]);
-
-  const handleAddObservation = () => {
-    if (!newObservation.trim()) return;
-
-    const today = new Date();
-    const formattedDate = `${today.toLocaleString('es-ES', { month: 'short' })} ${today.getDate()}, ${today.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
-
-    setObservations([...observations, {
-      text: newObservation,
-      author: userRole === 'client' ? 'CLIENTE' : 'PROFESIONAL',
-      date: formattedDate
-    }]);
-    setNewObservation("");
   };
+
+  const handleAddObservation = async () => {
+    if (!newObservation.trim()) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const response = await fetch(`/api/jobs/${id}/observations`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: newObservation })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setObservations(prev => [...prev, data.observation]);
+        setNewObservation("");
+        setTimeout(() => observationsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+    } catch (err) {
+      console.error('Error creating observation:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchObservations();
+  }, [id]);
 
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -328,44 +356,101 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             </div>
           </div>
 
-          {/* Observations Card */}
+          {/* Observations Chat Card */}
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#2e7d32]" />
-              <h2 className="text-lg font-bold text-slate-900">Observaciones</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-[#2e7d32]" />
+                <h2 className="text-lg font-bold text-slate-900">Observaciones</h2>
+              </div>
+              <span className="text-xs font-bold text-slate-400">
+                {observations.length} {observations.length === 1 ? 'mensaje' : 'mensajes'}
+              </span>
             </div>
 
-            <div className="space-y-4 mb-6">
-              {observations.map((obs, idx) => (
-                <div key={idx} className={cn(
-                  "rounded-xl border-l-4 p-4",
-                  obs.author === 'CLIENTE' ? "border-blue-400 bg-blue-50" : "border-orange-400 bg-orange-50"
-                )}>
-                  <p className="mb-3 text-sm italic text-slate-700 leading-relaxed">
-                    "{obs.text}"
-                  </p>
-                  <div className={cn(
-                    "flex items-center gap-2 text-xs font-bold uppercase tracking-wider",
-                    obs.author === 'CLIENTE' ? "text-blue-600/70" : "text-orange-600/70"
-                  )}>
-                    <span>{obs.author}</span>
-                    <span>•</span>
-                    <span>{obs.date}</span>
-                  </div>
+            {/* Chat Messages */}
+            <div className="max-h-[400px] overflow-y-auto space-y-4 mb-4 pr-1 scrollbar-hide">
+              {loadingObservations ? (
+                <div className="space-y-3 animate-pulse">
+                  {[1, 2].map(i => (
+                    <div key={i} className="flex gap-3">
+                      <div className="h-8 w-8 rounded-full bg-slate-100 shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-24 bg-slate-100 rounded" />
+                        <div className="h-16 w-3/4 bg-slate-50 rounded-xl" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : observations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <FileText className="h-8 w-8 text-slate-200 mb-3" />
+                  <p className="text-sm text-slate-400 font-medium">Sin observaciones aún</p>
+                  <p className="text-xs text-slate-300 mt-1">Escribe la primera observación para este trabajo</p>
+                </div>
+              ) : (
+                observations.map((obs) => {
+                  const isMine = currentUser && obs.userId === currentUser.id;
+                  const initials = obs.displayName
+                    ? obs.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                    : '??';
+                  const roleLabel = obs.role === 'client' ? 'Cliente' : obs.role === 'admin' ? 'Admin' : 'Profesional';
+                  const roleBg = obs.role === 'client' ? 'bg-blue-50 text-blue-600' : obs.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600';
+                  const timeAgo = obs.createdAt
+                    ? new Date(obs.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : '';
+
+                  return (
+                    <div
+                      key={obs.id}
+                      className={cn("flex gap-3", isMine && "flex-row-reverse")}
+                    >
+                      {/* Avatar */}
+                      <div className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                        isMine ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                      )}>
+                        {initials}
+                      </div>
+
+                      {/* Bubble */}
+                      <div className={cn("max-w-[75%] space-y-1", isMine && "items-end")}>
+                        <div className={cn("flex items-center gap-2", isMine && "flex-row-reverse")}>
+                          <span className="text-xs font-bold text-slate-700">{obs.displayName}</span>
+                          <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", roleBg)}>
+                            {roleLabel}
+                          </span>
+                        </div>
+                        <div className={cn(
+                          "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                          isMine
+                            ? "bg-emerald-50 text-slate-800 rounded-tr-md"
+                            : "bg-slate-50 text-slate-700 rounded-tl-md"
+                        )}>
+                          {obs.text}
+                        </div>
+                        <p className={cn("text-[10px] text-slate-400 px-1", isMine && "text-right")}>
+                          {timeAgo}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={observationsEndRef} />
             </div>
 
-            {/* Add Observation Input */}
-            <div className="mt-4 flex gap-2">
+            {/* Input */}
+            <div className="flex gap-2 pt-3 border-t border-slate-100">
               <input
                 type="text"
                 value={newObservation}
                 onChange={(e) => setNewObservation(e.target.value)}
-                placeholder="Añadir una observación o comentario..."
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                placeholder="Escribe una observación..."
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
                     handleAddObservation();
                   }
                 }}
@@ -373,7 +458,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
               <button
                 onClick={handleAddObservation}
                 disabled={!newObservation.trim()}
-                className="flex items-center justify-center rounded-xl bg-[#2e7d32] p-2.5 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center rounded-xl bg-[#2e7d32] px-4 py-2.5 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Send className="h-4 w-4" />
               </button>
