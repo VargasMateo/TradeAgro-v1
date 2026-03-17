@@ -224,9 +224,77 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
   if (loading) {
     return (
-      <div className="flex h-[50vh] flex-col items-center justify-center animate-in fade-in">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2e7d32] border-t-transparent" />
-        <p className="mt-4 text-sm font-medium text-slate-500">Cargando detalles...</p>
+      <div className="animate-in fade-in duration-500 pb-10">
+        {/* Header Skeleton */}
+        <div className="mb-8">
+          <div className="mb-4 h-4 w-40 rounded bg-slate-100 animate-pulse" />
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="h-9 w-56 rounded-lg bg-slate-100 animate-pulse mb-2" />
+              <div className="h-4 w-72 rounded bg-slate-50 animate-pulse" />
+            </div>
+            <div className="flex gap-3">
+              <div className="h-10 w-28 rounded-xl bg-slate-100 animate-pulse" />
+              <div className="h-10 w-36 rounded-xl bg-slate-100 animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {/* General Data Skeleton */}
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm animate-pulse">
+              <div className="h-5 w-40 rounded bg-slate-100 mb-6" />
+              <div className="grid grid-cols-2 gap-6">
+                {[1,2,3,4].map(i => (
+                  <div key={i}>
+                    <div className="h-3 w-16 rounded bg-slate-100 mb-2" />
+                    <div className="h-5 w-32 rounded bg-slate-50" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Service Skeleton */}
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm animate-pulse">
+              <div className="h-5 w-44 rounded bg-slate-100 mb-6" />
+              <div className="flex justify-between mb-2">
+                <div className="h-5 w-28 rounded bg-slate-100" />
+                <div className="h-5 w-16 rounded bg-slate-50" />
+              </div>
+              <div className="h-4 w-3/4 rounded bg-slate-50" />
+            </div>
+            {/* Observations Skeleton */}
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm animate-pulse">
+              <div className="h-5 w-36 rounded bg-slate-100 mb-6" />
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-slate-100 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-24 rounded bg-slate-100" />
+                    <div className="h-12 w-48 rounded-xl bg-slate-50" />
+                  </div>
+                </div>
+                <div className="flex gap-3 flex-row-reverse">
+                  <div className="h-8 w-8 rounded-full bg-slate-100 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-28 rounded bg-slate-100 ml-auto" />
+                    <div className="h-12 w-56 rounded-xl bg-slate-50" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Sidebar Skeleton */}
+          <div className="space-y-6">
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm animate-pulse">
+              <div className="h-5 w-24 rounded bg-slate-100 mb-6" />
+              <div className="h-16 w-full rounded-xl bg-slate-50" />
+            </div>
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm animate-pulse">
+              <div className="h-5 w-36 rounded bg-slate-100 mb-6" />
+              <div className="h-48 w-full rounded-xl bg-slate-50" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -414,7 +482,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                       </div>
 
                       {/* Bubble */}
-                      <div className={cn("max-w-[75%] space-y-1", isMine && "items-end")}>
+                      <div className={cn("max-w-[75%] space-y-1", isMine && "flex flex-col items-end")}>
                         <div className={cn("flex items-center gap-2", isMine && "flex-row-reverse")}>
                           <span className="text-xs font-bold text-slate-700">{obs.displayName}</span>
                           <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", roleBg)}>
@@ -422,7 +490,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                           </span>
                         </div>
                         <div className={cn(
-                          "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                          "w-fit rounded-2xl px-4 py-3 text-sm leading-relaxed",
                           isMine
                             ? "bg-emerald-50 text-slate-800 rounded-tr-md"
                             : "bg-slate-50 text-slate-700 rounded-tl-md"
