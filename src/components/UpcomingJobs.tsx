@@ -55,16 +55,16 @@ export default function UpcomingJobs() {
         }
       });
       if (!response.ok) throw new Error('Failed to fetch jobs');
-      
+
       const parsedJobs = await response.json();
-      
+
       // Filter for active/pending jobs
       const activeJobs = parsedJobs
         .filter((job: any) => job.status !== "Completado")
         .slice(0, 5)
         .map((job: any) => ({
           ...job,
-          date: job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' }) : "Pendiente de fecha",
+          date: job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Pendiente de fecha",
           location: `${job.fieldName || 'Campo N/A'} - ${job.lotName || 'Lote N/A'}`
         }));
 
