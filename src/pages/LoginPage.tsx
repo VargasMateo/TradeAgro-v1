@@ -23,6 +23,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Basic client-side validation
+    if (!email.trim() || !password.trim()) {
+      setError('Por favor, completa todos los campos');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
