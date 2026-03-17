@@ -174,9 +174,9 @@ async function initializeDatabase() {
     `);
 
     // Other tables
-    console.log('[INIT] Creating operational tables...');
+    console.log('[INIT] Creating fields table...');
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS tbl_campos (
+      CREATE TABLE IF NOT EXISTS fields (
         id INT AUTO_INCREMENT PRIMARY KEY,
         clientId INT NOT NULL,
         name VARCHAR(255) NOT NULL,
@@ -289,6 +289,17 @@ async function initializeDatabase() {
       console.log('[INIT] Migration check for work_orders skipped or not needed.');
     }
 
+    // Migration: Rename tbl_campos to fields if it exists
+    try {
+      const [tables_old_campos]: any = await connection.query("SHOW TABLES LIKE 'tbl_campos'");
+      if (tables_old_campos.length > 0) {
+        console.log('[INIT] Migrating: renaming tbl_campos to fields');
+        await connection.query('RENAME TABLE tbl_campos TO fields');
+      }
+    } catch (err) {
+      console.log('[INIT] Migration to fields skipped or failed.');
+    }
+
     // Migration: Rename tbl_trabajos to work_orders if it exists
     // Migration: Also rename WorkOrders (PascalCase) to work_orders if it accidentally exists
     try {
@@ -396,7 +407,7 @@ app.post('/api/test/reset-database', async (req, res) => {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
     // Drop and recreate to ensure schema changes
-    const tables = ['work_order_observations', 'work_order_attachments', 'work_orders', 'tbl_campos', 'clients', 'profesionals', 'users'];
+    const tables = ['work_order_observations', 'work_order_attachments', 'work_orders', 'fields', 'clients', 'profesionals', 'users'];
     for (const table of tables) {
       await connection.query(`DROP TABLE IF EXISTS ${table}`);
     }
@@ -483,7 +494,7 @@ app.get('/api/clients', async (req, res) => {
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
     `);
-    const [fieldRows]: any = await pool.query('SELECT * FROM tbl_campos');
+    const [fieldRows]: any = await pool.query('SELECT * FROM fields');
 
     // Process fields into a map for easy lookup
     const fieldsByClient: Record<string, any[]> = {};
@@ -558,7 +569,7 @@ app.put('/api/clients/:id', async (req, res) => {
 
     // 3. Replace fields (delete existing, insert new)
     console.log('[DEBUG] Replacing associated fields');
-    await connection.query('DELETE FROM tbl_campos WHERE clientId = ?', [userId]);
+    await connection.query('DELETE FROM fields WHERE clientId = ?', [userId]);
 
     if (fields && Array.isArray(fields)) {
       for (const field of fields) {
@@ -569,7 +580,7 @@ app.put('/api/clients/:id', async (req, res) => {
           lng: field.lng || null,
           lotNames: JSON.stringify(field.lots || [])
         };
-        await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
+        await connection.query('INSERT INTO fields SET ?', [fieldData]);
       }
     }
 
@@ -662,13 +673,13 @@ app.post('/api/clients', async (req, res) => {
       console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
       for (const field of fields) {
         const fieldData = {
-          clientId: newUserId, // Note: clientId in tbl_campos is now linked to users.id
+          clientId: newUserId, // Note: clientId in fields is now linked to users.id
           name: field.name,
           lat: field.lat || null,
           lng: field.lng || null,
           lotNames: JSON.stringify(field.lots || [])
         };
-        await connection.query('INSERT INTO tbl_campos SET ?', [fieldData]);
+        await connection.query('INSERT INTO fields SET ?', [fieldData]);
       }
     }
 
@@ -700,7 +711,7 @@ app.post('/api/clients', async (req, res) => {
 app.get('/api/fields', async (req, res) => {
   console.log('[DEBUG] GET /api/fields');
   try {
-    const [rows]: any = await pool.query('SELECT * FROM tbl_campos');
+    const [rows]: any = await pool.query('SELECT * FROM fields');
     const fields = rows.map((row: any) => ({
       ...row,
       lotNames: row.lotNames ? JSON.parse(row.lotNames) : []
@@ -1155,23 +1166,53 @@ function getColorForService(service: string) {
 }
 
 /**
- * Endpoint to create a field
- */
-app.post('/api/fields', async (req, res) => {
-  console.log('[DEBUG] POST /api/fields - Data received:', req.body);
+// Migration step: Rename tbl_campos to fields if it exists
+async function runMigrations() {
   try {
-    const { clientId, name, lat, long: lng, lotNames } = req.body;
+    const [rows]: any = await pool.query(`
+      SELECT TABLE_NAME FROM information_schema.tables
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_campos';
+    `);
+    if (rows.length > 0) {
+      console.log('[MIGRATION] Renaming table tbl_campos to fields...');
+      await pool.query('RENAME TABLE tbl_campos TO fields;');
+      console.log('[MIGRATION] Table tbl_campos renamed to fields successfully.');
+    } else {
+      console.log('[MIGRATION] Table tbl_campos not found, no rename needed.');
+    }
+  } catch (error: any) {
+    console.error('[MIGRATION ERROR] Failed to run migrations:', error.message);
+    // Depending on severity, you might want to exit the process here
+  }
+}
+
+// Run migrations before starting the server
+runMigrations().then(() => {
+  console.log('[MIGRATION] Migrations completed.');
+}).catch(err => {
+  console.error('[MIGRATION] Error during migrations:', err);
+  process.exit(1); // Exit if migrations fail
+});
+
+/**
+ * CREATE A NEW FIELD
+ */
+app.post('/api/fields', authenticateToken, async (req, res) => {
+  console.log('[DEBUG] POST /api/fields - Creating new field:', JSON.stringify(req.body));
+  try {
+    const { clientId, name, lat, lng, lotNames } = req.body;
+
     const dbData = {
-      clientId: clientId,
+      clientId,
       name,
       lat: lat || null,
       lng: lng || null,
       lotNames: JSON.stringify(lotNames || [])
     };
 
-    const [result]: any = await pool.query('INSERT INTO tbl_campos SET ?', [dbData]);
+    const [result]: any = await pool.query('INSERT INTO fields SET ?', [dbData]);
     res.json({ success: true, id: result.insertId });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[DATABASE ERROR] POST /api/fields:', error.message);
     res.status(500).json({ error: 'Failed to create field', details: error.message });
   }
@@ -1187,7 +1228,7 @@ app.post('/api/test/reset-clients', async (req, res) => {
     await connection.beginTransaction();
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     // Delete fields and clients
-    await connection.query('TRUNCATE TABLE tbl_campos');
+    await connection.query('TRUNCATE TABLE fields');
     await connection.query('DELETE FROM clients');
     // Delete users with role client
     await connection.query('DELETE FROM users WHERE role = "client"');
@@ -1229,7 +1270,7 @@ app.post('/api/test/reset-fields', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.query('TRUNCATE TABLE tbl_campos');
+    await connection.query('TRUNCATE TABLE fields');
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     res.json({ success: true, message: 'Fields reset successfully' });
   } catch (error) {
@@ -1400,16 +1441,18 @@ app.get('/api/users', async (req, res) => {
 });
 
 /**
- * RESET USERS (Dev only) - Warning: This clears everything as all tables depend on users
+ * RESET ALL DATA (Dev only) - Warning: This clears everything as all tables depend on users
  */
-app.post('/api/test/reset-users', async (req, res) => {
-  console.log('[DEBUG] POST /api/test/reset-users');
+app.post('/api/test/reset-data', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-data');
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE work_order_observations');
+    await connection.query('TRUNCATE TABLE work_order_attachments');
     await connection.query('TRUNCATE TABLE work_orders');
-    await connection.query('TRUNCATE TABLE tbl_campos');
+    await connection.query('TRUNCATE TABLE fields');
     await connection.query('TRUNCATE TABLE clients');
     await connection.query('TRUNCATE TABLE profesionals');
     await connection.query('TRUNCATE TABLE users');
