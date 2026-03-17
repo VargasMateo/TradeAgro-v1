@@ -204,10 +204,6 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
           observation: foundJob.description || "No hay observaciones iniciales registradas.",
           observationAuthor: "SISTEMA",
           observationDate: foundJob.createdAt ? new Date(foundJob.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
-          files: [
-            // Mock files for now since DB doesn't store them yet
-            { name: "Reporte_Suelo.pdf", size: "2.4 MB", type: "pdf" }
-          ],
           coordinates: [-31.4201, -64.1888] as [number, number],
         });
 
