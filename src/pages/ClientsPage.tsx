@@ -191,7 +191,7 @@ export default function ClientsPage() {
           </div>
           <button
             onClick={handleAddNew}
-            className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Nuevo Cliente
