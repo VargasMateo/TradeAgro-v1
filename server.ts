@@ -1,10 +1,13 @@
 import express from 'express';
 import mysql from 'mysql2/promise';
-import crypto from 'crypto';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -13,6 +16,22 @@ const port = process.env.PORT || 5001;
 
 app.use(cors());
 app.use(express.json());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer config - Now using memory storage to save to DB
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -46,11 +65,11 @@ const authenticateToken = (req: any, res: any, next: any) => {
 };
 
 const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool) => {
-// ... (rest of the code unchanged until /api/jobs)
+  // ... (rest of the code unchanged until /api/jobs)
   try {
     console.log('[SEED] Checking if users table needs seeding...');
     const [userRows]: any = await connection.query('SELECT COUNT(*) as count FROM users');
-    
+
     if (userRows[0].count > 0) {
       console.log(`[SEED] Table 'users' already has ${userRows[0].count} records. Skipping seed.`);
       return;
@@ -191,6 +210,36 @@ async function initializeDatabase() {
       )
     `);
 
+    console.log('[INIT] Creating work_order_attachments table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS work_order_attachments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        workOrderId INT NOT NULL,
+        fileName VARCHAR(255) NOT NULL,
+        fileUrl VARCHAR(255),
+        fileType VARCHAR(100),
+        fileSize INT,
+        fileData LONGBLOB,
+        uploadedBy INT,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (workOrderId) REFERENCES work_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (uploadedBy) REFERENCES users(id) ON DELETE SET NULL
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    // Migration for work_order_attachments
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM work_order_attachments');
+      const hasFileData = columns.some((c: any) => c.Field === 'fileData');
+      if (!hasFileData) {
+        console.log('[INIT] Migrating work_order_attachments: adding fileData LONGBLOB');
+        await connection.query('ALTER TABLE work_order_attachments ADD COLUMN fileData LONGBLOB');
+        await connection.query('ALTER TABLE work_order_attachments MODIFY fileUrl VARCHAR(255) NULL');
+        await connection.query('ALTER TABLE work_order_attachments MODIFY fileType VARCHAR(100)');
+      }
+    } catch (err) {
+      console.log('[INIT] work_order_attachments migration check skipped (table might not exist yet).');
+    }
+
     // Migration: Rename userId INT to profesionalId INT if userId exists
     // And remove jobCode if it exists
     try {
@@ -199,7 +248,7 @@ async function initializeDatabase() {
       const hasJobCode = columns.some((c: any) => c.Field === 'jobCode');
       const hasCreatedBy = columns.some((c: any) => c.Field === 'createdBy');
       const hasDeletedAt = columns.some((c: any) => c.Field === 'deletedAt');
-      
+
       if (hasUserId) {
         console.log('[INIT] Migrating work_orders: renaming userId to profesionalId');
         await connection.query('ALTER TABLE work_orders CHANGE userId profesionalId INT');
@@ -239,9 +288,9 @@ async function initializeDatabase() {
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('[INIT] Schema ready. Calling seed...');
-    
+
     await seedDefaultUsers(connection);
-    
+
     console.log('[INIT] Database initialization completed successfully.');
   } catch (err: any) {
     console.error('[INIT ERROR] Fatal during initialization:', err.message);
@@ -260,7 +309,7 @@ app.put('/api/profile', async (req, res) => {
   console.log('[DEBUG] PUT /api/profile - User self-update initiated');
   const connection = await pool.getConnection();
   try {
-    const { 
+    const {
       id, displayName, email, location, description, role,
       phoneNumber: profPhoneNumber, specialty, // Prof fields
       businessName, cuit, ivaCondition, phoneNumber // Client fields
@@ -290,7 +339,7 @@ app.put('/api/profile', async (req, res) => {
     }
 
     await connection.commit();
-    
+
     // Fetch updated user to return
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
@@ -301,7 +350,7 @@ app.put('/api/profile', async (req, res) => {
       LEFT JOIN clients c ON u.id = c.userId
       WHERE u.id = ?
     `, [id]);
-    
+
     // Process nulls...
     const userData = { ...rows[0] };
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
@@ -325,20 +374,20 @@ app.post('/api/test/reset-database', async (req, res) => {
   try {
     await connection.beginTransaction();
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    
+
     // Drop and recreate to ensure schema changes
-    const tables = ['work_orders', 'tbl_campos', 'clients', 'profesionals', 'users'];
+    const tables = ['work_order_attachments', 'work_orders', 'tbl_campos', 'clients', 'profesionals', 'users'];
     for (const table of tables) {
       await connection.query(`DROP TABLE IF EXISTS ${table}`);
     }
-    
+
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     await connection.commit();
-    
+
     // Re-initialize with full schema
     console.log('[RESET] Re-initializing database...');
     await initializeDatabase();
-    
+
     res.json({ success: true, message: 'Database reset and re-seeded successfully' });
   } catch (error: any) {
     await connection.rollback();
@@ -650,7 +699,7 @@ app.get('/api/fields', async (req, res) => {
 app.get('/api/jobs', authenticateToken, async (req: any, res) => {
   const { id, role } = req.user;
   console.log(`[DEBUG_AUTH] GET /api/jobs - UserID: ${id}, Role: ${role}`);
-  
+
   try {
     let query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName
@@ -659,9 +708,9 @@ app.get('/api/jobs', authenticateToken, async (req: any, res) => {
       LEFT JOIN users p_user ON t.profesionalId = p_user.id
       WHERE t.deletedAt IS NULL
     `;
-    
+
     const params: any[] = [];
-    
+
     // Role-based filtering
     if (role === 'profesional') {
       console.log(`[DEBUG_AUTH] Filtering for profesionalId: ${id}`);
@@ -674,11 +723,11 @@ app.get('/api/jobs', authenticateToken, async (req: any, res) => {
     } else {
       console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
     }
-    
+
     query += ` ORDER BY t.createdAt DESC`;
 
     console.log(`[DEBUG] GET /api/jobs - User: ${id}, Role: ${role}`);
-    
+
     const [rows]: any = await pool.query(query, params);
 
     // Map database rows to frontend Job format
@@ -743,7 +792,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
     // If clientId is missing, try to find it by name
     if (!finalClientId && req.body.client) {
       const [userRows]: any = await pool.query(
-        'SELECT id FROM users WHERE displayName = ? AND role = "client" LIMIT 1', 
+        'SELECT id FROM users WHERE displayName = ? AND role = "client" LIMIT 1',
         [req.body.client]
       );
       if (userRows.length > 0) {
@@ -815,7 +864,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
     // If clientId is missing, try to find it by name
     if (!finalClientId && req.body.client) {
       const [userRows]: any = await pool.query(
-        'SELECT id FROM users WHERE displayName = ? AND role = "client" LIMIT 1', 
+        'SELECT id FROM users WHERE displayName = ? AND role = "client" LIMIT 1',
         [req.body.client]
       );
       if (userRows.length > 0) {
@@ -879,6 +928,126 @@ app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
   } catch (error: any) {
     console.error('[DATABASE ERROR] DELETE /api/jobs:', error.message);
     res.status(500).json({ error: 'Failed to delete job', details: error.message });
+  }
+});
+
+/**
+ * Serve uploaded files
+ */
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+/**
+ * Upload attachments to a job
+ */
+app.post('/api/jobs/:id/attachments', authenticateToken, upload.array('files'), async (req: any, res) => {
+  const jobId = req.params.id;
+  const files = req.files as Express.Multer.File[];
+  const uploadedBy = req.user.id;
+
+  if (!files || files.length === 0) {
+    return res.status(400).json({ success: false, error: 'No files uploaded' });
+  }
+
+  try {
+    const values = (req.files as Express.Multer.File[]).map(file => [
+      jobId,
+      file.originalname,
+      `/api/attachments/content/`, // Placeholder, will be updated or handled dynamically
+      file.mimetype,
+      file.size,
+      file.buffer, // Save the actual file data
+      uploadedBy
+    ]);
+
+    await pool.query(
+      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy) VALUES ?',
+      [values]
+    );
+
+    // After insert, we could update the fileUrl to point to the correct ID, 
+    // but the GET endpoint will construct it dynamically.
+
+    res.json({ success: true, message: 'Files uploaded successfully' });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] POST /api/jobs/${jobId}/attachments:`, error.message);
+    res.status(500).json({ success: false, error: 'Failed to save attachments' });
+  }
+});
+
+/**
+ * Fetch attachments for a job
+ */
+app.get('/api/jobs/:id/attachments', authenticateToken, async (req, res) => {
+  const jobId = req.params.id;
+  try {
+    const [rows]: any = await pool.query(
+      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC',
+      [jobId]
+    );
+
+    // Add the dynamic URL for each attachment
+    const attachments = rows.map((row: any) => ({
+      ...row,
+      fileUrl: `/api/attachments/${row.id}/content`
+    }));
+
+    res.json(attachments);
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /api/jobs/${jobId}/attachments:`, error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
+  }
+});
+
+// New Endpoint: Serve File Content from DB
+app.get('/api/attachments/:id/content', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows]: any = await pool.query('SELECT fileData, fileName, fileType FROM work_order_attachments WHERE id = ?', [id]);
+
+    if (rows.length === 0 || !rows[0].fileData) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const { fileData, fileName, fileType } = rows[0];
+
+    res.setHeader('Content-Type', fileType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.send(fileData);
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] GET /api/attachments/:id/content:', error.message);
+    res.status(500).json({ error: 'Failed to retrieve file content' });
+  }
+});
+
+/**
+ * Delete an attachment
+ */
+app.delete('/api/attachments/:id', authenticateToken, async (req, res) => {
+  const attachmentId = req.params.id;
+  const user = (req as any).user;
+
+  try {
+    // 1. Fetch attachment to check ownership
+    const [rows]: any = await pool.query('SELECT uploadedBy FROM work_order_attachments WHERE id = ?', [attachmentId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const attachment = rows[0];
+
+    // 2. Check permissions: Must be uploader OR admin
+    if (user.role !== 'admin' && attachment.uploadedBy !== user.id) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar este archivo.' });
+    }
+
+    // 3. Delete from DB only (files are in BLOBs)
+    const [result]: any = await pool.query('DELETE FROM work_order_attachments WHERE id = ?', [attachmentId]);
+
+    res.json({ success: true, message: 'Attachment deleted successfully' });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] DELETE /api/attachments:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to delete attachment', details: error.message });
   }
 });
 
@@ -991,20 +1160,20 @@ app.post('/api/test/reset-fields', async (req, res) => {
 /**
  * RESET JOBS (Dev only)
  */
-  app.post('/api/test/reset-jobs', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-jobs');
-    const connection = await pool.getConnection();
-    try {
-      await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-      await connection.query('TRUNCATE TABLE work_orders');
-      await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-      res.json({ success: true, message: 'work_orders reset successfully' });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to reset work_orders', details: error.message });
-    } finally {
-      connection.release();
-    }
-  });
+app.post('/api/test/reset-jobs', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-jobs');
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE work_orders');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    res.json({ success: true, message: 'work_orders reset successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset work_orders', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
 
 /**
  * GET /api/profesionales — fetch active professionals
@@ -1040,7 +1209,7 @@ app.put('/api/profesionales/:id', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { displayName, email, phoneNumber, specialty } = req.body;
-    
+
     await connection.beginTransaction();
 
     // 1. Update User base

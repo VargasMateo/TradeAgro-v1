@@ -14,7 +14,8 @@ import {
   ArrowRight,
   CheckCircle2,
   ArrowLeft,
-  DollarSign
+  DollarSign,
+  Paperclip
 } from "lucide-react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
@@ -90,6 +91,7 @@ export default function CreateJobModal() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const clientSuggestions = clients.filter((c: any) =>
     (c.name || '').toLowerCase().includes(formData.client.toLowerCase()) ||
@@ -226,6 +228,17 @@ export default function CreateJobModal() {
       });
     }
   };
+  
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFileRemove = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleContinue = () => {
     const newErrors: Record<string, string> = {};
@@ -284,6 +297,28 @@ export default function CreateJobModal() {
       }
 
       const result = await response.json();
+      const jobId = result.id;
+
+      // Now upload files if any
+      if (selectedFiles.length > 0) {
+        const formDataUpload = new FormData();
+        selectedFiles.forEach(file => {
+          formDataUpload.append('files', file);
+        });
+
+        const uploadRes = await fetch(`/api/jobs/${jobId}/attachments`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: formDataUpload
+        });
+
+        if (!uploadRes.ok) {
+          console.error('Failed to upload files');
+        }
+      }
+
       console.log('Job saved successfully:', result);
 
       setStep('success');
@@ -818,13 +853,47 @@ export default function CreateJobModal() {
 
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-slate-700">Archivos Adjuntos</label>
-                    <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 transition-colors hover:bg-slate-100">
+                    <div 
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 transition-colors hover:bg-slate-100 cursor-pointer relative"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                    >
+                      <input 
+                        id="file-upload"
+                        type="file" 
+                        multiple 
+                        className="hidden" 
+                        onChange={handleFileChange}
+                      />
                       <div className="mb-2 rounded-full bg-emerald-100 p-2 text-emerald-600">
                         <UploadCloud className="h-5 w-5" />
                       </div>
                       <p className="text-sm font-medium text-slate-900">Haz clic para subir o arrastra y suelta</p>
-                      <p className="mt-0.5 text-xs text-slate-500">PDF, JPG, PNG, MP4, XLSX (Máx. 50MB)</p>
+                      <p className="mt-0.5 text-xs text-slate-500">Imágenes, PDF, etc. (Máx. 10MB)</p>
                     </div>
+
+                    {selectedFiles.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {selectedFiles.map((file, idx) => (
+                          <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
+                              <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
+                              <span className="shrink-0 text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFileRemove(idx);
+                              }}
+                              className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -938,6 +1007,26 @@ export default function CreateJobModal() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Summary Section 4 - NEW: Attachments */}
+                  {selectedFiles.length > 0 && (
+                    <div>
+                      <h5 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <Paperclip className="h-3 w-3" /> Archivos Adjuntos ({selectedFiles.length})
+                      </h5>
+                      <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                        {selectedFiles.map((file, idx) => (
+                          <div key={idx} className="flex items-center gap-3 overflow-hidden rounded-lg bg-white p-2 shadow-sm">
+                            <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
+                            <div className="flex flex-1 items-center justify-between overflow-hidden">
+                              <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
+                              <span className="shrink-0 text-[10px] text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -968,6 +1057,11 @@ export default function CreateJobModal() {
                       CONTINUAR
                       <ArrowRight className="h-4 w-4" />
                     </button>
+                    {Object.keys(errors).length > 0 && (
+                      <p className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
+                        Hay campos obligatorios sin completar
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (

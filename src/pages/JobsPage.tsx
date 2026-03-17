@@ -74,7 +74,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.status === 401 || response.status === 403) {
         navigate('/'); // Token expired or invalid
         return;
@@ -327,7 +327,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 md:flex-none"
             >
               <Plus className="h-4 w-4" />
-              Nueva Orden
+              Nuevo Trabajo
             </Link>
           )}
         </div>
@@ -473,138 +473,138 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     </th>
                   </tr>
                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                   {filteredOrders.map((order) => (
-                     <tr
-                       key={order.id}
-                       onClick={() => navigate(`/jobs/${String(order.id).replace('#', '')}`)}
-                       className="group cursor-pointer transition-colors hover:bg-slate-50/80"
-                     >
-                       <td className="px-8 py-6">
-                         <span className="text-sm font-bold text-slate-400 group-hover:text-[#2e7d32] transition-colors">
-                           {`#AG-${order.id}`}
-                         </span>
-                       </td>
-                       <td className="px-8 py-6">
-                         <span className="text-sm text-slate-500">
-                           {order.date ? new Date(order.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
-                         </span>
-                       </td>
-                       {(userRole === 'profesional' || userRole === 'admin') && (
-                         <td className="px-8 py-6">
-                           <div className="flex flex-col">
-                             <span className="text-sm font-semibold text-slate-900">
-                               {(order as any).client}
-                             </span>
-                             <span className="text-xs text-slate-400">
-                               {order.fieldName || (order as any).location?.split(' - ')[0]} - {order.lotName || (order as any).location?.split(' - ')[1]}
-                             </span>
-                           </div>
-                         </td>
-                       )}
-                       <td className="px-8 py-6">
-                         <div className="flex flex-col">
-                           <span className="text-sm font-bold text-slate-700">
-                             {order.hectares || '0'} HA
-                           </span>
-                           <span className="text-[10px] text-slate-400 uppercase font-medium">
-                             {order.campaign || '2023/24'}
-                           </span>
-                         </div>
-                       </td>
-                       <td className="px-8 py-6">
-                         <div className="flex items-center gap-3">
-                           <div
-                             className={cn(
-                               "flex h-8 w-8 items-center justify-center rounded-lg",
-                               (order as any).color === "emerald" && "bg-emerald-50 text-emerald-600",
-                               (order as any).color === "blue" && "bg-blue-50 text-blue-600",
-                               (order as any).color === "orange" && "bg-orange-50 text-orange-600",
-                               (order as any).color === "indigo" && "bg-indigo-50 text-indigo-600"
-                             )}
-                           >
-                             {(() => {
-                               const iconName = (order as any).iconName || (order.service === 'Cosecha' ? 'Wheat' : 'Tractor');
-                               const IconComponent = iconMap[iconName] || Tractor;
-                               return <IconComponent className="h-4 w-4" />;
-                             })()}
-                           </div>
-                           <span className="text-sm font-medium text-slate-700">
-                             {order.service}
-                           </span>
-                         </div>
-                       </td>
-                       <td className="px-8 py-6">
-                         <div className="flex items-center gap-2">
-                           <img
-                             src={(order as any).operatorImage || `https://ui-avatars.com/api/?name=${(order as any).operator}&background=random`}
-                             alt={(order as any).operator}
-                             className="h-8 w-8 rounded-full object-cover border border-slate-200"
-                             referrerPolicy="no-referrer"
-                           />
-                           <span className="text-sm text-slate-600">
-                             {(order as any).operator}
-                           </span>
-                         </div>
-                       </td>
-                       <td className="px-8 py-6">
-                         <span
-                           className={cn(
-                             "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
-                             order.status === "En Proceso" &&
-                             "border-amber-100 bg-amber-50 text-amber-600",
-                             order.status === "Pendiente" &&
-                             "border-slate-200 bg-slate-100 text-slate-500",
-                             order.status === "Completado" &&
-                             "border-emerald-100 bg-emerald-50 text-emerald-600"
-                           )}
-                         >
-                           <span
-                             className={cn(
-                               "mr-2 h-1.5 w-1.5 rounded-full",
-                               order.status === "En Proceso" && "bg-amber-500",
-                               order.status === "Pendiente" && "bg-slate-400",
-                               order.status === "Completado" && "bg-emerald-500"
-                             )}
-                           ></span>
-                           {order.status}
-                         </span>
-                       </td>
-                       <td className="px-8 py-6 text-right">
-                         <div className="flex items-center justify-end gap-2">
-                           {(userRole === 'profesional' || userRole === 'admin') && (
-                             <>
-                               <button
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   setSearchParams({ editJob: String(order.id).replace('#', '') });
-                                 }}
-                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                                 title="Editar"
-                               >
-                                 <Pencil className="h-4 w-4" />
-                               </button>
-                               <button
-                                 onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
-                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                                 title="Borrar"
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </button>
-                             </>
-                           )}
-                           <button
-                             onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${String(order.id).replace('#', '')}`); }}
-                             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
-                             title="Ir"
-                           >
-                             <ArrowRight className="h-4 w-4" />
-                           </button>
-                         </div>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      onClick={() => navigate(`/jobs/${String(order.id).replace('#', '')}`)}
+                      className="group cursor-pointer transition-colors hover:bg-slate-50/80"
+                    >
+                      <td className="px-8 py-6">
+                        <span className="text-sm font-bold text-slate-400 group-hover:text-[#2e7d32] transition-colors">
+                          {`#AG-${order.id}`}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-sm text-slate-500">
+                          {order.date ? new Date(order.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
+                        </span>
+                      </td>
+                      {(userRole === 'profesional' || userRole === 'admin') && (
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-slate-900">
+                              {(order as any).client}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {order.fieldName || (order as any).location?.split(' - ')[0]} - {order.lotName || (order as any).location?.split(' - ')[1]}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-700">
+                            {order.hectares || '0'} HA
+                          </span>
+                          <span className="text-[10px] text-slate-400 uppercase font-medium">
+                            {order.campaign || '2023/24'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "flex h-8 w-8 items-center justify-center rounded-lg",
+                              (order as any).color === "emerald" && "bg-emerald-50 text-emerald-600",
+                              (order as any).color === "blue" && "bg-blue-50 text-blue-600",
+                              (order as any).color === "orange" && "bg-orange-50 text-orange-600",
+                              (order as any).color === "indigo" && "bg-indigo-50 text-indigo-600"
+                            )}
+                          >
+                            {(() => {
+                              const iconName = (order as any).iconName || (order.service === 'Cosecha' ? 'Wheat' : 'Tractor');
+                              const IconComponent = iconMap[iconName] || Tractor;
+                              return <IconComponent className="h-4 w-4" />;
+                            })()}
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">
+                            {order.service}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={(order as any).operatorImage || `https://ui-avatars.com/api/?name=${(order as any).operator}&background=random`}
+                            alt={(order as any).operator}
+                            className="h-8 w-8 rounded-full object-cover border border-slate-200"
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="text-sm text-slate-600">
+                            {(order as any).operator}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
+                            order.status === "En Proceso" &&
+                            "border-amber-100 bg-amber-50 text-amber-600",
+                            order.status === "Pendiente" &&
+                            "border-slate-200 bg-slate-100 text-slate-500",
+                            order.status === "Completado" &&
+                            "border-emerald-100 bg-emerald-50 text-emerald-600"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "mr-2 h-1.5 w-1.5 rounded-full",
+                              order.status === "En Proceso" && "bg-amber-500",
+                              order.status === "Pendiente" && "bg-slate-400",
+                              order.status === "Completado" && "bg-emerald-500"
+                            )}
+                          ></span>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {(userRole === 'profesional' || userRole === 'admin') && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSearchParams({ editJob: String(order.id).replace('#', '') });
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                                title="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                title="Borrar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${String(order.id).replace('#', '')}`); }}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                            title="Ir"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
 

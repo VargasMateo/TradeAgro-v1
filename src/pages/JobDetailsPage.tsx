@@ -13,14 +13,24 @@ import {
   Download,
   Plus,
   Map as MapIcon,
-  Send
+  Send,
+  X
 } from "lucide-react";
+import { ChangeEvent } from "react";
 import Map from "../components/Map";
 import { cn } from "../lib/utils";
 
 export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const profile = localStorage.getItem("userProfile");
+    if (profile) setCurrentUser(JSON.parse(profile));
+  }, []);
   const [newObservation, setNewObservation] = useState("");
   const [observations, setObservations] = useState<{ text: string, author: string, date: string }[]>([
     {
@@ -48,6 +58,71 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
   const [loading, setLoading] = useState(true);
   const [jobError, setJobError] = useState('');
   const [job, setJob] = useState<any>(null);
+
+  const fetchAttachments = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch(`/api/jobs/${id}/attachments`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAttachments(data);
+      }
+    } catch (err) {
+      console.error('Error fetching attachments:', err);
+    }
+  };
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      const filesArray = Array.from(e.target.files) as File[];
+      filesArray.forEach(file => {
+        formData.append('files', file);
+      });
+
+      const response = await fetch(`/api/jobs/${id}/attachments`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+        body: formData
+      });
+
+      if (response.ok) {
+        await fetchAttachments();
+      } else {
+        alert('Error al subir archivos');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) return;
+
+    try {
+      const response = await fetch(`/api/attachments/${attachmentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      });
+
+      if (response.ok) {
+        setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+      } else {
+        alert('Error al eliminar archivo');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchJobDetails = async () => {
@@ -116,6 +191,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
     };
 
     fetchJobDetails();
+    fetchAttachments();
   }, [id]);
 
   if (loading) {
@@ -309,44 +385,73 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
         {/* Sidebar - Right Column */}
         <div className="space-y-6">
 
-          {/* Attachments Card */}
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Paperclip className="h-5 w-5 text-[#2e7d32]" />
                 <h2 className="text-lg font-bold text-slate-900">Adjuntos</h2>
               </div>
-              <span className="text-xs font-bold text-slate-400">{job.files.length} Archivos</span>
+              <span className="text-xs font-bold text-slate-400">{attachments.length} Archivos</span>
             </div>
 
             <div className="space-y-3 mb-6">
-              {job.files.map((file, index) => (
-                <div key={index} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg",
-                      file.type === 'pdf' && "bg-red-50 text-red-500",
-                      file.type === 'image' && "bg-blue-50 text-blue-500",
-                      file.type === 'doc' && "bg-blue-50 text-blue-600",
-                    )}>
-                      <FileText className="h-5 w-5" />
+              {loading ? (
+                <p className="text-center text-xs text-slate-400 py-4">Cargando...</p>
+              ) : attachments.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
+              ) : (
+                attachments.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                        (file.fileType.includes('pdf')) && "bg-red-50 text-red-500",
+                        (file.fileType.includes('image')) && "bg-blue-50 text-blue-500",
+                        (!file.fileType.includes('pdf') && !file.fileType.includes('image')) && "bg-slate-50 text-slate-500",
+                      )}>
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="truncate text-sm font-semibold text-slate-900" title={file.fileName}>{file.fileName}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.uploaderName || 'Sistema'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{file.name}</p>
-                      <p className="text-xs text-slate-400">{file.size}</p>
+                    <div className="flex items-center gap-1">
+                      <a 
+                        href={file.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                      {(userRole === 'admin' || (currentUser && currentUser.id === file.uploadedBy)) && (
+                        <button 
+                          onClick={() => handleDeleteAttachment(file.id)}
+                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <button className="text-slate-400 hover:text-[#2e7d32] transition-colors">
-                    <Download className="h-5 w-5" />
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
-            <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
+            <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
               <Plus className="h-4 w-4" />
-              Agregar Archivo
-            </button>
+              {isUploading ? 'Subiendo...' : 'Agregar Archivo'}
+              <input 
+                type="file" 
+                multiple 
+                className="hidden" 
+                onChange={handleFileUpload}
+                disabled={isUploading}
+              />
+            </label>
           </div>
 
           {/* Field Map Card */}
