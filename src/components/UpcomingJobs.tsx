@@ -139,10 +139,7 @@ export default function UpcomingJobs() {
             <Link
               key={job.id || Math.random()}
               to={`/jobs/${String(job.id).replace('#', '')}`}
-              className={`snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${job.status === 'En Proceso'
-                ? 'bg-gradient-to-br from-amber-50 to-white'
-                : 'bg-gradient-to-br from-slate-50 to-white'
-                }`}
+              className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${job.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
