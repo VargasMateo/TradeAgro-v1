@@ -126,20 +126,44 @@ export default function ClientsPage() {
     (client.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const ClientSkeleton = () => (
+    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm animate-pulse h-full">
+      <div className="mb-6 flex items-start justify-between">
+        <div className="h-16 w-16 rounded-full bg-slate-100" />
+        <div className="flex gap-2">
+          <div className="h-8 w-8 rounded-lg bg-slate-50" />
+          <div className="h-8 w-8 rounded-lg bg-slate-50" />
+        </div>
+      </div>
+      <div className="mb-6 space-y-3">
+        <div className="h-6 w-3/4 bg-slate-100 rounded" />
+        <div className="h-4 w-1/2 bg-slate-50 rounded" />
+        <div className="flex gap-2 mt-2">
+          <div className="h-5 w-20 bg-slate-100 rounded-md" />
+          <div className="h-5 w-24 bg-emerald-50 rounded-md" />
+        </div>
+      </div>
+      <div className="space-y-4 border-t border-slate-100 pt-6">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-4 rounded-full bg-slate-100" />
+          <div className="h-4 w-40 bg-slate-50 rounded" />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-4 rounded-full bg-slate-100" />
+            <div className="h-4 w-32 bg-slate-50 rounded" />
+          </div>
+          <div className="h-8 w-24 bg-[#25D366]/20 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+
   const formatPhoneNumberForWhatsApp = (phone: string) => {
     if (!phone) return '';
     // Remove all non-numeric characters
     return phone.replace(/\D/g, '');
   };
-
-  if (isLoading && clients.length === 0 && view === 'list') {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-        <RefreshCw className="h-12 w-12 text-emerald-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">Cargando clientes de la base de datos...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="animate-in fade-in duration-500 space-y-8 pb-10">
@@ -177,7 +201,16 @@ export default function ClientsPage() {
 
       {/* LIST VIEW */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredClients.map((client) => (
+        {isLoading ? (
+          <>
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+          </>
+        ) : filteredClients.map((client) => (
           <div key={client.id} className="h-full">
             <MagneticEffect className="rounded-2xl">
               <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200 h-full">

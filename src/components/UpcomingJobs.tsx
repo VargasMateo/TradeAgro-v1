@@ -43,11 +43,16 @@ const initialJobs = [
 
 export default function UpcomingJobs() {
   const [jobs, setJobs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadJobs = async () => {
+    setIsLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) return;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
 
       const response = await fetch('/api/jobs', {
         headers: {
@@ -71,8 +76,9 @@ export default function UpcomingJobs() {
       setJobs(activeJobs);
     } catch (error) {
       console.error('Error fetching upcoming jobs:', error);
-      // Fallback or empty state could go here
       setJobs([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -89,6 +95,27 @@ export default function UpcomingJobs() {
     };
   }, []);
 
+  const SkeletonCard = () => (
+    <div className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm bg-white animate-pulse">
+      <div className="flex justify-between items-start mb-3">
+        <div className="h-5 w-20 bg-slate-100 rounded-full"></div>
+        <div className="h-4 w-16 bg-slate-50 rounded"></div>
+      </div>
+      <div className="h-6 w-3/4 bg-slate-100 rounded mb-2"></div>
+      <div className="h-4 w-1/2 bg-slate-50 rounded mb-4"></div>
+      <div className="space-y-3 pt-3 border-t border-slate-50">
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-3 bg-slate-100 rounded-full"></div>
+          <div className="h-3 w-24 bg-slate-50 rounded"></div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-3 bg-slate-100 rounded-full"></div>
+          <div className="h-3 w-32 bg-slate-50 rounded"></div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
@@ -101,7 +128,13 @@ export default function UpcomingJobs() {
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x min-h-[160px]">
-        {jobs.length > 0 ? (
+        {isLoading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : jobs.length > 0 ? (
           jobs.map((job) => (
             <Link
               key={job.id || Math.random()}

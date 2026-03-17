@@ -167,6 +167,77 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
   const activeFiltersCount = Object.values(filters).filter(v => v !== "").length;
 
+  const JobCardSkeleton = () => (
+    <div className="flex flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm animate-pulse">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100" />
+          <div className="space-y-2">
+            <div className="h-3 w-20 bg-slate-50 rounded" />
+            <div className="h-5 w-32 bg-slate-100 rounded" />
+          </div>
+        </div>
+        <div className="h-5 w-16 rounded-full bg-slate-50" />
+      </div>
+      <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className="h-16 rounded-2xl bg-slate-50/80" />
+        <div className="h-16 rounded-2xl bg-slate-50/80" />
+      </div>
+      <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
+        <div className="space-y-1">
+          <div className="h-2 w-10 bg-slate-50 rounded" />
+          <div className="h-4 w-20 bg-slate-100 rounded" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="space-y-1">
+            <div className="h-2 w-10 bg-slate-50 rounded" />
+            <div className="h-4 w-20 bg-slate-100 rounded text-right" />
+          </div>
+          <div className="h-8 w-8 rounded-full bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+
+  const JobTableSkeleton = () => (
+    <>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <tr key={i} className="animate-pulse">
+          <td className="px-8 py-6"><div className="h-4 w-12 bg-slate-100 rounded" /></td>
+          <td className="px-8 py-6"><div className="h-4 w-20 bg-slate-100 rounded" /></td>
+          {(userRole === 'profesional' || userRole === 'admin') && (
+            <td className="px-8 py-6">
+              <div className="space-y-2">
+                <div className="h-4 w-32 bg-slate-100 rounded" />
+                <div className="h-3 w-24 bg-slate-50 rounded" />
+              </div>
+            </td>
+          )}
+          <td className="px-8 py-6">
+            <div className="space-y-1">
+              <div className="h-4 w-12 bg-slate-100 rounded" />
+              <div className="h-3 w-16 bg-slate-50 rounded" />
+            </div>
+          </td>
+          <td className="px-8 py-6">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-slate-100" />
+              <div className="h-4 w-24 bg-slate-50 rounded" />
+            </div>
+          </td>
+          <td className="px-8 py-6">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-slate-100" />
+              <div className="h-4 w-20 bg-slate-100 rounded" />
+            </div>
+          </td>
+          <td className="px-8 py-6"><div className="h-6 w-20 bg-slate-100 rounded-full" /></td>
+          <td className="px-8 py-6"><div className="flex justify-end gap-2"><div className="h-8 w-8 bg-slate-50 rounded-lg" /><div className="h-8 w-8 bg-slate-50 rounded-lg" /></div></td>
+        </tr>
+      ))}
+    </>
+  );
+
   return (
     <div className="animate-in fade-in duration-500">
       {/* Header Section */}
@@ -381,9 +452,11 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
       {/* Mobile Card View (Always Grid) */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center rounded-2xl bg-slate-50 border border-dashed border-slate-200">
-            <Activity className="h-6 w-6 animate-spin text-emerald-500" />
-          </div>
+          <>
+            <JobCardSkeleton />
+            <JobCardSkeleton />
+            <JobCardSkeleton />
+          </>
         ) : error ? (
           <div className="rounded-2xl bg-red-50 p-6 text-center border border-red-100">
             <AlertCircle className="mx-auto h-8 w-8 text-red-500 mb-2" />
@@ -406,12 +479,40 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
       {/* Desktop Views */}
       <div className="hidden md:block">
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center rounded-[2rem] bg-white border border-slate-100 shadow-sm">
-            <div className="text-center">
-              <Activity className="mx-auto h-8 w-8 animate-spin text-emerald-500 mb-3" />
-              <p className="text-sm font-medium text-slate-600">Cargando trabajos...</p>
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+              <JobCardSkeleton />
             </div>
-          </div>
+          ) : (
+            <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-100">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="bg-slate-50/50">
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">ID Orden</th>
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">Fecha</th>
+                      {(userRole === 'profesional' || userRole === 'admin') && (
+                        <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">Cliente & Ubicación</th>
+                      )}
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">Superficie</th>
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">Servicio</th>
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">Profesional</th>
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">Estado</th>
+                      <th className="px-8 py-5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <JobTableSkeleton />
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
         ) : error ? (
           <div className="flex h-64 flex-col items-center justify-center rounded-[2rem] bg-white border border-red-100 shadow-sm">
             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
