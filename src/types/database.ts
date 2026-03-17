@@ -56,6 +56,7 @@ export interface WorkOrder {
   campaign: string;
   fieldName: string;
   lotName: string;
-  createdAt?: string; // timestamp
-  createdBy?: string;
+  createdAt: string; // timestamp
+  createdBy: string;
+  deletedAt?: string;// timestamp
 }
