@@ -106,7 +106,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    
+
     setIsUploading(true);
     try {
       const formData = new FormData();
@@ -174,11 +174,11 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
         }
 
         if (!response.ok) throw new Error('Failed to load jobs');
-        
+
         const data = await response.json();
         // Fallback to searching by ID
         const foundJob = data.find((j: any) => String(j.id) === id);
-        
+
         if (!foundJob) {
           throw new Error('Trabajo no encontrado');
         }
@@ -205,8 +205,8 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
           observationAuthor: "SISTEMA",
           observationDate: foundJob.createdAt ? new Date(foundJob.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
           files: [
-             // Mock files for now since DB doesn't store them yet
-             { name: "Reporte_Suelo.pdf", size: "2.4 MB", type: "pdf" }
+            // Mock files for now since DB doesn't store them yet
+            { name: "Reporte_Suelo.pdf", size: "2.4 MB", type: "pdf" }
           ],
           coordinates: [-31.4201, -64.1888] as [number, number],
         });
@@ -245,7 +245,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm animate-pulse">
               <div className="h-5 w-40 rounded bg-slate-100 mb-6" />
               <div className="grid grid-cols-2 gap-6">
-                {[1,2,3,4].map(i => (
+                {[1, 2, 3, 4].map(i => (
                   <div key={i}>
                     <div className="h-3 w-16 rounded bg-slate-100 mb-2" />
                     <div className="h-5 w-32 rounded bg-slate-50" />
@@ -426,7 +426,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
           {/* Observations Chat Card */}
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="pb-3 flex items-center justify-between border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-[#2e7d32]" />
                 <h2 className="text-lg font-bold text-slate-900">Observaciones</h2>
@@ -437,75 +437,77 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             </div>
 
             {/* Chat Messages */}
-            <div className="max-h-[400px] overflow-y-auto space-y-4 mb-4 pr-1 scrollbar-hide">
-              {loadingObservations ? (
-                <div className="space-y-3 animate-pulse">
-                  {[1, 2].map(i => (
-                    <div key={i} className="flex gap-3">
-                      <div className="h-8 w-8 rounded-full bg-slate-100 shrink-0" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 w-24 bg-slate-100 rounded" />
-                        <div className="h-16 w-3/4 bg-slate-50 rounded-xl" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : observations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <FileText className="h-8 w-8 text-slate-200 mb-3" />
-                  <p className="text-sm text-slate-400 font-medium">Sin observaciones aún</p>
-                  <p className="text-xs text-slate-300 mt-1">Escribe la primera observación para este trabajo</p>
-                </div>
-              ) : (
-                observations.map((obs) => {
-                  const isMine = currentUser && obs.userId === currentUser.id;
-                  const initials = obs.displayName
-                    ? obs.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-                    : '??';
-                  const roleLabel = obs.role === 'client' ? 'Cliente' : obs.role === 'admin' ? 'Admin' : 'Profesional';
-                  const roleBg = obs.role === 'client' ? 'bg-blue-50 text-blue-600' : obs.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600';
-                  const timeAgo = obs.createdAt
-                    ? new Date(obs.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                    : '';
-
-                  return (
-                    <div
-                      key={obs.id}
-                      className={cn("flex gap-3", isMine && "flex-row-reverse")}
-                    >
-                      {/* Avatar */}
-                      <div className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                        isMine ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                      )}>
-                        {initials}
-                      </div>
-
-                      {/* Bubble */}
-                      <div className={cn("max-w-[75%] min-w-0 space-y-1", isMine && "flex flex-col items-end")}>
-                        <div className={cn("flex items-center gap-2", isMine && "flex-row-reverse")}>
-                          <span className="text-xs font-bold text-slate-700">{obs.displayName}</span>
-                          <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", roleBg)}>
-                            {roleLabel}
-                          </span>
+            <div className="relative">
+              <div className="max-h-[400px] overflow-y-auto space-y-4 py-4 pr-1 scrollbar-hide">
+                {loadingObservations ? (
+                  <div className="space-y-3 animate-pulse">
+                    {[1, 2].map(i => (
+                      <div key={i} className="flex gap-3">
+                        <div className="h-8 w-8 rounded-full bg-slate-100 shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 w-24 bg-slate-100 rounded" />
+                          <div className="h-16 w-3/4 bg-slate-50 rounded-xl" />
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : observations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <FileText className="h-8 w-8 text-slate-200 mb-3" />
+                    <p className="text-sm text-slate-400 font-medium">Sin observaciones aún</p>
+                    <p className="text-xs text-slate-300 mt-1">Escribe la primera observación para este trabajo</p>
+                  </div>
+                ) : (
+                  observations.map((obs) => {
+                    const isMine = currentUser && obs.userId === currentUser.id;
+                    const initials = obs.displayName
+                      ? obs.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                      : '??';
+                    const roleLabel = obs.role === 'client' ? 'Cliente' : obs.role === 'admin' ? 'Admin' : 'Profesional';
+                    const roleBg = obs.role === 'client' ? 'bg-blue-50 text-blue-600' : obs.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600';
+                    const timeAgo = obs.createdAt
+                      ? new Date(obs.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                      : '';
+
+                    return (
+                      <div
+                        key={obs.id}
+                        className={cn("flex gap-3", isMine && "flex-row-reverse")}
+                      >
+                        {/* Avatar */}
                         <div className={cn(
-                          "w-fit max-w-full rounded-2xl px-4 py-3 text-sm leading-relaxed break-all",
-                          isMine
-                            ? "bg-emerald-50 text-slate-800 rounded-tr-md"
-                            : "bg-slate-50 text-slate-700 rounded-tl-md"
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                          isMine ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                         )}>
-                          {obs.text}
+                          {initials}
                         </div>
-                        <p className={cn("text-[10px] text-slate-400 px-1", isMine && "text-right")}>
-                          {timeAgo}
-                        </p>
+
+                        {/* Bubble */}
+                        <div className={cn("max-w-[75%] min-w-0 space-y-1", isMine && "flex flex-col items-end")}>
+                          <div className={cn("flex items-center gap-2", isMine && "flex-row-reverse")}>
+                            <span className="text-xs font-bold text-slate-700">{obs.displayName}</span>
+                            <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", roleBg)}>
+                              {roleLabel}
+                            </span>
+                          </div>
+                          <div className={cn(
+                            "w-fit max-w-full rounded-2xl px-4 py-3 text-sm leading-relaxed break-all",
+                            isMine
+                              ? "bg-emerald-50 text-slate-800 rounded-tr-md"
+                              : "bg-slate-50 text-slate-700 rounded-tl-md"
+                          )}>
+                            {obs.text}
+                          </div>
+                          <p className={cn("text-[10px] text-slate-400 px-1", isMine && "text-right")}>
+                            {timeAgo}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={observationsEndRef} />
+                    );
+                  })
+                )}
+                <div ref={observationsEndRef} />
+              </div>
             </div>
 
             {/* Input */}
@@ -579,16 +581,16 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <a 
-                        href={file.fileUrl} 
-                        target="_blank" 
+                      <a
+                        href={file.fileUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors"
                       >
                         <Download className="h-4 w-4" />
                       </a>
                       {(userRole === 'admin' || (currentUser && currentUser.id === file.uploadedBy)) && (
-                        <button 
+                        <button
                           onClick={() => handleDeleteAttachment(file.id)}
                           className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                         >
@@ -604,10 +606,10 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
               <Plus className="h-4 w-4" />
               {isUploading ? 'Subiendo...' : 'Agregar Archivo'}
-              <input 
-                type="file" 
-                multiple 
-                className="hidden" 
+              <input
+                type="file"
+                multiple
+                className="hidden"
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
