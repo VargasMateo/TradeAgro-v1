@@ -6,7 +6,6 @@ import {
   UserPlus,
   MapPin,
   CloudRain,
-  Settings,
   Clock,
   Calendar,
   Zap,

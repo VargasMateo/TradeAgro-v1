@@ -7,7 +7,6 @@ import {
   Home,
   Briefcase,
   FileText,
-  Settings,
   LogOut,
   Menu,
   Sun,
@@ -274,9 +273,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               />
             </div> */}
 
-            <Link to="/profile" className="hidden rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200 sm:block">
-              <Settings className="h-5 w-5" />
-            </Link>
+
 
             <Link to="/profile" className="h-8 w-8 overflow-hidden rounded-full border border-slate-200 sm:hidden">
               <img
