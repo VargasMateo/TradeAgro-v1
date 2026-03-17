@@ -143,19 +143,19 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => fillCredentials('profesional@tradeagro.com', 'prof123')}
-                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-2 text-emerald-700 transition-all hover:bg-emerald-100 cursor-pointer"
-                >
-                  <Briefcase className="h-4 w-4" />
-                  <span className="text-[10px] font-bold">Prof.</span>
-                </button>
-                <button
-                  type="button"
                   onClick={() => fillCredentials('cliente@tradeagro.com', 'client123')}
                   className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50/50 p-2 text-blue-700 transition-all hover:bg-blue-100 cursor-pointer"
                 >
                   <User className="h-4 w-4" />
                   <span className="text-[10px] font-bold">Client</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('profesional@tradeagro.com', 'prof123')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-2 text-emerald-700 transition-all hover:bg-emerald-100 cursor-pointer"
+                >
+                  <Briefcase className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Prof.</span>
                 </button>
                 <button
                   type="button"
