@@ -215,7 +215,7 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
             </div>
 
             <div className="space-y-6">
-              <div className="grid gap-6">
+              <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Nombre Completo</label>
                   <input
@@ -226,9 +226,6 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                     className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:text-slate-500"
                   />
                 </div>
-              </div>
-
-              <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Correo Electrónico</label>
                   <input
