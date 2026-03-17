@@ -4,12 +4,9 @@ import {
   FileText,
   Plus,
   UserPlus,
-  Download,
-  RefreshCw,
   MapPin,
   CloudRain,
   Settings,
-  Tractor,
   Clock,
   Calendar,
   Zap,
@@ -42,41 +39,6 @@ const stats = [
   },
 ];
 
-const activities = [
-  {
-    title: "Nuevo informe generado",
-    desc: "Sector Agrícola A-12 • Por Admin",
-    time: "Hace 2h",
-    icon: FileText,
-    bg: "bg-emerald-100",
-    color: "text-emerald-600",
-  },
-  {
-    title: "Cliente registrado",
-    desc: "AgroExport S.A. • Registro exitoso",
-    time: "Hace 5h",
-    icon: UserPlus,
-    bg: "bg-emerald-100",
-    color: "text-emerald-600",
-  },
-  {
-    title: "Alerta meteorológica",
-    desc: "Estación Norte • Baja de temperatura",
-    time: "Ayer",
-    icon: CloudRain,
-    bg: "bg-amber-100",
-    color: "text-amber-600",
-  },
-  {
-    title: "Mantenimiento de sistema",
-    desc: "Base de datos optimizada",
-    time: "Ayer",
-    icon: Settings,
-    bg: "bg-slate-100",
-    color: "text-slate-600",
-  },
-];
-
 export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [clients, setClients] = useState<any[]>([]);
   const [userName, setUserName] = useState("Admin");
@@ -97,17 +59,16 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     };
 
     fetchClients();
-    
+
     const loadProfile = () => {
       const storedProfile = localStorage.getItem("userProfile");
       if (storedProfile) {
         try {
           const profile = JSON.parse(storedProfile);
-          if (profile.name) {
-            // Extract first name or use the full name if preferred
-            const firstName = profile.name.split(' ')[0];
-            setUserName(firstName);
-          }
+          const nameToUse = profile.displayName || profile.name || (userRole === 'admin' ? "Admin" : "Usuario");
+          // Extract first name
+          const firstName = nameToUse.split(' ')[0];
+          setUserName(firstName);
         } catch (e) {
           console.error("Failed to parse profile", e);
         }
@@ -171,7 +132,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
               </Link>
             </MagneticEffect>
             <MagneticEffect className="rounded-2xl">
-              <Link 
+              <Link
                 to="?newClient=true"
                 className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
               >
@@ -194,30 +155,30 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
           {stats.map((stat, i) => (
             <div key={i} className="h-full">
               <MagneticEffect className="rounded-2xl">
-              <div
-                className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
-              >
-                <div className="flex items-start justify-between">
-                  <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
-                    <stat.icon className="h-5 w-5" />
+                <div
+                  className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
+                      <stat.icon className="h-5 w-5" />
+                    </div>
+                    {stat.change && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stat.changeBg} ${stat.changeColor}`}
+                      >
+                        {stat.change}
+                      </span>
+                    )}
                   </div>
-                  {stat.change && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stat.changeBg} ${stat.changeColor}`}
-                    >
-                      {stat.change}
-                    </span>
-                  )}
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-slate-500 truncate">
+                      {stat.label}
+                    </p>
+                    <h3 className="mt-0.5 text-2xl font-bold text-slate-900">
+                      {stat.value}
+                    </h3>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-xs font-medium text-slate-500 truncate">
-                    {stat.label}
-                  </p>
-                  <h3 className="mt-0.5 text-2xl font-bold text-slate-900">
-                    {stat.value}
-                  </h3>
-                </div>
-              </div>
               </MagneticEffect>
             </div>
           ))}
@@ -239,15 +200,15 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                 <MapPin className="h-5 w-5 text-[#2e4a33]" /> Mapa de Clientes
               </h3>
               <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
-                <Map 
+                <Map
                   markers={clients.filter(c => c.lat && c.lng).map(client => ({
                     position: [client.lat, client.lng],
                     popupContent: (
                       <div className="text-center">
                         <strong className="block text-sm text-slate-900">{client.name}</strong>
                         <span className="text-xs text-slate-500">
-                          {client.fields && client.fields.length > 0 
-                            ? (typeof client.fields[0] === 'string' ? client.fields[0] : client.fields[0].name) 
+                          {client.fields && client.fields.length > 0
+                            ? (typeof client.fields[0] === 'string' ? client.fields[0] : client.fields[0].name)
                             : 'Sin campo'}
                         </span>
                       </div>
