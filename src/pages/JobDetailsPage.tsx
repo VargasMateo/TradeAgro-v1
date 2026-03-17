@@ -509,17 +509,24 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
             </div>
 
             {/* Input */}
-            <div className="flex gap-2 pt-3 border-t border-slate-100">
-              <input
-                type="text"
+            <div className="flex items-end gap-2 pt-3 border-t border-slate-100">
+              <textarea
+                rows={1}
                 value={newObservation}
                 onChange={(e) => setNewObservation(e.target.value)}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 72) + 'px';
+                }}
                 placeholder="Escribe una observación..."
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 max-h-[4.5rem] overflow-y-auto"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleAddObservation();
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
                   }
                 }}
               />
