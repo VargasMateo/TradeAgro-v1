@@ -64,7 +64,7 @@ export default function App() {
           {(userRole === 'client' || userRole === 'admin') && (
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
-          <Route path="/profile" element={<ProfilePage userRole={userRole} />} />
+          <Route path="/profile" element={<ProfilePage userRole={userRole} onLogout={handleLogout} />} />
           {userRole === 'admin' && (
             <Route path="/db-test" element={<DbTestPage />} />
           )}

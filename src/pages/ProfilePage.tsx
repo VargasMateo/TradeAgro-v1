@@ -7,7 +7,8 @@ import {
   Camera,
   Save,
   X,
-  Loader2
+  Loader2,
+  LogOut
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -26,9 +27,10 @@ interface UserProfile {
 
 interface ProfilePageProps {
   userRole?: 'profesional' | 'client' | 'admin';
+  onLogout?: () => void;
 }
 
-export default function ProfilePage({ userRole = 'profesional' }: ProfilePageProps) {
+export default function ProfilePage({ userRole = 'profesional', onLogout }: ProfilePageProps) {
   const getDefaultProfile = (): UserProfile => {
     const saved = localStorage.getItem("userProfile");
     if (saved) {
@@ -168,6 +170,20 @@ export default function ProfilePage({ userRole = 'profesional' }: ProfilePagePro
                   <Briefcase className="h-4 w-4 text-slate-400" />
                   <span>{profile.businessName || profile.specialty || "TradeAgro Staff"}</span>
                 </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onLogout?.();
+                  }}
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Cerrar Sesión
+                </button>
               </div>
             </div>
           </div>

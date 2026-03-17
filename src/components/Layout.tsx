@@ -7,7 +7,6 @@ import {
   Home,
   Briefcase,
   FileText,
-  LogOut,
   Menu,
   Sun,
   Users,
@@ -186,8 +185,19 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
           {/* User Profile */}
           <div className="border-t border-slate-100 p-6">
-            <Link to="/profile" className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:bg-slate-100">
-              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow-sm">
+            <Link 
+              to="/profile" 
+              className={cn(
+                "flex items-center gap-3 rounded-2xl border p-3 transition-colors",
+                isActive("/profile") 
+                  ? "border-emerald-100 bg-emerald-50 shadow-sm"
+                  : "border-slate-100 bg-slate-50/50 hover:bg-slate-100"
+              )}
+            >
+              <div className={cn(
+                "h-10 w-10 overflow-hidden rounded-full border-2 shadow-sm",
+                isActive("/profile") ? "border-emerald-200" : "border-white"
+              )}>
                 <img
                   src={userProfile.avatarUrl}
                   alt={userProfile.name}
@@ -196,23 +206,19 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
                 />
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-bold text-slate-900">
+                <p className={cn(
+                  "truncate text-sm font-bold",
+                  isActive("/profile") ? "text-emerald-700" : "text-slate-900"
+                )}>
                   {userProfile.name}
                 </p>
-                <p className="truncate text-xs font-medium text-slate-500">
+                <p className={cn(
+                  "truncate text-xs font-medium",
+                  isActive("/profile") ? "text-emerald-600/80" : "text-slate-500"
+                )}>
                   {userProfile.email}
                 </p>
               </div>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onLogout?.();
-                }}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600 hover:shadow-sm"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
             </Link>
           </div>
         </div>
