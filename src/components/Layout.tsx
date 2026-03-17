@@ -32,11 +32,11 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return {
-          name: parsed.displayName || parsed.name || "Usuario",
-          email: parsed.email || "",
-          avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
-        };
+          return {
+            name: parsed.displayName || parsed.name || "Usuario",
+            email: parsed.email || "",
+            avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
+          };
       } catch (e) { /* fall through */ }
     }
     return { name: "Usuario", email: "", avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };

@@ -46,7 +46,14 @@ export default function UpcomingJobs() {
 
   const loadJobs = async () => {
     try {
-      const response = await fetch('/api/jobs');
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch('/api/jobs', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch jobs');
       
       const parsedJobs = await response.json();

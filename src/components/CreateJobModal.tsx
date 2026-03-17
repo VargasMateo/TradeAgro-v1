@@ -35,7 +35,14 @@ export default function CreateJobModal() {
 
   const fetchClients = async () => {
     try {
-      const response = await fetch('/api/clients');
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch('/api/clients', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch clients');
       const data = await response.json();
       setClients(Array.isArray(data) ? data : []);
@@ -112,7 +119,14 @@ export default function CreateJobModal() {
       const currentUserId = user?.id ? String(user.id) : '';
 
       if (editJobId) {
-        fetch('/api/jobs')
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        fetch('/api/jobs', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
           .then(res => res.json())
           .then((workOrders: WorkOrder[]) => {
             const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
@@ -257,7 +271,10 @@ export default function CreateJobModal() {
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
         body: JSON.stringify({ ...formData, createdBy })
       });
 

@@ -53,7 +53,23 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
     const fetchJobDetails = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/api/jobs');
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          navigate('/');
+          return;
+        }
+
+        const response = await fetch('/api/jobs', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          navigate('/');
+          return;
+        }
+
         if (!response.ok) throw new Error('Failed to load jobs');
         
         const data = await response.json();

@@ -14,7 +14,6 @@ const port = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
-// Database connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -28,7 +27,26 @@ const pool = mysql.createPool({
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Middleware to verify JWT
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Acceso denegado. Token no proporcionado.' });
+  }
+
+  jwt.verify(token, JWT_SECRET!, (err: any, user: any) => {
+    if (err) {
+      return res.status(403).json({ success: false, error: 'Token inválido o expirado.' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
 const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool) => {
+// ... (rest of the code unchanged until /api/jobs)
   try {
     console.log('[SEED] Checking if users table needs seeding...');
     const [userRows]: any = await connection.query('SELECT COUNT(*) as count FROM users');
@@ -629,17 +647,39 @@ app.get('/api/fields', async (req, res) => {
 /**
  * Endpoint to fetch jobs (trabajos) with client info
  */
-app.get('/api/jobs', async (req, res) => {
-  console.log('[DEBUG] GET /api/jobs - Fetching all jobs');
+app.get('/api/jobs', authenticateToken, async (req: any, res) => {
+  const { id, role } = req.user;
+  console.log(`[DEBUG_AUTH] GET /api/jobs - UserID: ${id}, Role: ${role}`);
+  
   try {
-    const [rows]: any = await pool.query(`
+    let query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName
       FROM work_orders t
       LEFT JOIN users u ON t.clientId = u.id
       LEFT JOIN users p_user ON t.profesionalId = p_user.id
       WHERE t.deletedAt IS NULL
-      ORDER BY t.createdAt DESC
-    `);
+    `;
+    
+    const params: any[] = [];
+    
+    // Role-based filtering
+    if (role === 'profesional') {
+      console.log(`[DEBUG_AUTH] Filtering for profesionalId: ${id}`);
+      query += ` AND t.profesionalId = ?`;
+      params.push(id);
+    } else if (role === 'client') {
+      console.log(`[DEBUG_AUTH] Filtering for clientId: ${id}`);
+      query += ` AND t.clientId = ?`;
+      params.push(id);
+    } else {
+      console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
+    }
+    
+    query += ` ORDER BY t.createdAt DESC`;
+
+    console.log(`[DEBUG] GET /api/jobs - User: ${id}, Role: ${role}`);
+    
+    const [rows]: any = await pool.query(query, params);
 
     // Map database rows to frontend Job format
     const jobs = rows.map((row: any) => ({
@@ -676,7 +716,7 @@ app.get('/api/jobs', async (req, res) => {
 /**
  * Endpoint to create a job (trabajo)
  */
-app.post('/api/jobs', async (req, res) => {
+app.post('/api/jobs', authenticateToken, async (req, res) => {
   console.log('[DEBUG] POST /api/jobs - Creating new job:', JSON.stringify(req.body));
   try {
     const {
@@ -748,7 +788,7 @@ app.post('/api/jobs', async (req, res) => {
 /**
  * Endpoint to update an existing job (trabajo)
  */
-app.put('/api/jobs/:id', async (req, res) => {
+app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
   const jobId = req.params.id;
   console.log(`[DEBUG] PUT /api/jobs/${jobId} - Updating job:`, JSON.stringify(req.body));
   try {
@@ -822,7 +862,7 @@ app.put('/api/jobs/:id', async (req, res) => {
 /**
  * Soft delete a job (work order)
  */
-app.delete('/api/jobs/:id', async (req, res) => {
+app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /api/jobs/${id} - Soft delete requested`);
   try {
