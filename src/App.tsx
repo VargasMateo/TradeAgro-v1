@@ -65,7 +65,9 @@ export default function App() {
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
           <Route path="/profile" element={<ProfilePage userRole={userRole} />} />
-          <Route path="/db-test" element={<DbTestPage />} />
+          {userRole === 'admin' && (
+            <Route path="/db-test" element={<DbTestPage />} />
+          )}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Layout>

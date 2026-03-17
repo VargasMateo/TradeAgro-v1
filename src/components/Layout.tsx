@@ -32,11 +32,11 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-          return {
-            name: parsed.displayName || parsed.name || "Usuario",
-            email: parsed.email || "",
-            avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
-          };
+        return {
+          name: parsed.displayName || parsed.name || "Usuario",
+          email: parsed.email || "",
+          avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
+        };
       } catch (e) { /* fall through */ }
     }
     return { name: "Usuario", email: "", avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
@@ -109,12 +109,10 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/profesionales", label: "Profesionales", icon: Users },
-      { path: "/stations", label: "Estaciones", icon: Sun }
+      { path: "/stations", label: "Estaciones", icon: Sun },
+      { path: "/db-test", label: "DB Test", icon: Shield },
     );
   }
-
-  // Always append DB Test at the very end
-  navItems.push({ path: "/db-test", label: "DB Test", icon: Shield });
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
