@@ -100,40 +100,52 @@ export default function UpcomingJobs() {
         </Link>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
-        {jobs.map((job) => (
-          <Link
-            key={job.id || Math.random()}
-            to={`/jobs/${String(job.id).replace('#', '')}`}
-            className={`snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${job.status === 'En Proceso'
-              ? 'bg-gradient-to-br from-amber-50 to-white'
-              : 'bg-gradient-to-br from-slate-50 to-white'
-              }`}
-          >
-            <div className="flex justify-between items-start mb-3">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${job.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
-                }`}>
-                {job.status}
-              </span>
-              <span className="text-xs font-semibold text-slate-400">{`#AG-${job.id}`}</span>
-            </div>
-
-            <h4 className="font-bold text-slate-900 mb-1 truncate">{job.service}</h4>
-            <p className="text-xs text-slate-500 mb-3 truncate">{job.client}</p>
-
-            <div className="space-y-2 pt-3 border-t border-slate-50">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Clock className="h-3.5 w-3.5 text-slate-400" />
-                <span>{job.date}</span>
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x min-h-[160px]">
+        {jobs.length > 0 ? (
+          jobs.map((job) => (
+            <Link
+              key={job.id || Math.random()}
+              to={`/jobs/${String(job.id).replace('#', '')}`}
+              className={`snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${job.status === 'En Proceso'
+                ? 'bg-gradient-to-br from-amber-50 to-white'
+                : 'bg-gradient-to-br from-slate-50 to-white'
+                }`}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${job.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                  {job.status}
+                </span>
+                <span className="text-xs font-semibold text-slate-400">{`#AG-${job.id}`}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                <span className="truncate">{job.location}</span>
-              </div>
-            </div>
-          </Link>
-        ))}
 
+              <h4 className="font-bold text-slate-900 mb-1 truncate">{job.service}</h4>
+              <p className="text-xs text-slate-500 mb-3 truncate">{job.client}</p>
+
+              <div className="space-y-2 pt-3 border-t border-slate-50">
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  <span>{job.date}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="truncate">{job.location}</span>
+                </div>
+              </div>
+            </Link>
+          ))
+        ) : (
+          <div className="w-full flex flex-col items-center justify-center py-10 px-6 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50/50">
+            <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 ring-8 ring-slate-50 transition-transform hover:scale-110">
+              <Calendar className="h-8 w-8 text-emerald-500 opacity-80" />
+            </div>
+            <h4 className="text-slate-900 font-bold text-lg mb-2 text-center">No hay trabajos programados</h4>
+            <p className="text-slate-500 text-sm text-center max-w-[320px] mb-8 leading-relaxed">
+              Tu agenda está despejada por ahora...
+            </p>
+
+          </div>
+        )}
       </div>
     </div>
   );
