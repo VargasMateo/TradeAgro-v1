@@ -158,30 +158,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   <span className="text-[10px] font-bold">Client</span>
                 </button>
               </div>
-
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (window.confirm("¿Estás seguro de que deseas restablecer toda la base de datos? Se borrarán todos los datos actuales.")) {
-                      setIsLoading(true);
-                      try {
-                        const res = await fetch('/api/test/reset-database', { method: 'POST' });
-                        const data = await res.json();
-                        if (data.success) alert("Base de datos restablecida con éxito.");
-                        else alert("Error: " + data.error);
-                      } catch (e) {
-                        alert("Error de conexión");
-                      } finally {
-                        setIsLoading(false);
-                      }
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:bg-slate-50 hover:text-red-500 transition-all cursor-pointer"
-                >
-                  Reiniciar Sistema (Emergencia)
-                </button>
-              </div>
             </div>
 
             <div className="mt-6 border-t border-slate-100 pt-6 text-center">
