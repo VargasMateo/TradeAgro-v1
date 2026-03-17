@@ -151,13 +151,13 @@ export default function CreateClientModal({
 
     setIsSaving(true);
     try {
-      // Get logged in user email for audit
-      let currentUserEmail = 'Admin';
+      // Get logged in user ID for audit
+      let currentUserId = 0;
       const storedProfile = localStorage.getItem("userProfile");
       if (storedProfile) {
         try {
           const profile = JSON.parse(storedProfile);
-          currentUserEmail = profile.email || 'Admin';
+          currentUserId = profile.id || 0;
         } catch (e) {
           console.error("Failed to parse profile", e);
         }
@@ -171,7 +171,7 @@ export default function CreateClientModal({
         ivaCondition: ivaMapping[formData.ivaCondition] || 'RI',
         email: formData.email,
         phoneNumber: formData.phone,
-        createdBy: currentUserEmail,
+        createdBy: currentUserId,
         fields: formData.fields.map(f => ({
           id: f.id,
           name: f.name,

@@ -6,7 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   createdAt: string;
-  createdBy: string;
+  createdBy: number;
 }
 
 export interface Client extends User {
@@ -58,8 +58,8 @@ export interface WorkOrder {
   fieldName: string;
   lotName: string;
   createdAt: string; // timestamp
-  createdBy: string;
-  deletedAt?: string;// timestamp
+  createdBy: number;
+  deletedAt?: string; // timestamp
 }
 
 export interface WorkOrderObservation {
@@ -69,5 +69,5 @@ export interface WorkOrderObservation {
   text: string;
   displayName: string;
   role: UserRole;
-  createdAt: string;
+  createdAt: string;  // timestamp
 }

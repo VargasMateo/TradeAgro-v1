@@ -48,7 +48,7 @@ export default function CreateProfesionalModal({
       setFormData({
         displayName: editingProfesional.displayName || '',
         email: editingProfesional.email || '',
-        phone: editingProfesional.phone || '',
+        phone: editingProfesional.phoneNumber || '',
         specialty: editingProfesional.specialty || ''
       });
     } else {
@@ -100,12 +100,12 @@ export default function CreateProfesionalModal({
 
     setIsSaving(true);
     try {
-      let currentUserEmail = 'Admin';
+      let currentUserId = 0;
       const storedProfile = localStorage.getItem("userProfile");
       if (storedProfile) {
         try {
           const profile = JSON.parse(storedProfile);
-          currentUserEmail = profile.email || 'Admin';
+          currentUserId = profile.id || 0;
         } catch (e) {
           console.error("Failed to parse profile", e);
         }
@@ -113,7 +113,7 @@ export default function CreateProfesionalModal({
 
       const payload = {
         ...formData,
-        createdBy: currentUserEmail
+        createdBy: currentUserId
       };
 
       const url = editingProfesional ? `/api/profesionales/${editingProfesional.id}` : '/api/profesionales';

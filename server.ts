@@ -641,7 +641,7 @@ app.post('/api/clients', async (req, res) => {
     const hashedPass = await bcrypt.hash(password || '123456', 10);
     const [userResult]: any = await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      [displayName, email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`, hashedPass, 'client', createdBy || 'Admin']
+      [displayName, email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`, hashedPass, 'client', createdBy ?? 'Admin']
     );
     const newUserId = userResult.insertId;
 
@@ -1350,7 +1350,7 @@ app.post('/api/profesionales', async (req, res) => {
     const hashedPass = await bcrypt.hash(password || '123456', 10);
     const [userResult]: any = await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      [displayName, email, hashedPass, 'profesional', createdBy || 'Admin']
+      [displayName, email, hashedPass, 'profesional', createdBy ?? 'Admin']
     );
     const newUserId = userResult.insertId;
 

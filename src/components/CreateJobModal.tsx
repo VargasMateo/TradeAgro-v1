@@ -284,7 +284,7 @@ export default function CreateJobModal() {
 
       const storedProfile = localStorage.getItem("userProfile");
       const user = storedProfile ? JSON.parse(storedProfile) : null;
-      const createdBy = user?.displayName || 'System';
+      const createdBy = user?.id || null;
 
       const response = await fetch(url, {
         method,
