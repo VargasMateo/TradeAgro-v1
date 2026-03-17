@@ -17,18 +17,18 @@ async function migrate() {
     console.log('Starting cross-table migration...');
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
-    // 1. Handle tbl_trabajos dependencies
+    // 1. Handle work_orders dependencies
     try { 
-        await connection.query('ALTER TABLE tbl_trabajos CHANGE COLUMN id id VARCHAR(36)');
+        await connection.query('ALTER TABLE work_orders CHANGE COLUMN id id VARCHAR(36)');
     } catch (e) {}
-    console.log('Updating tbl_trabajos...');
-    try { await connection.query('ALTER TABLE tbl_trabajos DROP FOREIGN KEY fk_trabajos_cliente'); } catch (e) {}
+    console.log('Updating work_orders...');
+    try { await connection.query('ALTER TABLE work_orders DROP FOREIGN KEY fk_trabajos_cliente'); } catch (e) {}
     try { 
-        await connection.query('ALTER TABLE tbl_trabajos CHANGE COLUMN id_cliente clientId VARCHAR(36)');
+        await connection.query('ALTER TABLE work_orders CHANGE COLUMN id_cliente clientId VARCHAR(36)');
     } catch (e) {
         try { 
-            await connection.query('ALTER TABLE tbl_trabajos ADD COLUMN IF NOT EXISTS clientId VARCHAR(36)');
-            await connection.query('UPDATE tbl_trabajos SET clientId = id_cliente WHERE clientId IS NULL');
+            await connection.query('ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS clientId VARCHAR(36)');
+            await connection.query('UPDATE work_orders SET clientId = id_cliente WHERE clientId IS NULL');
         } catch (err) {}
     }
 
@@ -112,7 +112,7 @@ async function migrate() {
     // 5. Restore Relationships
     console.log('Restoring foreign key constraints...');
     try {
-        await connection.query('ALTER TABLE tbl_trabajos ADD CONSTRAINT fk_trabajos_cliente FOREIGN KEY (clientId) REFERENCES tbl_clientes(id)');
+        await connection.query('ALTER TABLE work_orders ADD CONSTRAINT fk_trabajos_cliente FOREIGN KEY (clientId) REFERENCES tbl_clientes(id)');
         await connection.query('ALTER TABLE tbl_auditoria ADD CONSTRAINT fk_auditoria_cliente FOREIGN KEY (clientId) REFERENCES tbl_clientes(id)');
         await connection.query('ALTER TABLE tbl_campos ADD CONSTRAINT fk_campos_cliente FOREIGN KEY (clientId) REFERENCES tbl_clientes(id)');
     } catch (e) {
