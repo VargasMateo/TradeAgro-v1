@@ -862,7 +862,16 @@ export default function CreateJobModal() {
                       </div>
                       <div>
                         <p className="text-[10px] font-medium text-slate-400">Fecha</p>
-                        <p className="text-sm font-semibold text-slate-900">{formData.date || '-'}</p>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {formData.date 
+                            ? new Date(formData.date + 'T00:00:00').toLocaleDateString('es-ES', { 
+                                day: '2-digit', 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })
+                            : '-'
+                          }
+                        </p>
                       </div>
                       <div className="sm:col-span-2">
                         <p className="text-[10px] font-medium text-slate-400">Título</p>
