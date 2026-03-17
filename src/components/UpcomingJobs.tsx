@@ -108,7 +108,7 @@ export default function UpcomingJobs() {
                 }`}>
                 {job.status}
               </span>
-              <span className="text-xs font-semibold text-slate-400">{job.jobCode || `#AG-${job.id}`}</span>
+              <span className="text-xs font-semibold text-slate-400">{`#AG-${job.id}`}</span>
             </div>
 
             <h4 className="font-bold text-slate-900 mb-1 truncate">{job.service}</h4>

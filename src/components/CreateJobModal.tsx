@@ -19,6 +19,7 @@ import {
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import CreateClientModal from "./CreateClientModal";
+import { WorkOrder } from "../types/database";
 
 export default function CreateJobModal() {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export default function CreateJobModal() {
   const [step, setStep] = useState<'form' | 'summary' | 'success'>('form');
 
   const [clients, setClients] = useState<any[]>([]);
+  const [profesionales, setProfesionales] = useState<any[]>([]);
 
   const fetchClients = async () => {
     try {
@@ -45,9 +47,21 @@ export default function CreateJobModal() {
     }
   };
 
+  const fetchProfesionales = async () => {
+    try {
+      const response = await fetch('/api/profesionales');
+      if (!response.ok) throw new Error('Failed to fetch profesionales');
+      const data = await response.json();
+      setProfesionales(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching profesionales:', error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchClients();
+      fetchProfesionales();
     }
   }, [isOpen]);
 
@@ -75,7 +89,8 @@ export default function CreateJobModal() {
     lot: '',
     number: '',
     amount: '',
-    notes: ''
+    notes: '',
+    profesionalId: ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -107,23 +122,24 @@ export default function CreateJobModal() {
       if (editJobId) {
         fetch('/api/jobs')
           .then(res => res.json())
-          .then(jobs => {
-            const jobToEdit = jobs.find((j: any) => String(j.id) === editJobId || (j.jobCode || '').replace('#', '') === editJobId);
-            if (jobToEdit) {
+          .then((workOrders: WorkOrder[]) => {
+            const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
+            if (orderToEdit) {
               setFormData({
-                clientId: jobToEdit.clientId || '',
-                client: jobToEdit.client || '',
-                date: jobToEdit.date ? new Date(jobToEdit.date).toISOString().split('T')[0] : '',
-                title: jobToEdit.title || jobToEdit.service || '',
-                field: jobToEdit.fieldName || '',
-                hectares: jobToEdit.hectares !== null ? String(jobToEdit.hectares) : '',
-                service: jobToEdit.service || 'Cosecha',
-                secondaryService: jobToEdit.secondaryService || '',
-                campaign: jobToEdit.campaign || '2023/24',
-                lot: jobToEdit.lotName || '',
-                number: jobToEdit.number || '',
-                amount: jobToEdit.amountUsd !== null ? String(jobToEdit.amountUsd) : '',
-                notes: jobToEdit.description || ''
+                clientId: orderToEdit.clientId || '',
+                client: (orderToEdit as any).client || '',
+                date: orderToEdit.date ? new Date(orderToEdit.date).toISOString().split('T')[0] : '',
+                title: orderToEdit.title || orderToEdit.service || '',
+                field: orderToEdit.fieldName || '',
+                hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
+                service: orderToEdit.service || 'Cosecha',
+                secondaryService: (orderToEdit as any).secondaryService || '',
+                campaign: orderToEdit.campaign || '2023/24',
+                lot: orderToEdit.lotName || '',
+                number: (orderToEdit as any).number || '',
+                amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
+                notes: orderToEdit.description || '',
+                profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : ''
               });
             }
           })
@@ -159,7 +175,8 @@ export default function CreateJobModal() {
       lot: '',
       number: '',
       amount: '',
-      notes: ''
+      notes: '',
+      profesionalId: ''
     });
     setErrors({});
     setIsSaving(false);
@@ -211,6 +228,7 @@ export default function CreateJobModal() {
       { key: 'amount', label: 'El importe es obligatorio' },
       { key: 'service', label: 'El servicio es obligatorio' },
       { key: 'campaign', label: 'La campaña es obligatoria' },
+      { key: 'profesionalId', label: 'El profesional es obligatorio' },
     ];
 
     requiredFields.forEach(field => {
@@ -236,10 +254,14 @@ export default function CreateJobModal() {
       const url = isEdit ? `/api/jobs/${editJobId}` : '/api/jobs';
       const method = isEdit ? 'PUT' : 'POST';
 
+      const storedProfile = localStorage.getItem("userProfile");
+      const user = storedProfile ? JSON.parse(storedProfile) : null;
+      const createdBy = user?.displayName || 'System';
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, createdBy })
       });
 
       if (!response.ok) {
@@ -454,6 +476,38 @@ export default function CreateJobModal() {
                     {errors.title && (
                       <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
                         {errors.title}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700">
+                      Profesional Asignado <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        name="profesionalId"
+                        value={formData.profesionalId}
+                        onChange={handleInputChange}
+                        className={cn(
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          errors.profesionalId
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
+                      >
+                        <option value="">Seleccionar profesional...</option>
+                        {profesionales.map((p: any) => (
+                          <option key={p.id} value={p.id}>
+                            {p.displayName} {p.specialty ? `(${p.specialty})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                    {errors.profesionalId && (
+                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                        {errors.profesionalId}
                       </p>
                     )}
                   </div>

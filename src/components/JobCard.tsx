@@ -53,7 +53,7 @@ export default function JobCard({ job, userRole }: JobCardProps) {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                {job.jobCode || `#AG-${job.id}`}
+                {`#AG-${job.id}`}
               </span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
               <span className="text-[10px] font-bold text-slate-500">

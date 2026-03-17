@@ -151,11 +151,10 @@ async function initializeDatabase() {
     `);
 
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS tbl_trabajos (
+      CREATE TABLE IF NOT EXISTS WorkOrders (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        jobCode VARCHAR(50),
         clientId INT,
-        userId VARCHAR(255),
+        profesionalId INT,
         date DATETIME,
         title VARCHAR(255),
         service VARCHAR(255),
@@ -167,9 +166,46 @@ async function initializeDatabase() {
         description TEXT,
         status VARCHAR(50),
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (clientId) REFERENCES users(id) ON DELETE SET NULL
+        createdBy VARCHAR(255),
+        FOREIGN KEY (clientId) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (profesionalId) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
+
+    // Migration: Rename userId INT to profesionalId INT if userId exists
+    // And remove jobCode if it exists
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM WorkOrders');
+      const hasUserId = columns.some((c: any) => c.Field === 'userId');
+      const hasJobCode = columns.some((c: any) => c.Field === 'jobCode');
+      const hasCreatedBy = columns.some((c: any) => c.Field === 'createdBy');
+      
+      if (hasUserId) {
+        console.log('[INIT] Migrating WorkOrders: renaming userId to profesionalId');
+        await connection.query('ALTER TABLE WorkOrders CHANGE userId profesionalId INT');
+      }
+      if (hasJobCode) {
+        console.log('[INIT] Migrating WorkOrders: removing jobCode');
+        await connection.query('ALTER TABLE WorkOrders DROP COLUMN jobCode');
+      }
+      if (!hasCreatedBy) {
+        console.log('[INIT] Migrating WorkOrders: adding createdBy column');
+        await connection.query('ALTER TABLE WorkOrders ADD COLUMN createdBy VARCHAR(255)');
+      }
+    } catch (err) {
+      console.log('[INIT] Migration check for WorkOrders skipped or not needed.');
+    }
+
+    // Migration: Rename tbl_trabajos to WorkOrders if it exists
+    try {
+      const [tables]: any = await connection.query("SHOW TABLES LIKE 'tbl_trabajos'");
+      if (tables.length > 0) {
+        console.log('[INIT] Migrating: renaming tbl_trabajos to WorkOrders');
+        await connection.query('RENAME TABLE tbl_trabajos TO WorkOrders');
+      }
+    } catch (err) {
+      console.log('[INIT] Migration from tbl_trabajos to WorkOrders skipped or failed.');
+    }
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('[INIT] Schema ready. Calling seed...');
@@ -261,7 +297,7 @@ app.post('/api/test/reset-database', async (req, res) => {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     
     // Drop and recreate to ensure schema changes
-    const tables = ['tbl_trabajos', 'tbl_campos', 'clients', 'profesionals', 'users'];
+    const tables = ['WorkOrders', 'tbl_campos', 'clients', 'profesionals', 'users'];
     for (const table of tables) {
       await connection.query(`DROP TABLE IF EXISTS ${table}`);
     }
@@ -585,17 +621,18 @@ app.get('/api/jobs', async (req, res) => {
   console.log('[DEBUG] GET /api/jobs - Fetching all jobs');
   try {
     const [rows]: any = await pool.query(`
-      SELECT t.*, u.displayName as clientName
-      FROM tbl_trabajos t
+      SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName
+      FROM WorkOrders t
       LEFT JOIN users u ON t.clientId = u.id
+      LEFT JOIN users p_user ON t.profesionalId = p_user.id
       ORDER BY t.createdAt DESC
     `);
 
     // Map database rows to frontend Job format
     const jobs = rows.map((row: any) => ({
       id: row.id,
-      jobCode: row.jobCode || `#AG-${row.id}`,
       clientId: row.clientId,
+      profesionalId: row.profesionalId,
       client: row.clientName || 'Cliente Desconocido',
       date: row.date,
       location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
@@ -608,10 +645,11 @@ app.get('/api/jobs', async (req, res) => {
       campaign: row.campaign,
       description: row.description,
       status: row.status,
-      operator: "Asignación Pendiente",
+      operator: row.professionalName || "Asignación Pendiente",
       iconName: getIconNameForService(row.service),
       color: getColorForService(row.service),
-      createdAt: row.createdAt
+      createdAt: row.createdAt,
+      createdBy: row.createdBy
     }));
 
     res.json(jobs);
@@ -630,6 +668,7 @@ app.post('/api/jobs', async (req, res) => {
   try {
     const {
       clientId,
+      profesionalId,
       date,
       title,
       field,
@@ -638,7 +677,8 @@ app.post('/api/jobs', async (req, res) => {
       service,
       campaign,
       amount,
-      notes
+      notes,
+      createdBy
     } = req.body;
 
     // Clean numeric values
@@ -660,7 +700,7 @@ app.post('/api/jobs', async (req, res) => {
 
     const dbData = {
       clientId: finalClientId || null,
-      userId: '1', // Legacy association placeholder
+      profesionalId: profesionalId || null,
       date: date || null,
       title: title,
       service: service,
@@ -671,19 +711,15 @@ app.post('/api/jobs', async (req, res) => {
       amountUsd: parseFloat(cleanAmount) || 0,
       description: notes || null,
       status: 'Pendiente',
+      createdBy: createdBy || 'System'
     };
 
-    console.log('[DEBUG] Inserting into tbl_trabajos:', JSON.stringify(dbData));
-    const [result]: any = await pool.query('INSERT INTO tbl_trabajos SET ?', [dbData]);
-
-    // Generate jobCode based on ID
-    const jobCode = `#AG-${result.insertId}`;
-    await pool.query('UPDATE tbl_trabajos SET jobCode = ? WHERE id = ?', [jobCode, result.insertId]);
+    console.log('[DEBUG] Inserting into WorkOrders:', JSON.stringify(dbData));
+    const [result]: any = await pool.query('INSERT INTO WorkOrders SET ?', [dbData]);
 
     res.json({
       success: true,
-      id: result.insertId,
-      jobCode: jobCode
+      id: result.insertId
     });
   } catch (error) {
     console.error('[DATABASE ERROR] POST /api/jobs:', error);
@@ -705,6 +741,7 @@ app.put('/api/jobs/:id', async (req, res) => {
   try {
     const {
       clientId,
+      profesionalId,
       date,
       title,
       field,
@@ -735,6 +772,7 @@ app.put('/api/jobs/:id', async (req, res) => {
 
     const dbData = {
       clientId: finalClientId || null,
+      profesionalId: profesionalId || null,
       date: date || null,
       title: title,
       service: service,
@@ -746,8 +784,8 @@ app.put('/api/jobs/:id', async (req, res) => {
       description: notes || null,
     };
 
-    console.log(`[DEBUG] Updating tbl_trabajos id ${jobId}:`, JSON.stringify(dbData));
-    const [result]: any = await pool.query('UPDATE tbl_trabajos SET ? WHERE id = ?', [dbData, jobId]);
+    console.log(`[DEBUG] Updating WorkOrders id ${jobId}:`, JSON.stringify(dbData));
+    const [result]: any = await pool.query('UPDATE WorkOrders SET ? WHERE id = ?', [dbData, jobId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Job not found' });
@@ -877,20 +915,20 @@ app.post('/api/test/reset-fields', async (req, res) => {
 /**
  * RESET JOBS (Dev only)
  */
-app.post('/api/test/reset-jobs', async (req, res) => {
-  console.log('[DEBUG] POST /api/test/reset-jobs');
-  const connection = await pool.getConnection();
-  try {
-    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.query('TRUNCATE TABLE tbl_trabajos');
-    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-    res.json({ success: true, message: 'Jobs reset successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to reset jobs', details: error.message });
-  } finally {
-    connection.release();
-  }
-});
+  app.post('/api/test/reset-jobs', async (req, res) => {
+    console.log('[DEBUG] POST /api/test/reset-jobs');
+    const connection = await pool.getConnection();
+    try {
+      await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+      await connection.query('TRUNCATE TABLE WorkOrders');
+      await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+      res.json({ success: true, message: 'WorkOrders reset successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to reset WorkOrders', details: error.message });
+    } finally {
+      connection.release();
+    }
+  });
 
 /**
  * GET /api/profesionales — fetch active professionals
@@ -1043,7 +1081,7 @@ app.post('/api/test/reset-users', async (req, res) => {
   try {
     await connection.beginTransaction();
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.query('TRUNCATE TABLE tbl_trabajos');
+    await connection.query('TRUNCATE TABLE WorkOrders');
     await connection.query('TRUNCATE TABLE tbl_campos');
     await connection.query('TRUNCATE TABLE clients');
     await connection.query('TRUNCATE TABLE profesionals');

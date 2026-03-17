@@ -40,22 +40,22 @@ export interface Field {
   lotNames: string[];
 }
 
-export type JobStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
+export type WorkOrderStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
 
-export interface Job {
+export interface WorkOrder {
   id: number;
-  jobCode: string; // e.g., '#AG-1234'
   clientId: number;
-  userId: string; // The professional/operator assigned
-  date: string;
+  profesionalId: number;
+  date: string; // timestamp
   service: string;
   title: string;
   description?: string;
   hectares: number;
   amountUsd: number;
-  status: JobStatus;
+  status: WorkOrderStatus;
   campaign: string;
   fieldName: string;
   lotName: string;
   createdAt?: string; // timestamp
+  createdBy?: string;
 }

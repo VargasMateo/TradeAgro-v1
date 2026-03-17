@@ -8,13 +8,13 @@ export default function DbTestPage() {
   const [profesionales, setProfesionales] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   
   const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'trabajos' | 'profesionales' | 'usuarios' | 'global' | null>(null);
+  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'ordenes' | 'profesionales' | 'usuarios' | 'global' | null>(null);
   
   const [dialog, setDialog] = useState<{
     show: boolean;
@@ -82,10 +82,10 @@ export default function DbTestPage() {
       const response = await fetch('/api/jobs');
       if (response.ok) {
         const data = await response.json();
-        setJobs(data);
+        setWorkOrders(data);
       }
     } catch (err) {
-      console.error('Fetch jobs error:', err);
+      console.error('Fetch work orders error:', err);
     }
   };
 
@@ -148,7 +148,7 @@ export default function DbTestPage() {
         endpoint = `/api/test/reset-${
           resetTarget === 'clientes' ? 'clients' : 
           resetTarget === 'campos' ? 'fields' : 
-          resetTarget === 'trabajos' ? 'jobs' : 'profesionals'
+          resetTarget === 'ordenes' ? 'jobs' : 'profesionals'
         }`;
       }
 
@@ -304,13 +304,13 @@ export default function DbTestPage() {
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <Briefcase className="h-5 w-5 text-amber-600" />
-                <h2 className="font-black text-slate-900 uppercase tracking-widest">Trabajos</h2>
+                <h2 className="font-black text-slate-900 uppercase tracking-widest">Órdenes</h2>
                 <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-1 rounded-lg">
-                  {jobs.length}
+                  {workOrders.length}
                 </span>
               </div>
               <button 
-                onClick={() => setResetTarget('trabajos')}
+                onClick={() => setResetTarget('ordenes')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
                 RESETEAR
@@ -318,36 +318,37 @@ export default function DbTestPage() {
             </div>
 
             <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
-              {jobs.length === 0 ? (
+              {workOrders.length === 0 ? (
                 <div className="py-20 text-center opacity-40">
                   <Briefcase className="h-10 w-10 mx-auto mb-2" />
-                  <p className="text-xs font-bold uppercase">Sin Trabajos</p>
+                  <p className="text-xs font-bold uppercase">Sin Órdenes</p>
                 </div>
               ) : (
-                jobs.map(job => {
-                  const clientAssoc = clients.find(c => c.id === job.clientId);
+                workOrders.map(order => {
+                  const clientAssoc = clients.find(c => c.id === order.clientId);
                   return (
-                  <div key={job.id} className="p-5 rounded-3xl bg-amber-50/30 hover:bg-white border border-amber-100/50 shadow-sm transition-all group">
+                  <div key={order.id} className="p-5 rounded-3xl bg-amber-50/30 hover:bg-white border border-amber-100/50 shadow-sm transition-all group">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 overflow-hidden">
                         <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-amber-700 transition-colors truncate">
-                          {job.jobCode || `Job #${job.id}`} - {job.title || job.service}
+                          {`#AG-${order.id}`} - {order.title || order.service}
                         </h3>
                         <div className="flex items-center gap-1.5 mt-1.5">
                           <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
                           <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
-                            {clientAssoc ? clientAssoc.displayName : `CL: ${job.clientId}`}
+                            {clientAssoc ? clientAssoc.displayName : `CL: ${order.clientId}`}
+                            {order.createdBy && <span className="ml-2 text-[9px] text-slate-400">by {order.createdBy}</span>}
                           </p>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
                       <span className="text-[9px] font-black px-2.5 py-1 rounded-md bg-amber-100 text-amber-700 uppercase tracking-widest">
-                        {job.status || 'Pendiente'}
+                        {order.status || 'Pendiente'}
                       </span>
                       <span className="text-[10px] text-slate-400 font-bold ml-auto flex items-center gap-1.5">
                         <Calendar className="h-3 w-3" />
-                        {job.date ? new Date(job.date).toLocaleDateString('es-AR') : '-'}
+                        {order.date ? new Date(order.date).toLocaleDateString('es-AR') : '-'}
                       </span>
                     </div>
                   </div>

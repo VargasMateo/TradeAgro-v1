@@ -57,8 +57,8 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
         if (!response.ok) throw new Error('Failed to load jobs');
         
         const data = await response.json();
-        // Fallback to searching by ID or JobCode
-        const foundJob = data.find((j: any) => String(j.id) === id || (j.jobCode || '').replace('#', '') === id);
+        // Fallback to searching by ID
+        const foundJob = data.find((j: any) => String(j.id) === id);
         
         if (!foundJob) {
           throw new Error('Trabajo no encontrado');
@@ -66,7 +66,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
 
         // Map database job to UI job
         setJob({
-          id: foundJob.jobCode || `#AG-${foundJob.id}`,
+          id: `#AG-${foundJob.id}`,
           internalId: foundJob.id,
           status: foundJob.status,
           created: foundJob.date ? new Date(foundJob.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',

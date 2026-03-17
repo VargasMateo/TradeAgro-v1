@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import JobCard from "../components/JobCard";
+import { WorkOrder } from "../types/database";
 
 // Initial jobs are now fetched from the database
 
@@ -39,7 +40,7 @@ const tabs = ["Todos", "Pendientes", "En Proceso", "Completados"];
 
 export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [activeTab, setActiveTab] = useState("Todos");
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -63,9 +64,9 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
     try {
       setIsLoading(true);
       const response = await fetch('/api/jobs');
-      if (!response.ok) throw new Error('Failed to fetch jobs');
+      if (!response.ok) throw new Error('Failed to fetch work orders');
       const data = await response.json();
-      setJobs(data);
+      setWorkOrders(data);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching jobs:', err);
@@ -117,12 +118,12 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
   // Get unique values for suggestions
   const uniqueValues = {
-    id: Array.from(new Set(jobs.map(j => j.jobCode || `#AG-${j.id}`))),
-    date: Array.from(new Set(jobs.map(j => j.date ? new Date(j.date).toLocaleDateString('es-AR') : ''))),
-    client: Array.from(new Set(jobs.map(j => j.client))),
-    location: Array.from(new Set(jobs.map(j => j.location))),
-    service: Array.from(new Set(jobs.map(j => j.service))),
-    operator: Array.from(new Set(jobs.map(j => j.operator))),
+    id: Array.from(new Set(workOrders.map(j => `#AG-${j.id}`))),
+    date: Array.from(new Set(workOrders.map(j => j.date ? new Date(j.date).toLocaleDateString('es-AR') : ''))),
+    client: Array.from(new Set(workOrders.map(j => (j as any).client))),
+    location: Array.from(new Set(workOrders.map(j => (j as any).location))),
+    service: Array.from(new Set(workOrders.map(j => j.service))),
+    operator: Array.from(new Set(workOrders.map(j => (j as any).operator))),
   };
 
 
@@ -130,20 +131,20 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
     return iconMap[iconName] || Activity;
   };
 
-  const filteredJobs = jobs.filter((job) => {
+  const filteredOrders = workOrders.filter((order) => {
     // Tab filter
-    if (activeTab === "Pendientes" && job.status !== "Pendiente") return false;
-    if (activeTab === "En Proceso" && job.status !== "En Proceso") return false;
-    if (activeTab === "Completados" && job.status !== "Completado") return false;
+    if (activeTab === "Pendientes" && order.status !== "Pendiente") return false;
+    if (activeTab === "En Proceso" && order.status !== "En Proceso") return false;
+    if (activeTab === "Completados" && order.status !== "Completado") return false;
 
     // Popup filters
-    if (filters.id && !(job.jobCode || '').toLowerCase().includes(filters.id.toLowerCase())) return false;
-    if (filters.date && !(job.date && new Date(job.date).toLocaleDateString('es-AR').toLowerCase().includes(filters.date.toLowerCase()))) return false;
-    if (filters.client && !(job.client || '').toLowerCase().includes(filters.client.toLowerCase())) return false;
-    if (filters.location && !(job.location || '').toLowerCase().includes(filters.location.toLowerCase())) return false;
-    if (filters.service && !(job.service || '').toLowerCase().includes(filters.service.toLowerCase())) return false;
-    if (filters.operator && !(job.operator || '').toLowerCase().includes(filters.operator.toLowerCase())) return false;
-    if (filters.status && job.status !== filters.status) return false;
+    if (filters.id && !(`#AG-${order.id}`.toLowerCase().includes(filters.id.toLowerCase()))) return false;
+    if (filters.date && !(order.date && new Date(order.date).toLocaleDateString('es-AR').toLowerCase().includes(filters.date.toLowerCase()))) return false;
+    if (filters.client && !((order as any).client || '').toLowerCase().includes(filters.client.toLowerCase())) return false;
+    if (filters.location && !((order as any).location || '').toLowerCase().includes(filters.location.toLowerCase())) return false;
+    if (filters.service && !(order.service || '').toLowerCase().includes(filters.service.toLowerCase())) return false;
+    if (filters.operator && !((order as any).operator || '').toLowerCase().includes(filters.operator.toLowerCase())) return false;
+    if (filters.status && order.status !== filters.status) return false;
 
     return true;
   });
@@ -156,7 +157,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
       <div className="mb-6 flex flex-col justify-between gap-4 md:mb-10 md:flex-row md:items-end md:gap-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
-            Listado de Trabajos
+            Órdenes de Trabajo
           </h1>
           <p className="text-sm text-slate-500 md:text-lg">
             Supervisión en tiempo real de operaciones agrícolas.
@@ -199,7 +200,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-500">ID Trabajo</label>
+                  <label className="text-xs font-semibold text-slate-500">ID Orden</label>
                   <input
                     type="text" name="id" list="id-suggestions" value={filters.id} onChange={handleFilterChange}
                     placeholder="Ej: #AG-88"
@@ -310,7 +311,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 md:flex-none"
             >
               <Plus className="h-4 w-4" />
-              Nuevo Trabajo
+              Nueva Orden
             </Link>
           )}
         </div>
@@ -373,15 +374,15 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
             <p className="text-sm font-medium text-red-800">Error al cargar trabajos</p>
             <p className="text-xs text-red-600 mt-1">{error}</p>
           </div>
-        ) : filteredJobs.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div className="rounded-2xl bg-slate-50 p-8 text-center border border-dashed border-slate-200">
             <Tractor className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-            <h3 className="text-sm font-semibold text-slate-900">No se encontraron trabajos</h3>
-            <p className="text-xs text-slate-500 mt-1">Intenta ajustar los filtros o crea uno nuevo.</p>
+            <h3 className="text-sm font-semibold text-slate-900">No se encontraron órdenes</h3>
+            <p className="text-xs text-slate-500 mt-1">Intenta ajustar los filtros o crea una nueva.</p>
           </div>
         ) : (
-          filteredJobs.map((job) => (
-            <JobCard key={job.id} job={job} userRole={userRole} />
+          filteredOrders.map((order) => (
+            <JobCard key={order.id} job={order as any} userRole={userRole} />
           ))
         )}
       </div>
@@ -407,18 +408,18 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               Reintentar
             </button>
           </div>
-        ) : filteredJobs.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center rounded-[2rem] bg-white border border-dashed border-slate-200 shadow-sm">
             <Tractor className="h-12 w-12 text-slate-200 mb-4" />
             <h3 className="text-lg font-bold text-slate-900">Sin resultados</h3>
             <p className="text-slate-500 text-sm max-w-xs text-center">
-              No hay trabajos que coincidan con los criterios seleccionados.
+              No hay órdenes que coincidan con los criterios seleccionados.
             </p>
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredJobs.map((job) => (
-              <JobCard key={job.id} job={job} userRole={userRole} />
+            {filteredOrders.map((order) => (
+              <JobCard key={order.id} job={order as any} userRole={userRole} />
             ))}
           </div>
         ) : (
@@ -429,7 +430,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                 <thead>
                   <tr className="bg-slate-50/50">
                     <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      ID Trabajo
+                      ID Orden
                     </th>
                     <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
                       Fecha
@@ -456,146 +457,146 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredJobs.map((job) => (
-                    <tr
-                      key={job.id}
-                      onClick={() => navigate(`/jobs/${String(job.id).replace('#', '')}`)}
-                      className="group cursor-pointer transition-colors hover:bg-slate-50/80"
-                    >
-                      <td className="px-8 py-6">
-                        <span className="text-sm font-bold text-slate-400 group-hover:text-[#2e7d32] transition-colors">
-                          {job.jobCode || `#AG-${job.id}`}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-sm text-slate-500">
-                          {job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
-                        </span>
-                      </td>
-                      {(userRole === 'profesional' || userRole === 'admin') && (
-                        <td className="px-8 py-6">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-slate-900">
-                              {job.client}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {job.fieldName || job.location.split(' - ')[0]} - {job.lotName || job.location.split(' - ')[1]}
-                            </span>
-                          </div>
-                        </td>
-                      )}
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-700">
-                            {job.hectares || '0'} HA
-                          </span>
-                          <span className="text-[10px] text-slate-400 uppercase font-medium">
-                            {job.campaign || '2023/24'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={cn(
-                              "flex h-8 w-8 items-center justify-center rounded-lg",
-                              job.color === "emerald" && "bg-emerald-50 text-emerald-600",
-                              job.color === "blue" && "bg-blue-50 text-blue-600",
-                              job.color === "orange" && "bg-orange-50 text-orange-600",
-                              job.color === "indigo" && "bg-indigo-50 text-indigo-600"
-                            )}
-                          >
-                            {(() => {
-                              const iconName = job.iconName || (job.service === 'Cosecha' ? 'Wheat' : 'Tractor');
-                              const IconComponent = iconMap[iconName] || Tractor;
-                              return <IconComponent className="h-4 w-4" />;
-                            })()}
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">
-                            {job.service}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
-                            alt={job.operator}
-                            className="h-8 w-8 rounded-full object-cover border border-slate-200"
-                            referrerPolicy="no-referrer"
-                          />
-                          <span className="text-sm text-slate-600">
-                            {job.operator}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
-                            job.status === "En Proceso" &&
-                            "border-amber-100 bg-amber-50 text-amber-600",
-                            job.status === "Pendiente" &&
-                            "border-slate-200 bg-slate-100 text-slate-500",
-                            job.status === "Completado" &&
-                            "border-emerald-100 bg-emerald-50 text-emerald-600"
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "mr-2 h-1.5 w-1.5 rounded-full",
-                              job.status === "En Proceso" && "bg-amber-500",
-                              job.status === "Pendiente" && "bg-slate-400",
-                              job.status === "Completado" && "bg-emerald-500"
-                            )}
-                          ></span>
-                          {job.status}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {(userRole === 'profesional' || userRole === 'admin') && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSearchParams({ editJob: String(job.id).replace('#', '') });
-                                }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                                title="Editar"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                                title="Borrar"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${String(job.id).replace('#', '')}`); }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
-                            title="Ir"
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                 <tbody className="divide-y divide-slate-100">
+                   {filteredOrders.map((order) => (
+                     <tr
+                       key={order.id}
+                       onClick={() => navigate(`/jobs/${String(order.id).replace('#', '')}`)}
+                       className="group cursor-pointer transition-colors hover:bg-slate-50/80"
+                     >
+                       <td className="px-8 py-6">
+                         <span className="text-sm font-bold text-slate-400 group-hover:text-[#2e7d32] transition-colors">
+                           {`#AG-${order.id}`}
+                         </span>
+                       </td>
+                       <td className="px-8 py-6">
+                         <span className="text-sm text-slate-500">
+                           {order.date ? new Date(order.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
+                         </span>
+                       </td>
+                       {(userRole === 'profesional' || userRole === 'admin') && (
+                         <td className="px-8 py-6">
+                           <div className="flex flex-col">
+                             <span className="text-sm font-semibold text-slate-900">
+                               {(order as any).client}
+                             </span>
+                             <span className="text-xs text-slate-400">
+                               {order.fieldName || (order as any).location?.split(' - ')[0]} - {order.lotName || (order as any).location?.split(' - ')[1]}
+                             </span>
+                           </div>
+                         </td>
+                       )}
+                       <td className="px-8 py-6">
+                         <div className="flex flex-col">
+                           <span className="text-sm font-bold text-slate-700">
+                             {order.hectares || '0'} HA
+                           </span>
+                           <span className="text-[10px] text-slate-400 uppercase font-medium">
+                             {order.campaign || '2023/24'}
+                           </span>
+                         </div>
+                       </td>
+                       <td className="px-8 py-6">
+                         <div className="flex items-center gap-3">
+                           <div
+                             className={cn(
+                               "flex h-8 w-8 items-center justify-center rounded-lg",
+                               (order as any).color === "emerald" && "bg-emerald-50 text-emerald-600",
+                               (order as any).color === "blue" && "bg-blue-50 text-blue-600",
+                               (order as any).color === "orange" && "bg-orange-50 text-orange-600",
+                               (order as any).color === "indigo" && "bg-indigo-50 text-indigo-600"
+                             )}
+                           >
+                             {(() => {
+                               const iconName = (order as any).iconName || (order.service === 'Cosecha' ? 'Wheat' : 'Tractor');
+                               const IconComponent = iconMap[iconName] || Tractor;
+                               return <IconComponent className="h-4 w-4" />;
+                             })()}
+                           </div>
+                           <span className="text-sm font-medium text-slate-700">
+                             {order.service}
+                           </span>
+                         </div>
+                       </td>
+                       <td className="px-8 py-6">
+                         <div className="flex items-center gap-2">
+                           <img
+                             src={(order as any).operatorImage || `https://ui-avatars.com/api/?name=${(order as any).operator}&background=random`}
+                             alt={(order as any).operator}
+                             className="h-8 w-8 rounded-full object-cover border border-slate-200"
+                             referrerPolicy="no-referrer"
+                           />
+                           <span className="text-sm text-slate-600">
+                             {(order as any).operator}
+                           </span>
+                         </div>
+                       </td>
+                       <td className="px-8 py-6">
+                         <span
+                           className={cn(
+                             "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
+                             order.status === "En Proceso" &&
+                             "border-amber-100 bg-amber-50 text-amber-600",
+                             order.status === "Pendiente" &&
+                             "border-slate-200 bg-slate-100 text-slate-500",
+                             order.status === "Completado" &&
+                             "border-emerald-100 bg-emerald-50 text-emerald-600"
+                           )}
+                         >
+                           <span
+                             className={cn(
+                               "mr-2 h-1.5 w-1.5 rounded-full",
+                               order.status === "En Proceso" && "bg-amber-500",
+                               order.status === "Pendiente" && "bg-slate-400",
+                               order.status === "Completado" && "bg-emerald-500"
+                             )}
+                           ></span>
+                           {order.status}
+                         </span>
+                       </td>
+                       <td className="px-8 py-6 text-right">
+                         <div className="flex items-center justify-end gap-2">
+                           {(userRole === 'profesional' || userRole === 'admin') && (
+                             <>
+                               <button
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setSearchParams({ editJob: String(order.id).replace('#', '') });
+                                 }}
+                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                                 title="Editar"
+                               >
+                                 <Pencil className="h-4 w-4" />
+                               </button>
+                               <button
+                                 onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
+                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                 title="Borrar"
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </button>
+                             </>
+                           )}
+                           <button
+                             onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${String(order.id).replace('#', '')}`); }}
+                             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                             title="Ir"
+                           >
+                             <ArrowRight className="h-4 w-4" />
+                           </button>
+                         </div>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
               </table>
             </div>
 
             {/* Pagination */}
             <div className="flex items-center justify-between border-t border-slate-100 px-8 py-6">
               <p className="text-sm text-slate-400">
-                Mostrando <span className="font-semibold text-slate-700">1-{filteredJobs.length}</span>{" "}
-                de <span className="font-semibold text-slate-700">{filteredJobs.length}</span> trabajos
+                Mostrando <span className="font-semibold text-slate-700">1-{filteredOrders.length}</span>{" "}
+                de <span className="font-semibold text-slate-700">{filteredOrders.length}</span> órdenes
               </p>
               <div className="flex items-center gap-1">
                 <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100">
