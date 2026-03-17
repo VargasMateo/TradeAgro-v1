@@ -20,6 +20,7 @@ import {
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import CreateClientModal from "./CreateClientModal";
+import CreateFieldModal from "./CreateFieldModal";
 import { WorkOrder } from "../types/database";
 
 export default function CreateJobModal() {
@@ -68,6 +69,7 @@ export default function CreateJobModal() {
   }, [clients]);
 
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
+  const [isCreateFieldModalOpen, setIsCreateFieldModalOpen] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showFieldSuggestions, setShowFieldSuggestions] = useState(false);
   const [showLotSuggestions, setShowLotSuggestions] = useState(false);
@@ -590,14 +592,12 @@ export default function CreateJobModal() {
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
                             onClick={() => {
-                              if (window.confirm(`¿Deseas crear el nuevo campo "${formData.field}"${selectedClientObj ? ` para el cliente ${selectedClientObj.name}` : ''}?`)) {
-                                if (selectedClientObj) {
-                                  setClients((prev: any) => prev.map((c: any) => c.id === selectedClientObj.id ? { ...c, fields: [...c.fields, { name: formData.field, lat: undefined, lng: undefined, lots: ['Lote Único'] }] } : c));
-                                }
-                                setShowFieldSuggestions(false);
+                              if (selectedClientObj) {
+                                setIsCreateFieldModalOpen(true);
                               } else {
-                                setFormData(prev => ({ ...prev, field: '' }));
+                                alert('Por favor, seleccione un cliente primero.');
                               }
+                              setShowFieldSuggestions(false);
                             }}
                           >
                             + Crear "{formData.field}"
@@ -1118,6 +1118,22 @@ export default function CreateJobModal() {
           setShowClientSuggestions(false);
         }}
       />
+      {/* Create Field Modal */}
+      {selectedClientObj && (
+        <CreateFieldModal
+          isOpen={isCreateFieldModalOpen}
+          onClose={() => setIsCreateFieldModalOpen(false)}
+          client={selectedClientObj}
+          initialFieldName={formData.field}
+          onSave={(updatedClient) => {
+            setClients((prev: any) => prev.map((c: any) => 
+              c.id === updatedClient.id ? updatedClient : c
+            ));
+            setFormData(prev => ({ ...prev, field: formData.field }));
+            setIsCreateFieldModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
