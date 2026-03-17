@@ -74,11 +74,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                {error}
-              </div>
-            )}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Correo Electrónico</label>
               <input
@@ -114,6 +109,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 </button>
               </div>
             </div>
+
+            {error && (
+              <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
