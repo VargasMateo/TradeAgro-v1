@@ -79,6 +79,7 @@ export default function CreateJobModal() {
     client: searchParams.get('client') || '',
     date: searchParams.get('date') || '',
     title: '',
+    fieldId: '',
     field: searchParams.get('field') || '',
     hectares: '',
     service: '',
@@ -140,6 +141,7 @@ export default function CreateJobModal() {
                 client: (orderToEdit as any).client || '',
                 date: orderToEdit.date ? new Date(orderToEdit.date).toISOString().split('T')[0] : '',
                 title: orderToEdit.title || orderToEdit.service || '',
+                fieldId: orderToEdit.fieldId !== undefined && orderToEdit.fieldId !== null ? String(orderToEdit.fieldId) : '',
                 field: orderToEdit.fieldName || '',
                 hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
                 service: orderToEdit.service || 'Cosecha',
@@ -580,7 +582,12 @@ export default function CreateJobModal() {
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
                             onClick={() => {
-                              setFormData(prev => ({ ...prev, field: f }));
+                              const foundField = selectedClientObj?.fields?.find((fieldObj: any) => fieldObj.name === f);
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                field: f, 
+                                fieldId: foundField?.id || '' 
+                              }));
                               setShowFieldSuggestions(false);
                             }}
                           >
@@ -1129,7 +1136,17 @@ export default function CreateJobModal() {
             setClients((prev: any) => prev.map((c: any) => 
               c.id === updatedClient.id ? updatedClient : c
             ));
-            setFormData(prev => ({ ...prev, field: formData.field }));
+            
+            // Find the newly added field to get its ID
+            const newField = updatedClient.fields?.find(
+              (f: any) => f.name.toLowerCase() === formData.field.toLowerCase()
+            );
+            
+            setFormData(prev => ({ 
+              ...prev, 
+              field: formData.field,
+              fieldId: newField?.id?.toString() || '' 
+            }));
             setIsCreateFieldModalOpen(false);
           }}
         />

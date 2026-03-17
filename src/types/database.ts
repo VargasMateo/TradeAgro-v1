@@ -54,6 +54,7 @@ export interface WorkOrder {
   amountUsd: number;
   status: WorkOrderStatus;
   campaign: string;
+  fieldId?: number;
   fieldName: string;
   lotName: string;
   createdAt: string; // timestamp

@@ -196,6 +196,7 @@ async function initializeDatabase() {
         title VARCHAR(255),
         service VARCHAR(255),
         campaign VARCHAR(100),
+        fieldId INT,
         fieldName VARCHAR(255),
         lotName VARCHAR(255),
         hectares DECIMAL(10, 2),
@@ -262,6 +263,7 @@ async function initializeDatabase() {
       const hasJobCode = columns.some((c: any) => c.Field === 'jobCode');
       const hasCreatedBy = columns.some((c: any) => c.Field === 'createdBy');
       const hasDeletedAt = columns.some((c: any) => c.Field === 'deletedAt');
+      const hasFieldId = columns.some((c: any) => c.Field === 'fieldId');
 
       if (hasUserId) {
         console.log('[INIT] Migrating work_orders: renaming userId to profesionalId');
@@ -278,6 +280,10 @@ async function initializeDatabase() {
       if (!hasDeletedAt) {
         console.log('[INIT] Migrating work_orders: adding deletedAt column');
         await connection.query('ALTER TABLE work_orders ADD COLUMN deletedAt TIMESTAMP NULL DEFAULT NULL');
+      }
+      if (!hasFieldId) {
+        console.log('[INIT] Migrating work_orders: adding fieldId column');
+        await connection.query('ALTER TABLE work_orders ADD COLUMN fieldId INT NULL');
       }
     } catch (err) {
       console.log('[INIT] Migration check for work_orders skipped or not needed.');
@@ -754,6 +760,7 @@ app.get('/api/jobs', authenticateToken, async (req: any, res) => {
       location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
       service: row.service || 'Sin servicio',
       title: row.title || row.service,
+      fieldId: row.fieldId,
       fieldName: row.fieldName,
       lotName: row.lotName,
       hectares: parseFloat(row.hectares) || 0,
@@ -794,6 +801,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       campaign,
       amount,
       notes,
+      fieldId,
       createdBy
     } = req.body;
 
@@ -821,6 +829,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       title: title,
       service: service,
       campaign: campaign || null,
+      fieldId: fieldId || null,
       fieldName: field || null,
       lotName: lot || null,
       hectares: parseFloat(cleanHectares) || 0,
@@ -866,6 +875,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       service,
       campaign,
       amount,
+      fieldId,
       notes
     } = req.body;
 
@@ -893,6 +903,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       title: title,
       service: service,
       campaign: campaign || null,
+      fieldId: fieldId || null,
       fieldName: field || null,
       lotName: lot || null,
       hectares: parseFloat(cleanHectares) || 0,
