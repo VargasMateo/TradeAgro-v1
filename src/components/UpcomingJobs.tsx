@@ -105,7 +105,7 @@ export default function UpcomingJobs() {
           <Link
             key={job.id || Math.random()}
             to={`/jobs/${String(job.id).replace('#', '')}`}
-            className={`snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] ${job.status === 'En Proceso'
+            className={`snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${job.status === 'En Proceso'
               ? 'bg-gradient-to-br from-amber-50 to-white'
               : 'bg-gradient-to-br from-slate-50 to-white'
               }`}

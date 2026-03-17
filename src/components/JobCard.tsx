@@ -125,7 +125,7 @@ export default function JobCard({ job, userRole }: JobCardProps) {
       {/* Action Overlay */}
       <Link 
         to={`/jobs/${String(job.id).replace('#', '')}`}
-        className="absolute inset-0 z-10"
+        className="absolute inset-0 z-10 cursor-pointer"
         aria-label="Ver detalles"
       />
       

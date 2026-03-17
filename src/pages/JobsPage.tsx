@@ -183,7 +183,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors md:flex-none",
+              "flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors cursor-pointer md:flex-none",
               activeFiltersCount > 0
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -307,13 +307,13 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               <div className="mt-4 flex gap-2 pt-4 border-t border-slate-100">
                 <button
                   onClick={clearFilters}
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Limpiar
                 </button>
                 <button
                   onClick={() => setIsFilterOpen(false)}
-                  className="flex-1 rounded-lg bg-[#2e7d32] px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                  className="flex-1 rounded-lg bg-[#2e7d32] px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 cursor-pointer"
                 >
                   Aplicar
                 </button>
@@ -324,7 +324,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           {(userRole === 'profesional' || userRole === 'admin') && (
             <Link
               to="?newJob=true"
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 md:flex-none"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 md:flex-none cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               Nuevo Trabajo
@@ -342,7 +342,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition-all md:flex-none md:px-6 md:text-sm",
+                "flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer md:flex-none md:px-6 md:text-sm",
                 activeTab === tab
                   ? "bg-white text-[#2e7d32] shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
@@ -358,7 +358,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           <button
             onClick={() => setViewMode('grid')}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+              "flex h-9 w-9 items-center justify-center rounded-xl transition-all cursor-pointer",
               viewMode === 'grid' ? "bg-white text-[#2e7d32] shadow-sm" : "text-slate-400 hover:text-slate-600"
             )}
             title="Vista Cuadrícula"
@@ -368,7 +368,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           <button
             onClick={() => setViewMode('table')}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+              "flex h-9 w-9 items-center justify-center rounded-xl transition-all cursor-pointer",
               viewMode === 'table' ? "bg-white text-[#2e7d32] shadow-sm" : "text-slate-400 hover:text-slate-600"
             )}
             title="Vista Lista"
@@ -579,14 +579,14 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                                   e.stopPropagation();
                                   setSearchParams({ editJob: String(order.id).replace('#', '') });
                                 }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
                                 title="Editar"
                               >
                                 <Pencil className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
                                 title="Borrar"
                               >
                                 <Trash2 className="h-4 w-4" />

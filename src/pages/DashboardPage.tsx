@@ -162,7 +162,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             <MagneticEffect className="rounded-2xl">
               <Link
                 to="?newJob=true"
-                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-[#2e4a33] text-white shadow-sm transition-transform active:scale-[0.98] lg:h-32 lg:gap-3"
+                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-[#2e4a33] text-white shadow-sm transition-transform active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
               >
                 <div className="rounded-full bg-white/20 p-1.5 lg:p-2">
                   <Plus className="h-5 w-5 lg:h-6 lg:w-6" />
@@ -173,7 +173,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             <MagneticEffect className="rounded-2xl">
               <Link 
                 to="?newClient=true"
-                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] lg:h-32 lg:gap-3"
+                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
               >
                 <div className="rounded-full bg-slate-100 p-1.5 lg:p-2">
                   <UserPlus className="h-5 w-5 text-slate-600 lg:h-6 lg:w-6" />
