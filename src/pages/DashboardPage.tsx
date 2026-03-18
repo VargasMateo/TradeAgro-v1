@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  FileText,
   Plus,
   UserPlus,
   MapPin,
-  CloudRain,
+  Zap,
+  UserCheck,
   Clock,
   Calendar,
-  Zap,
   BarChart3
 } from "lucide-react";
+import { cn } from "../lib/utils";
 import Map from "../components/Map";
 import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
@@ -114,11 +114,14 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
 
       {/* Quick Actions - Only for profesional and admin */}
       {(userRole === 'profesional' || userRole === 'admin') && (
-        <div className="space-y-4 order-2 lg:col-span-1">
+        <div className={cn("space-y-4 order-2", userRole === 'admin' ? "lg:col-span-2" : "lg:col-span-1")}>
           <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
             <Zap className="h-5 w-5 text-emerald-600" /> Acciones Rápidas
           </h3>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className={cn(
+            "grid grid-cols-1 gap-3 sm:gap-4",
+            userRole === 'admin' ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          )}>
             <MagneticEffect className="rounded-2xl">
               <Link
                 to="?newJob=true"
@@ -141,48 +144,63 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                 <span className="text-sm font-semibold lg:text-base">Añadir Cliente</span>
               </Link>
             </MagneticEffect>
+            {userRole === 'admin' && (
+              <MagneticEffect className="rounded-2xl">
+                <Link
+                  to="?newProfesional=true"
+                  className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
+                >
+                  <div className="rounded-full bg-emerald-50 p-1.5 lg:p-2">
+                    <UserCheck className="h-5 w-5 text-emerald-600 lg:h-6 lg:w-6" />
+                  </div>
+                  <span className="text-sm font-semibold lg:text-base">Crear Profesional</span>
+                </Link>
+              </MagneticEffect>
+            )}
           </div>
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className={`space-y-4 order-3 ${userRole === 'client' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
-        <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Órdenes
-        </h3>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
-          {stats.map((stat, i) => (
-            <div key={i} className="h-full">
-              <MagneticEffect className="rounded-2xl">
-                <div
-                  className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
-                      <stat.icon className="h-5 w-5" />
+      {/* Stats Grid - Hidden for admin, visible for profesional */}
+      {userRole === 'profesional' && (
+        <div className="space-y-4 order-3 lg:col-span-1">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Órdenes
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+            {stats.map((stat, i) => (
+              <div key={i} className="h-full">
+                <MagneticEffect className="rounded-2xl">
+                  <div
+                    className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
+                        <stat.icon className="h-5 w-5" />
+                      </div>
+                      {stat.change && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stat.changeBg} ${stat.changeColor}`}
+                        >
+                          {stat.change}
+                        </span>
+                      )}
                     </div>
-                    {stat.change && (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stat.changeBg} ${stat.changeColor}`}
-                      >
-                        {stat.change}
-                      </span>
-                    )}
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-slate-500 truncate">
+                        {stat.label}
+                      </p>
+                      <h3 className="mt-0.5 text-2xl font-bold text-slate-900">
+                        {stat.value}
+                      </h3>
+                    </div>
                   </div>
-                  <div className="mt-2">
-                    <p className="text-xs font-medium text-slate-500 truncate">
-                      {stat.label}
-                    </p>
-                    <h3 className="mt-0.5 text-2xl font-bold text-slate-900">
-                      {stat.value}
-                    </h3>
-                  </div>
-                </div>
-              </MagneticEffect>
-            </div>
-          ))}
+                </MagneticEffect>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Upcoming Jobs Section */}
       <div className="order-4 lg:col-span-2">

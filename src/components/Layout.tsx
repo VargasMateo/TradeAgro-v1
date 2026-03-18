@@ -19,6 +19,7 @@ import { useState } from "react";
 import NotificationsDropdown from "./NotificationsDropdown";
 import CreateWorkOrderModal from "./CreateWorkOrderModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
+import GlobalCreateProfesionalModal from "./GlobalCreateProfesionalModal";
 
 export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'client' | 'admin' }) {
   const location = useLocation();
@@ -302,6 +303,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       {/* Global Modals */}
       <CreateWorkOrderModal />
       <GlobalCreateClientModal />
+      <GlobalCreateProfesionalModal />
     </div>
   );
 }
