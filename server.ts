@@ -136,6 +136,13 @@ async function initializeDatabase() {
       )
     `);
 
+    // Ensure users.id is AUTO_INCREMENT
+    const [userIdCol]: any = await connection.query('SHOW COLUMNS FROM users LIKE "id"');
+    if (userIdCol.length > 0 && userIdCol[0].Extra !== 'auto_increment') {
+      console.log('[INIT] Migrating users: forcing AUTO_INCREMENT on id');
+      await connection.query('ALTER TABLE users MODIFY id INT AUTO_INCREMENT');
+    }
+
     // Extension: Professionals
     console.log('[INIT] Creating profesionals table...');
     await connection.query(`
@@ -186,6 +193,13 @@ async function initializeDatabase() {
         FOREIGN KEY (clientId) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Ensure fields.id is AUTO_INCREMENT
+    const [fieldIdCol]: any = await connection.query('SHOW COLUMNS FROM fields LIKE "id"');
+    if (fieldIdCol.length > 0 && fieldIdCol[0].Extra !== 'auto_increment') {
+      console.log('[INIT] Migrating fields: forcing AUTO_INCREMENT on id');
+      await connection.query('ALTER TABLE fields MODIFY id INT AUTO_INCREMENT');
+    }
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS work_orders (
@@ -284,6 +298,13 @@ async function initializeDatabase() {
       if (!hasFieldId) {
         console.log('[INIT] Migrating work_orders: adding fieldId column');
         await connection.query('ALTER TABLE work_orders ADD COLUMN fieldId INT NULL');
+      }
+
+      // Ensure id is AUTO_INCREMENT
+      const [idColumn]: any = await connection.query('SHOW COLUMNS FROM work_orders LIKE "id"');
+      if (idColumn.length > 0 && idColumn[0].Extra !== 'auto_increment') {
+        console.log('[INIT] Migrating work_orders: forcing AUTO_INCREMENT on id');
+        await connection.query('ALTER TABLE work_orders MODIFY id INT AUTO_INCREMENT');
       }
     } catch (err) {
       console.log('[INIT] Migration check for work_orders skipped or not needed.');

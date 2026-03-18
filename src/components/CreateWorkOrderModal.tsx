@@ -510,7 +510,7 @@ export default function CreateWorkOrderModal() {
                           {errors.profesionalId}
                         </p>
                       )}
-                      {showProfesionalSuggestions && (profesionalSuggestions.length > 0 || (formData.profesional.trim() !== '' && !profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()))) && (
+                      {showProfesionalSuggestions && (profesionalSuggestions.length > 0 || !profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase())) && (
                         <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {profesionalSuggestions.map((p: any) => (
                             <button
@@ -530,13 +530,13 @@ export default function CreateWorkOrderModal() {
                               {p.specialty && <span className="text-[10px] text-slate-500 capitalize">{p.specialty}</span>}
                             </button>
                           ))}
-                          {!profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()) && formData.profesional.trim() !== '' && (
+                          {!profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()) && (
                             <button
                               type="button"
                               className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
                               onClick={() => setIsCreateProfesionalModalOpen(true)}
                             >
-                              + Crear "{formData.profesional}"
+                              {formData.profesional.trim() !== '' ? `+ Crear "${formData.profesional}"` : '+ Crear nuevo profesional'}
                             </button>
                           )}
                         </div>
@@ -575,7 +575,7 @@ export default function CreateWorkOrderModal() {
                         {errors.client}
                       </p>
                     )}
-                    {showClientSuggestions && (clientSuggestions.length > 0 || (formData.client.trim() !== '' && !clients.some((c: any) => (c.name || '').toLowerCase() === formData.client.toLowerCase()))) && (
+                    {showClientSuggestions && (clientSuggestions.length > 0 || !clients.some((c: any) => (c.name || '').toLowerCase() === formData.client.toLowerCase())) && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {clientSuggestions.map((c: any) => (
                           <button
@@ -602,13 +602,13 @@ export default function CreateWorkOrderModal() {
                             {c.businessName && <span className="text-[10px] text-slate-500">{c.businessName}</span>}
                           </button>
                         ))}
-                        {!clients.some((c: any) => c.name.toLowerCase() === formData.client.toLowerCase()) && formData.client.trim() !== '' && (
+                        {!clients.some((c: any) => c.name.toLowerCase() === formData.client.toLowerCase()) && (
                           <button
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
                             onClick={() => setIsCreateClientModalOpen(true)}
                           >
-                            + Crear "{formData.client}"
+                            {formData.client.trim() !== '' ? `+ Crear "${formData.client}"` : '+ Crear nuevo cliente'}
                           </button>
                         )}
                       </div>
@@ -706,7 +706,7 @@ export default function CreateWorkOrderModal() {
                         {errors.field}
                       </p>
                     )}
-                    {showFieldSuggestions && (fieldSuggestions.length > 0 || (!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && formData.field.trim() !== '')) && (
+                    {showFieldSuggestions && (fieldSuggestions.length > 0 || !fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase())) && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {fieldSuggestions.map((f: string) => (
                           <button
@@ -726,7 +726,7 @@ export default function CreateWorkOrderModal() {
                             {f}
                           </button>
                         ))}
-                        {!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && formData.field.trim() !== '' && (
+                        {!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && (
                           <button
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
@@ -739,7 +739,7 @@ export default function CreateWorkOrderModal() {
                               setShowFieldSuggestions(false);
                             }}
                           >
-                            + Crear "{formData.field}"
+                            {formData.field.trim() !== '' ? `+ Crear "${formData.field}"` : '+ Crear nuevo campo'}
                           </button>
                         )}
                       </div>
@@ -769,7 +769,7 @@ export default function CreateWorkOrderModal() {
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
-                    {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && formData.lot.trim() !== '' && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
+                    {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
                       <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                         {lotSuggestions.map((l: string) => (
                           <button
@@ -784,7 +784,7 @@ export default function CreateWorkOrderModal() {
                             {l}
                           </button>
                         ))}
-                        {selectedFieldObj && formData.lot.trim() !== '' && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
+                        {selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
                           <button
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
@@ -804,7 +804,7 @@ export default function CreateWorkOrderModal() {
                               setShowLotSuggestions(false);
                             }}
                           >
-                            + Crear lote "{formData.lot}"
+                            {formData.lot.trim() !== '' ? `+ Crear lote "${formData.lot}"` : '+ Crear nuevo lote'}
                           </button>
                         )}
                       </div>
