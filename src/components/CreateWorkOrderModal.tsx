@@ -462,7 +462,7 @@ export default function CreateWorkOrderModal() {
                           <button
                             key={c.id}
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col cursor-pointer"
                             onClick={() => {
                               const hasSingleField = c.fields && c.fields.length === 1;
                               const singleField = hasSingleField ? c.fields[0] : null;
@@ -486,7 +486,7 @@ export default function CreateWorkOrderModal() {
                         {!clients.some((c: any) => c.name.toLowerCase() === formData.client.toLowerCase()) && formData.client.trim() !== '' && (
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
+                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
                             onClick={() => setIsCreateClientModalOpen(true)}
                           >
                             + Crear "{formData.client}"
@@ -593,7 +593,7 @@ export default function CreateWorkOrderModal() {
                           <button
                             key={f}
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
                             onClick={() => {
                               const foundField = selectedClientObj?.fields?.find((fieldObj: any) => fieldObj.name === f);
                               setFormData(prev => ({
@@ -610,7 +610,7 @@ export default function CreateWorkOrderModal() {
                         {!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && formData.field.trim() !== '' && (
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
+                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
                             onClick={() => {
                               if (selectedClientObj) {
                                 setIsCreateFieldModalOpen(true);
@@ -656,7 +656,7 @@ export default function CreateWorkOrderModal() {
                           <button
                             key={l}
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
                             onClick={() => {
                               setFormData(prev => ({ ...prev, lot: l }));
                               setShowLotSuggestions(false);
@@ -668,7 +668,7 @@ export default function CreateWorkOrderModal() {
                         {selectedFieldObj && formData.lot.trim() !== '' && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium"
+                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
                             onClick={() => {
                               setClients((prev: any) => prev.map((c: any) =>
                                 c.id === selectedClientObj.id
@@ -785,7 +785,7 @@ export default function CreateWorkOrderModal() {
                         value={formData.service}
                         onChange={handleInputChange}
                         className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
                           errors.service
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -828,7 +828,7 @@ export default function CreateWorkOrderModal() {
                         value={formData.campaign}
                         onChange={handleInputChange}
                         className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
                           errors.campaign
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -934,7 +934,7 @@ export default function CreateWorkOrderModal() {
                 <div className="flex w-full gap-3">
                   <button
                     onClick={handleFinishSuccess}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                   >
                     ENTENDIDO
                   </button>
@@ -1088,7 +1088,7 @@ export default function CreateWorkOrderModal() {
                 <>
                   <button
                     onClick={() => setStep('form')}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none cursor-pointer"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     ATRÁS
@@ -1098,7 +1098,7 @@ export default function CreateWorkOrderModal() {
                     disabled={isSaving}
                     className={cn(
                       "flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.98] sm:flex-none",
-                      isSaving ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02]"
+                      isSaving ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02] cursor-pointer"
                     )}
                   >
                     {isSaving ? (
