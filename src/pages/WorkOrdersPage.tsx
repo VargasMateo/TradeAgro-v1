@@ -23,7 +23,7 @@ import {
   List,
 } from "lucide-react";
 import { cn } from "../lib/utils";
-import JobCard from "../components/JobCard";
+import WorkOrderCard from "../components/WorkOrderCard";
 import { WorkOrder } from "../types/database";
 
 // Initial jobs are now fetched from the database
@@ -38,7 +38,7 @@ const iconMap: any = {
 
 const tabs = ["Todos", "Pendientes", "En Proceso", "Completados"];
 
-export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
+export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [activeTab, setActiveTab] = useState("Todos");
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -167,7 +167,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
 
   const activeFiltersCount = Object.values(filters).filter(v => v !== "").length;
 
-  const JobCardSkeleton = () => (
+  const WorkOrderCardSkeleton = () => (
     <div className="flex flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm animate-pulse">
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -453,14 +453,14 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {isLoading ? (
           <>
-            <JobCardSkeleton />
-            <JobCardSkeleton />
-            <JobCardSkeleton />
+            <WorkOrderCardSkeleton />
+            <WorkOrderCardSkeleton />
+            <WorkOrderCardSkeleton />
           </>
         ) : error ? (
           <div className="rounded-2xl bg-red-50 p-6 text-center border border-red-100">
             <AlertCircle className="mx-auto h-8 w-8 text-red-500 mb-2" />
-            <p className="text-sm font-medium text-red-800">Error al cargar trabajos</p>
+            <p className="text-sm font-medium text-red-800">Error al cargar órdenes</p>
             <p className="text-xs text-red-600 mt-1">{error}</p>
           </div>
         ) : filteredOrders.length === 0 ? (
@@ -471,7 +471,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
           </div>
         ) : (
           filteredOrders.map((order) => (
-            <JobCard key={order.id} job={order as any} userRole={userRole} />
+            <WorkOrderCard key={order.id} job={order as any} userRole={userRole} />
           ))
         )}
       </div>
@@ -481,12 +481,12 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
         {isLoading ? (
           viewMode === 'grid' ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              <JobCardSkeleton />
-              <JobCardSkeleton />
-              <JobCardSkeleton />
-              <JobCardSkeleton />
-              <JobCardSkeleton />
-              <JobCardSkeleton />
+              <WorkOrderCardSkeleton />
+              <WorkOrderCardSkeleton />
+              <WorkOrderCardSkeleton />
+              <WorkOrderCardSkeleton />
+              <WorkOrderCardSkeleton />
+              <WorkOrderCardSkeleton />
             </div>
           ) : (
             <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-100">
@@ -536,7 +536,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredOrders.map((order) => (
-              <JobCard key={order.id} job={order as any} userRole={userRole} />
+              <WorkOrderCard key={order.id} job={order as any} userRole={userRole} />
             ))}
           </div>
         ) : (
@@ -578,7 +578,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                   {filteredOrders.map((order) => (
                     <tr
                       key={order.id}
-                      onClick={() => navigate(`/jobs/${String(order.id).replace('#', '')}`)}
+                      onClick={() => navigate(`/work-orders/${String(order.id).replace('#', '')}`)}
                       className="group cursor-pointer transition-colors hover:bg-slate-50/80"
                     >
                       <td className="px-8 py-6">
@@ -695,7 +695,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
                             </>
                           )}
                           <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${String(order.id).replace('#', '')}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${String(order.id).replace('#', '')}`); }}
                             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
                             title="Ir"
                           >

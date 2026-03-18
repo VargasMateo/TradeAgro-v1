@@ -27,10 +27,10 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
     const storedJobs = localStorage.getItem("jobs");
     if (storedJobs) {
       const parsed = JSON.parse(storedJobs);
-      // Asignamos fechas a los trabajos para la demostración si no tienen
+      // Asignamos fechas a los órdenes para la demostración si no tienen
       const jobsWithDates = parsed.map((job: any, index: number) => {
         if (!job.date) {
-          // Distribuir los trabajos a lo largo de la semana actual
+          // Distribuir los órdenes a lo largo de la semana actual
           const date = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), index % 7);
           return { ...job, date: date.toISOString() };
         }
@@ -75,7 +75,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
     setExpandedClients(prev => ({ ...prev, [clientName]: !prev[clientName] }));
   };
 
-  // Agrupar trabajos por Cliente + Campo(Location)
+  // Agrupar órdenes por Cliente + Campo(Location)
   const groupedClients = useMemo(() => {
     const grouped: Record<string, { clientName: string; fields: Record<string, { location: string; jobs: any[] }>; allJobs: any[] }> = {};
     
@@ -90,7 +90,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
       }
     });
 
-    // Luego, agregar los trabajos a los grupos correspondientes
+    // Luego, agregar los órdenes a los grupos correspondientes
     jobs.forEach(job => {
       const clientName = job.client || "Cliente Desconocido";
       const location = job.location || "Sin asignar";
@@ -253,7 +253,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                                 key={jobIndex}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/jobs/${(job.id || '').replace('#', '')}`);
+                                  navigate(`/work-orders/${(job.id || '').replace('#', '')}`);
                                 }}
                                 className="bg-white border border-slate-200 rounded-lg p-1.5 md:p-2 text-[9px] md:text-xs shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-emerald-200 group/job relative overflow-hidden"
                               >
@@ -325,7 +325,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                                     key={jobIndex}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/jobs/${(job.id || '').replace('#', '')}`);
+                                      navigate(`/work-orders/${(job.id || '').replace('#', '')}`);
                                     }}
                                     className="bg-white border border-slate-200 rounded-lg p-1.5 md:p-2 text-[9px] md:text-xs shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-emerald-200 group/job relative overflow-hidden"
                                   >

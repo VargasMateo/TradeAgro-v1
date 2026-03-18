@@ -12,12 +12,12 @@ import {
   BarChart3
 } from "lucide-react";
 import Map from "../components/Map";
-import UpcomingJobs from "../components/UpcomingJobs";
+import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
 
 const stats = [
   {
-    label: "Trabajos este mes",
+    label: "Órdenes este mes",
     value: "24",
     change: "+12%",
     icon: Clock,
@@ -27,7 +27,7 @@ const stats = [
     changeBg: "bg-emerald-100",
   },
   {
-    label: "Trabajos por hacer",
+    label: "Órdenes por hacer",
     value: "09",
     change: "-2%",
     icon: Calendar,
@@ -148,7 +148,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       {/* Stats Grid */}
       <div className={`space-y-4 order-3 ${userRole === 'client' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
         <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Trabajos
+          <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Órdenes
         </h3>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
           {stats.map((stat, i) => (
@@ -186,7 +186,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
 
       {/* Upcoming Jobs Section */}
       <div className="order-4 lg:col-span-2">
-        <UpcomingJobs />
+        <UpcomingWorkOrders />
       </div>
 
       {/* Map & Weather - Only for profesional and admin */}

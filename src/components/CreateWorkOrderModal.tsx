@@ -23,7 +23,7 @@ import CreateClientModal from "./CreateClientModal";
 import CreateFieldModal from "./CreateFieldModal";
 import { WorkOrder } from "../types/database";
 
-export default function CreateJobModal() {
+export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -339,7 +339,7 @@ export default function CreateJobModal() {
       setStep('success');
     } catch (error: any) {
       console.error('Error saving job:', error);
-      setErrors({ submit: error.message || 'Error al guardar el trabajo' });
+      setErrors({ submit: error.message || 'Error al guardar el orden' });
     } finally {
       setIsSaving(false);
     }
@@ -347,8 +347,8 @@ export default function CreateJobModal() {
 
   const handleFinishSuccess = () => {
     handleClose();
-    if (location.pathname !== '/jobs' && location.pathname !== '/dashboard' && !location.pathname.startsWith('/jobs/')) {
-      navigate('/jobs');
+    if (location.pathname !== '/work-orders' && location.pathname !== '/dashboard' && !location.pathname.startsWith('/work-orders/')) {
+      navigate('/work-orders');
     } else {
       window.dispatchEvent(new Event('job-created'));
     }
@@ -384,7 +384,7 @@ export default function CreateJobModal() {
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
-              {step === 'form' ? (editJobId ? 'Editar Carga de Trabajo' : 'Nueva Carga de Trabajo') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Trabajo')}
+              {step === 'form' ? (editJobId ? 'Editar Carga de Orden' : 'Nueva Carga de Orden') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Orden')}
             </h2>
             <p className="text-sm text-slate-500">
               {step === 'form'

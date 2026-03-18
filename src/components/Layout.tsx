@@ -17,7 +17,7 @@ import {
 import { cn } from "../lib/utils";
 import { useState } from "react";
 import NotificationsDropdown from "./NotificationsDropdown";
-import CreateJobModal from "./CreateJobModal";
+import CreateWorkOrderModal from "./CreateWorkOrderModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
 
 export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'client' | 'admin' }) {
@@ -91,7 +91,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   const navItems = [
     { path: "/dashboard", label: "Inicio", icon: Home },
     //{ path: "/calendar", label: "Calendario", icon: Calendar },
-    { path: "/jobs", label: "Trabajos", icon: Briefcase },
+    { path: "/work-orders", label: "Órdenes", icon: Briefcase },
     //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
@@ -300,7 +300,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       </div>
 
       {/* Global Modals */}
-      <CreateJobModal />
+      <CreateWorkOrderModal />
       <GlobalCreateClientModal />
     </div>
   );

@@ -7,8 +7,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useState } from "react";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
-import JobsPage from "./pages/JobsPage";
-import JobDetailsPage from "./pages/JobDetailsPage";
+import WorkOrdersPage from "./pages/WorkOrdersPage";
+import WorkOrderDetailsPage from "./pages/WorkOrderDetailsPage";
 import ReportsPage from "./pages/ReportsPage";
 import DashboardPage from "./pages/DashboardPage";
 import ClientsPage from "./pages/ClientsPage";
@@ -53,8 +53,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage userRole={userRole} />} />
           <Route path="/calendar" element={<CalendarPage userRole={userRole} />} />
-          <Route path="/jobs" element={<JobsPage userRole={userRole} />} />
-          <Route path="/jobs/:id" element={<JobDetailsPage userRole={userRole} />} />
+          <Route path="/work-orders" element={<WorkOrdersPage userRole={userRole} />} />
+          <Route path="/work-orders/:id" element={<WorkOrderDetailsPage userRole={userRole} />} />
           <Route path="/reports" element={<ReportsPage userRole={userRole} />} />
           {(userRole === 'profesional' || userRole === 'admin') && (
             <>

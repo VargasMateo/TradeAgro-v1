@@ -41,7 +41,7 @@ const initialJobs = [
   },
 ];
 
-export default function UpcomingJobs() {
+export default function UpcomingWorkOrders() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -120,9 +120,9 @@ export default function UpcomingJobs() {
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <Calendar className="h-5 w-5 text-emerald-600" /> Próximos Trabajos
+          <Calendar className="h-5 w-5 text-emerald-600" /> Próximas Órdenes
         </h3>
-        <Link to="/jobs" className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1">
+        <Link to="/work-orders" className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1">
           Ver todos <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -138,7 +138,7 @@ export default function UpcomingJobs() {
           jobs.map((job) => (
             <Link
               key={job.id || Math.random()}
-              to={`/jobs/${String(job.id).replace('#', '')}`}
+              to={`/work-orders/${String(job.id).replace('#', '')}`}
               className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">
@@ -167,7 +167,7 @@ export default function UpcomingJobs() {
         ) : (
           <div className="w-full flex flex-col items-center justify-center py-10 px-6 rounded-3xl border-2 border-dashed border-slate-100 bg-white">
             <Calendar className="h-8 w-8 mb-6 text-slate-300" />
-            <h4 className="text-slate-900 font-bold text-lg mb-2 text-center">No hay trabajos programados</h4>
+            <h4 className="text-slate-900 font-bold text-lg mb-2 text-center">No hay órdenes programadas</h4>
             <p className="text-slate-500 text-sm text-center max-w-[320px] mb-8 leading-relaxed">
               Tu agenda está despejada por ahora...
             </p>

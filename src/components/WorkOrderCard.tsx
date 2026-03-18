@@ -14,7 +14,7 @@ import {
 import { Link } from "react-router-dom";
 import { cn } from "../lib/utils";
 
-interface JobCardProps {
+interface WorkOrderCardProps {
   job: any;
   userRole?: string;
   key?: React.Key;
@@ -28,7 +28,7 @@ const iconMap: any = {
   Tractor,
 };
 
-export default function JobCard({ job, userRole }: JobCardProps) {
+export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
   const IconComponent = iconMap[job.iconName] || Tractor;
 
   return (
@@ -124,7 +124,7 @@ export default function JobCard({ job, userRole }: JobCardProps) {
 
       {/* Action Overlay */}
       <Link 
-        to={`/jobs/${String(job.id).replace('#', '')}`}
+        to={`/work-orders/${String(job.id).replace('#', '')}`}
         className="absolute inset-0 z-10 cursor-pointer"
         aria-label="Ver detalles"
       />

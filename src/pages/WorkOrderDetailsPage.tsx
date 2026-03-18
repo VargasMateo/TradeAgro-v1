@@ -20,7 +20,7 @@ import { ChangeEvent } from "react";
 import Map from "../components/Map";
 import { cn } from "../lib/utils";
 
-export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
+export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [attachments, setAttachments] = useState<any[]>([]);
@@ -301,7 +301,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
         <h2 className="mb-2 text-2xl font-bold text-slate-900">Trabajo no encontrado</h2>
         <p className="mb-6 text-slate-500">{jobError}</p>
         <button
-          onClick={() => navigate('/jobs')}
+          onClick={() => navigate('/work-orders')}
           className="rounded-xl bg-[#2e7d32] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-transform hover:scale-[1.02]"
         >
           Volver atrás
@@ -315,19 +315,19 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
       {/* Header */}
       <div className="mb-8">
         <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
-          <Link to="/jobs" className="flex items-center gap-1 hover:text-[#2e7d32] transition-colors">
+          <Link to="/work-orders" className="flex items-center gap-1 hover:text-[#2e7d32] transition-colors">
             <ArrowLeft className="h-4 w-4" />
-            Volver a Trabajos
+            Volver a Órdenes
           </Link>
           <span>/</span>
-          <span className="text-slate-900 font-medium">Trabajo {job.id}</span>
+          <span className="text-slate-900 font-medium">Orden {job.id}</span>
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-                Trabajo {job.id}
+                Orden {job.id}
               </h1>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600 border border-amber-100">
                 {job.status.toUpperCase()}
@@ -349,7 +349,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                 className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               >
                 <Edit className="h-4 w-4" />
-                Editar Trabajo
+                Editar Orden
               </button>
             )}
           </div>
@@ -451,7 +451,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <FileText className="h-8 w-8 text-slate-200 mb-3" />
                     <p className="text-sm text-slate-400 font-medium">Sin observaciones aún</p>
-                    <p className="text-xs text-slate-300 mt-1">Escribe la primera observación para este trabajo</p>
+                    <p className="text-xs text-slate-300 mt-1">Escribe la primera observación para esta orden</p>
                   </div>
                 ) : (
                   observations.map((obs) => {

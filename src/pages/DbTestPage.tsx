@@ -11,13 +11,13 @@ export default function DbTestPage() {
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
-  
+
   const [attachments, setAttachments] = useState<any[]>([]);
   const [observations, setObservations] = useState<any[]>([]);
   const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
   const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'ordenes' | 'profesionales' | 'usuarios' | 'anexos' | 'observaciones' | 'global' | null>(null);
-  
+
   const [dialog, setDialog] = useState<{
     show: boolean;
     type: 'success' | 'error';
@@ -140,10 +140,10 @@ export default function DbTestPage() {
     const init = async () => {
       setStatus('loading');
       await Promise.all([
-        fetchClients(), 
-        fetchProfesionales(), 
-        fetchUsers(), 
-        fetchFields(), 
+        fetchClients(),
+        fetchProfesionales(),
+        fetchUsers(),
+        fetchFields(),
         fetchJobs(),
         fetchAttachments(),
         fetchObservations()
@@ -183,7 +183,7 @@ export default function DbTestPage() {
       setIsCreatingField(null);
     }
   };
-  
+
   const resetDatabase = async () => {
     if (!resetTarget) return;
     setIsResetting(true);
@@ -194,13 +194,12 @@ export default function DbTestPage() {
       } else if (resetTarget === 'usuarios') {
         endpoint = '/api/test/reset-users';
       } else {
-        endpoint = `/api/test/reset-${
-          resetTarget === 'clientes' ? 'clients' : 
-          resetTarget === 'campos' ? 'fields' : 
-          resetTarget === 'ordenes' ? 'work-orders' : 
-          resetTarget === 'anexos' ? 'attachments' : 
-          resetTarget === 'observaciones' ? 'observations' : 'profesionals'
-        }`;
+        endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' :
+            resetTarget === 'campos' ? 'fields' :
+              resetTarget === 'ordenes' ? 'work-orders' :
+                resetTarget === 'anexos' ? 'attachments' :
+                  resetTarget === 'observaciones' ? 'observations' : 'profesionals'
+          }`;
       }
 
       const response = await fetch(endpoint, { method: 'POST' });
@@ -213,10 +212,10 @@ export default function DbTestPage() {
           message: resetTarget === 'global' ? 'Base de datos recreada y seeds cargados.' : `Registros de ${resetTarget} eliminados.`
         });
         await Promise.all([
-          fetchClients(), 
-          fetchProfesionales(), 
-          fetchUsers(), 
-          fetchFields(), 
+          fetchClients(),
+          fetchProfesionales(),
+          fetchUsers(),
+          fetchFields(),
           fetchJobs(),
           fetchAttachments(),
           fetchObservations()
@@ -238,9 +237,8 @@ export default function DbTestPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className={`p-4 rounded-[2rem] shadow-xl ${
-              status === 'connected' ? 'bg-emerald-600 text-white shadow-emerald-200' : 'bg-rose-600 text-white shadow-rose-200'
-            }`}>
+            <div className={`p-4 rounded-[2rem] shadow-xl ${status === 'connected' ? 'bg-emerald-600 text-white shadow-emerald-200' : 'bg-rose-600 text-white shadow-rose-200'
+              }`}>
               <Database className="h-8 w-8" />
             </div>
             <div>
@@ -253,7 +251,7 @@ export default function DbTestPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={() => setResetTarget('global')}
-              className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-rose-600 px-8 py-4 font-black text-white shadow-xl shadow-rose-200 transition-all hover:bg-rose-700 active:scale-95"
+              className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-rose-600 px-8 py-4 font-black text-white shadow-xl shadow-rose-200 transition-all hover:bg-rose-700 active:scale-95 cursor-pointer"
             >
               <RefreshCw className="h-5 w-5 animate-spin-slow group-hover:animate-spin" />
               <span className="text-xs uppercase tracking-widest">Reiniciar Todo el Sistema</span>
@@ -263,7 +261,7 @@ export default function DbTestPage() {
 
         {/* Sections Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Section: Clientes */}
           <section className="flex flex-col bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -274,14 +272,14 @@ export default function DbTestPage() {
                   {clients.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('clientes')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
                 RESETEAR
               </button>
             </div>
-            
+
             <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
               {clients.length === 0 ? (
                 <div className="py-20 text-center opacity-40">
@@ -313,7 +311,7 @@ export default function DbTestPage() {
                   {fields.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('campos')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
@@ -331,28 +329,29 @@ export default function DbTestPage() {
                 fields.map(field => {
                   const clientAssoc = clients.find(c => c.id === field.clientId);
                   return (
-                  <div key={field.id} className="p-5 rounded-3xl bg-blue-50/30 hover:bg-white border border-blue-100/50 shadow-sm transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <MapPin className="h-6 w-6" />
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-blue-700 transition-colors truncate">{field.name}</h3>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
-                          <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
-                            {clientAssoc ? clientAssoc.displayName : 'Cliente Desconocido'}
-                          </p>
+                    <div key={field.id} className="p-5 rounded-3xl bg-blue-50/30 hover:bg-white border border-blue-100/50 shadow-sm transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <MapPin className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-blue-700 transition-colors truncate">{field.name}</h3>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                            <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
+                              {clientAssoc ? clientAssoc.displayName : 'Cliente Desconocido'}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )})
+                  )
+                })
               )}
             </div>
           </section>
 
-          {/* Section: Trabajos */}
+          {/* Section: Órdenes */}
           <section className="flex flex-col bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
@@ -362,7 +361,7 @@ export default function DbTestPage() {
                   {workOrders.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('ordenes')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
@@ -380,32 +379,33 @@ export default function DbTestPage() {
                 workOrders.map(order => {
                   const clientAssoc = clients.find(c => c.id === order.clientId);
                   return (
-                  <div key={order.id} className="p-5 rounded-3xl bg-amber-50/30 hover:bg-white border border-amber-100/50 shadow-sm transition-all group">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 overflow-hidden">
-                        <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-amber-700 transition-colors truncate">
-                          {`#AG-${order.id}`} - {order.title || order.service}
-                        </h3>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
-                          <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
-                            {clientAssoc ? clientAssoc.displayName : `CL: ${order.clientId}`}
-                            {order.createdBy && <span className="ml-2 text-[9px] text-slate-400">by {order.createdBy}</span>}
-                          </p>
+                    <div key={order.id} className="p-5 rounded-3xl bg-amber-50/30 hover:bg-white border border-amber-100/50 shadow-sm transition-all group">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 overflow-hidden">
+                          <h3 className="font-extrabold text-slate-800 text-sm leading-tight group-hover:text-amber-700 transition-colors truncate">
+                            {`#AG-${order.id}`} - {order.title || order.service}
+                          </h3>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <User className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                            <p className="text-[11px] text-slate-500 font-medium truncate capitalize">
+                              {clientAssoc ? clientAssoc.displayName : `CL: ${order.clientId}`}
+                              {order.createdBy && <span className="ml-2 text-[9px] text-slate-400">by {order.createdBy}</span>}
+                            </p>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                        <span className="text-[9px] font-black px-2.5 py-1 rounded-md bg-amber-100 text-amber-700 uppercase tracking-widest">
+                          {order.status || 'Pendiente'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold ml-auto flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3" />
+                          {order.date ? new Date(order.date).toLocaleDateString('es-AR') : '-'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-                      <span className="text-[9px] font-black px-2.5 py-1 rounded-md bg-amber-100 text-amber-700 uppercase tracking-widest">
-                        {order.status || 'Pendiente'}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-bold ml-auto flex items-center gap-1.5">
-                        <Calendar className="h-3 w-3" />
-                        {order.date ? new Date(order.date).toLocaleDateString('es-AR') : '-'}
-                      </span>
-                    </div>
-                  </div>
-                )})
+                  )
+                })
               )}
             </div>
           </section>
@@ -420,7 +420,7 @@ export default function DbTestPage() {
                   {profesionales.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('profesionales')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
@@ -460,7 +460,7 @@ export default function DbTestPage() {
                   {allUsers.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('usuarios')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
@@ -478,11 +478,10 @@ export default function DbTestPage() {
                 allUsers.map(u => (
                   <div key={u.id} className="p-5 rounded-3xl bg-slate-50 hover:bg-white border border-slate-100 shadow-sm transition-all group">
                     <div className="flex items-center gap-3">
-                      <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-[10px] font-black ${
-                        u.role === 'admin' ? 'bg-rose-100 text-rose-600' : 
-                        u.role === 'profesional' ? 'bg-indigo-100 text-indigo-600' : 
-                        'bg-emerald-100 text-emerald-600'
-                      }`}>
+                      <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-[10px] font-black ${u.role === 'admin' ? 'bg-rose-100 text-rose-600' :
+                          u.role === 'profesional' ? 'bg-indigo-100 text-indigo-600' :
+                            'bg-emerald-100 text-emerald-600'
+                        }`}>
                         {u.role.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 overflow-hidden">
@@ -506,7 +505,7 @@ export default function DbTestPage() {
                   {attachments.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('anexos')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
@@ -545,7 +544,7 @@ export default function DbTestPage() {
                   {observations.length}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setResetTarget('observaciones')}
                 className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
               >
@@ -582,13 +581,13 @@ export default function DbTestPage() {
         {resetTarget && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
             <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-2xl relative overflow-hidden">
-              
+
               {isResetting && (
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-100">
-                  <motion.div 
-                    initial={{ width: 0 }} 
-                    animate={{ width: "100%" }} 
-                    transition={{ duration: 1.5, repeat: Infinity }} 
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
                     className="h-full bg-rose-500 rounded-full"
                   />
                 </div>
@@ -602,28 +601,28 @@ export default function DbTestPage() {
                     <AlertCircle className="h-10 w-10" />
                   )}
                 </div>
-                
+
                 <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">
                   {isResetting ? 'Borrando Datos...' : '¿Estás Seguro?'}
                 </h2>
-                
+
                 <p className="text-slate-500 font-medium text-[13px] mb-8 leading-relaxed">
-                  {resetTarget === 'global' 
-                    ? 'Vas a borrar TODA la base de datos (usuarios, clientes, trabajos) y volver a cargar los SEEDS originales.' 
+                  {resetTarget === 'global'
+                    ? 'Vas a borrar TODA la base de datos (usuarios, clientes, órdenes) y volver a cargar los SEEDS originales.'
                     : <>Vas a eliminar <span className="font-bold text-rose-500">TODOS</span> los registros de la tabla <span className="uppercase font-bold text-slate-800">{resetTarget}</span>. Esta acción no se puede deshacer.</>
                   }
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => setResetTarget(null)} 
+                  <button
+                    onClick={() => setResetTarget(null)}
                     disabled={isResetting}
                     className="py-3.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors text-xs disabled:opacity-50"
                   >
                     CANCELAR
                   </button>
-                  <button 
-                    onClick={resetDatabase} 
+                  <button
+                    onClick={resetDatabase}
                     disabled={isResetting}
                     className="py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all active:scale-95 text-xs flex items-center justify-center gap-2 group disabled:opacity-80"
                   >
@@ -647,8 +646,8 @@ export default function DbTestPage() {
               </div>
               <h2 className="text-2xl font-black text-slate-900 mb-2">{dialog.title}</h2>
               <p className="text-slate-500 font-bold text-sm mb-8">{dialog.message}</p>
-              <button 
-                onClick={() => setDialog({ ...dialog, show: false })} 
+              <button
+                onClick={() => setDialog({ ...dialog, show: false })}
                 className={`w-full py-4 rounded-2xl font-black text-white shadow-lg transition-all active:scale-95 ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-100' : 'bg-rose-600 shadow-rose-100'}`}
               >
                 ENTENDIDO
