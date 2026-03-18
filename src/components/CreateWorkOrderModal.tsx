@@ -170,6 +170,7 @@ export default function CreateWorkOrderModal() {
       }));
     }
     setErrors({});
+    setSelectedFiles([]);
   }, [isOpen, searchParams, editJobId]);
 
   const handleClose = () => {
@@ -196,6 +197,7 @@ export default function CreateWorkOrderModal() {
       profesionalId: currentUserId
     });
     setErrors({});
+    setSelectedFiles([]);
     setIsSaving(false);
 
     // Remove newJob and other related params from URL
@@ -400,7 +402,7 @@ export default function CreateWorkOrderModal() {
             )}
             <button
               onClick={handleClose}
-              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1064,13 +1066,13 @@ export default function CreateWorkOrderModal() {
                   <div className="flex gap-3">
                     <button
                       onClick={handleClose}
-                      className="flex-1 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
+                      className="flex-1 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none cursor-pointer"
                     >
                       CANCELAR
                     </button>
                     <button
                       onClick={handleContinue}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:flex-none cursor-pointer"
                     >
                       CONTINUAR
                       <ArrowRight className="h-4 w-4" />
