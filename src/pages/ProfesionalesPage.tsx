@@ -206,8 +206,12 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">{prof.displayName}</h3>
-                  <p className="text-sm font-medium text-emerald-600 mt-1">{prof.specialty || 'Profesional'}</p>
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors first-letter:uppercase">
+                    {prof.displayName}
+                  </h3>
+                  <p className="text-sm font-medium text-emerald-600 mt-1 first-letter:uppercase">
+                    {prof.specialty || 'Profesional'}
+                  </p>
                 </div>
 
                 <div className="space-y-3 border-t border-slate-100 pt-6">
