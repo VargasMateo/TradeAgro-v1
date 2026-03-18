@@ -60,6 +60,7 @@ export default function CreateClientModal({
     message: ''
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
+  const [createdId, setCreatedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (editingClient) {
@@ -89,6 +90,7 @@ export default function CreateClientModal({
       });
     }
     setStep('form');
+    setCreatedId(null);
     setErrors({});
   }, [editingClient, initialName, isOpen]);
 
@@ -206,6 +208,7 @@ export default function CreateClientModal({
       const data = await response.json();
 
       if (data.success) {
+        if (data.id) setCreatedId(data.id);
         setStep('success');
       } else {
         throw new Error(data.details || data.error || 'Failed to save');
@@ -567,7 +570,7 @@ export default function CreateClientModal({
                 <button
                   onClick={() => {
                     const clientData: Client = {
-                      id: 0,
+                      id: editingClient?.id || createdId || 0,
                       ...formData,
                       initials: formData.name.substring(0, 2).toUpperCase(),
                       color: "bg-emerald-100 text-emerald-700",

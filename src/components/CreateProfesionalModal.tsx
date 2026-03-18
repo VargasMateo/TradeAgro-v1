@@ -24,6 +24,7 @@ export default function CreateProfesionalModal({
     specialty: ''
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
+  const [createdId, setCreatedId] = useState<number | null>(null);
 
   const [errors, setErrors] = useState<{
     displayName?: string;
@@ -62,6 +63,7 @@ export default function CreateProfesionalModal({
       });
     }
     setStep('form');
+    setCreatedId(null);
     setErrors({});
   }, [editingProfesional, isOpen]);
 
@@ -141,6 +143,7 @@ export default function CreateProfesionalModal({
       const data = await response.json();
 
       if (data.success) {
+        if (data.id) setCreatedId(data.id);
         setStep('success');
       } else {
         throw new Error(data.details || data.error || 'Failed to save');
@@ -293,7 +296,7 @@ export default function CreateProfesionalModal({
                 <button
                   onClick={() => {
                     const profData: Profesional = {
-                      id: editingProfesional?.id || 0, // In a real scenario, we'd get this from the response if it was a new creation
+                      id: editingProfesional?.id || createdId || 0,
                       ...formData,
                       createdBy: 0, // Placeholder
                       createdAt: new Date().toISOString()
