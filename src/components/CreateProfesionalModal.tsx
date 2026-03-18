@@ -23,6 +23,7 @@ export default function CreateProfesionalModal({
     phone: '',
     specialty: ''
   });
+  const [step, setStep] = useState<'form' | 'success'>('form');
 
   const [errors, setErrors] = useState<{
     displayName?: string;
@@ -59,6 +60,7 @@ export default function CreateProfesionalModal({
         specialty: ''
       });
     }
+    setStep('form');
     setErrors({});
   }, [editingProfesional, isOpen]);
 
@@ -128,24 +130,7 @@ export default function CreateProfesionalModal({
       const data = await response.json();
 
       if (data.success) {
-        setDialog({
-          show: true,
-          type: 'success',
-          title: editingProfesional ? 'Actualización Exitosa' : 'Registro Exitoso',
-          message: editingProfesional
-            ? `Los datos del profesional han sido actualizados.`
-            : `El profesional ha sido guardado correctamente en la base de datos.`
-        });
-
-        const profData: Profesional = {
-          id: data.id || editingProfesional?.id,
-          ...formData,
-          createdBy: payload.createdBy,
-          createdAt: data.createdAt || editingProfesional?.createdAt || new Date().toISOString()
-        };
-
-        onSave(profData);
-        window.dispatchEvent(new Event('profesionales-updated'));
+        setStep('success');
       } else {
         throw new Error(data.details || data.error || 'Failed to save');
       }
@@ -183,7 +168,8 @@ export default function CreateProfesionalModal({
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto">
-          <div className="grid grid-cols-1 gap-6">
+          {step === 'form' ? (
+            <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">
                 Nombre Completo <span className="text-red-500">*</span>
@@ -267,41 +253,76 @@ export default function CreateProfesionalModal({
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
-          </div>
+            </div>
+          ) : (
+            /* SUCCESS STEP */
+            <div className="flex flex-col items-center justify-center py-8 text-center animate-in zoom-in-95 duration-300">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50 text-emerald-600">
+                <CheckCircle2 className="h-10 w-10" />
+              </div>
+              <h3 className="mb-2 text-2xl font-bold text-slate-900">
+                {editingProfesional ? '¡Actualización Exitosa!' : '¡Registro Exitoso!'}
+              </h3>
+              <p className="mb-8 text-slate-500 max-w-[280px]">
+                {editingProfesional 
+                  ? 'Los datos del profesional han sido actualizados correctamente.' 
+                  : 'El profesional ha sido guardado exitosamente en el sistema.'}
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => {
+                    const profData: Profesional = {
+                      id: editingProfesional?.id || 0, // In a real scenario, we'd get this from the response if it was a new creation
+                      ...formData,
+                      createdBy: 0, // Placeholder
+                      createdAt: new Date().toISOString()
+                    };
+                    onSave(profData);
+                    onClose();
+                  }}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  ENTENDIDO
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-4 border-t border-slate-100 p-6 bg-slate-50/50 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            disabled={isSaving}
-            className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
-          >
-            CANCELAR
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100 cursor-pointer"
-          >
-            {isSaving ? (
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-              >
-                <Database className="h-4 w-4" />
-              </motion.div>
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {isSaving ? 'GUARDANDO...' : (editingProfesional ? 'GUARDAR CAMBIOS' : 'GUARDAR PROFESIONAL')}
-          </button>
-        </div>
+        {step === 'form' && (
+          <div className="flex items-center justify-end gap-4 border-t border-slate-100 p-6 bg-slate-50/50 rounded-b-2xl">
+            <button
+              onClick={onClose}
+              disabled={isSaving}
+              className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            >
+              CANCELAR
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100 cursor-pointer"
+            >
+              {isSaving ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                >
+                  <Database className="h-4 w-4" />
+                </motion.div>
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {isSaving ? 'GUARDANDO...' : (editingProfesional ? 'GUARDAR CAMBIOS' : 'GUARDAR PROFESIONAL')}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Success/Error Dialog */}
+      {/* Error Dialog */}
       <AnimatePresence>
-        {dialog.show && (
+        {dialog.show && dialog.type === 'error' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -314,13 +335,8 @@ export default function CreateProfesionalModal({
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
             >
-              <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl ${dialog.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                }`}>
-                {dialog.type === 'success' ? (
-                  <CheckCircle2 className="h-10 w-10" />
-                ) : (
-                  <AlertCircle className="h-10 w-10" />
-                )}
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-red-50 text-red-600">
+                <AlertCircle className="h-10 w-10" />
               </div>
 
               <h3 className="mb-2 text-2xl font-black tracking-tight text-slate-900">
@@ -332,14 +348,8 @@ export default function CreateProfesionalModal({
               </p>
 
               <button
-                onClick={() => {
-                  setDialog({ ...dialog, show: false });
-                  if (dialog.type === 'success') {
-                    onClose();
-                  }
-                }}
-                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
-                  }`}
+                onClick={() => setDialog({ ...dialog, show: false })}
+                className="w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg bg-red-600 shadow-red-200 transition-all active:scale-[0.98] cursor-pointer"
               >
                 ENTENDIDO
               </button>
