@@ -1299,6 +1299,66 @@ app.post('/api/test/reset-jobs', async (req, res) => {
 });
 
 /**
+ * RESET ATTACHMENTS (Dev only)
+ */
+app.post('/api/test/reset-attachments', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-attachments');
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE work_order_attachments');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    res.json({ success: true, message: 'Attachments reset successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to reset attachments', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * RESET OBSERVATIONS (Dev only)
+ */
+app.post('/api/test/reset-observations', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-observations');
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE work_order_observations');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    res.json({ success: true, message: 'Observations reset successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to reset observations', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * GET /api/attachments (Dev only / Global)
+ */
+app.get('/api/attachments', async (req, res) => {
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM work_order_attachments');
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch attachments', details: error.message });
+  }
+});
+
+/**
+ * GET /api/observations (Dev only / Global)
+ */
+app.get('/api/observations', async (req, res) => {
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM work_order_observations');
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch observations', details: error.message });
+  }
+});
+
+/**
  * GET /api/profesionales — fetch active professionals
  */
 app.get('/api/profesionales', async (req, res) => {
