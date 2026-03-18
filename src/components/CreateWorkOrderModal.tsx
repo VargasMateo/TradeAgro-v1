@@ -14,8 +14,10 @@ import {
   CheckCircle2,
   ArrowLeft,
   DollarSign,
-  Paperclip
+  Paperclip,
+  AlertCircle
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import CreateClientModal from "./CreateClientModal";
@@ -116,6 +118,17 @@ export default function CreateWorkOrderModal() {
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [validationDialog, setValidationDialog] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type: 'warning' | 'error' | 'success';
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    type: 'warning'
+  });
 
   const clientSuggestions = clients.filter((c: any) =>
     (c.name || '').toLowerCase().includes(formData.client.toLowerCase()) ||
@@ -277,6 +290,16 @@ export default function CreateWorkOrderModal() {
         }
       }
 
+      if (name === 'field') {
+        const matchingField = availableFields.find((f: any) => f.name.toLowerCase() === value.toLowerCase());
+        if (matchingField) {
+          updated.fieldId = matchingField.id;
+        } else {
+          updated.fieldId = '';
+          updated.lot = '';
+        }
+      }
+
       return updated;
     });
 
@@ -329,6 +352,11 @@ export default function CreateWorkOrderModal() {
     // Special validation: ensure a valid profesional was selected if admin (profesionalId must exist)
     if (userRole === 'admin' && !formData.profesionalId) {
       newErrors.profesionalId = 'Debe seleccionar un profesional de la lista o crear uno nuevo';
+    }
+
+    // Special validation: ensure a valid field was selected (fieldId must exist)
+    if (!formData.fieldId) {
+      newErrors.field = 'Debe seleccionar un campo de la lista o crear uno nuevo';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -734,7 +762,12 @@ export default function CreateWorkOrderModal() {
                               if (selectedClientObj) {
                                 setIsCreateFieldModalOpen(true);
                               } else {
-                                alert('Por favor, seleccione un cliente primero.');
+                                setValidationDialog({
+                                  show: true,
+                                  title: 'Selección Requerida',
+                                  message: 'Por favor, seleccione un cliente primero para poder asociar el campo.',
+                                  type: 'warning'
+                                });
                               }
                               setShowFieldSuggestions(false);
                             }}
@@ -1301,6 +1334,54 @@ export default function CreateWorkOrderModal() {
           }}
         />
       )}
+
+      {/* Validation Dialog */}
+      <AnimatePresence>
+        {validationDialog.show && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
+            >
+              <div className={cn(
+                "mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl",
+                validationDialog.type === 'warning' ? "bg-amber-50 text-amber-600" :
+                validationDialog.type === 'error' ? "bg-red-50 text-red-600" :
+                "bg-emerald-50 text-emerald-600"
+              )}>
+                <AlertCircle className="h-10 w-10" />
+              </div>
+
+              <h3 className="mb-2 text-2xl font-black tracking-tight text-slate-900">
+                {validationDialog.title}
+              </h3>
+
+              <p className="mb-8 text-sm font-medium leading-relaxed text-slate-500">
+                {validationDialog.message}
+              </p>
+
+              <button
+                onClick={() => setValidationDialog({ ...validationDialog, show: false })}
+                className={cn(
+                  "w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer",
+                  validationDialog.type === 'warning' ? "bg-amber-600 shadow-amber-200" :
+                  validationDialog.type === 'error' ? "bg-red-600 shadow-red-200" :
+                  "bg-emerald-600 shadow-emerald-200"
+                )}
+              >
+                ENTENDIDO
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
