@@ -727,9 +727,9 @@ app.get('/api/fields', async (req, res) => {
 /**
  * Endpoint to fetch jobs (trabajos) with client info
  */
-app.get('/api/jobs', authenticateToken, async (req: any, res) => {
+app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
   const { id, role } = req.user;
-  console.log(`[DEBUG_AUTH] GET /api/jobs - UserID: ${id}, Role: ${role}`);
+  console.log(`[DEBUG_AUTH] GET /api/work-orders - UserID: ${id}, Role: ${role}`);
 
   try {
     let query = `
@@ -757,7 +757,7 @@ app.get('/api/jobs', authenticateToken, async (req: any, res) => {
 
     query += ` ORDER BY t.createdAt DESC`;
 
-    console.log(`[DEBUG] GET /api/jobs - User: ${id}, Role: ${role}`);
+    console.log(`[DEBUG] GET /api/work-orders - User: ${id}, Role: ${role}`);
 
     const [rows]: any = await pool.query(query, params);
 
@@ -788,7 +788,7 @@ app.get('/api/jobs', authenticateToken, async (req: any, res) => {
 
     res.json(jobs);
   } catch (error) {
-    console.error('[DATABASE ERROR] GET /api/jobs:', error.message);
+    console.error('[DATABASE ERROR] GET /api/work-orders:', error.message);
     if (error.code === 'ER_NO_SUCH_TABLE') return res.json([]);
     res.status(500).json({ error: 'Failed to fetch jobs', details: error.message });
   }
@@ -797,8 +797,8 @@ app.get('/api/jobs', authenticateToken, async (req: any, res) => {
 /**
  * Endpoint to create a job (trabajo)
  */
-app.post('/api/jobs', authenticateToken, async (req, res) => {
-  console.log('[DEBUG] POST /api/jobs - Creating new job:', JSON.stringify(req.body));
+app.post('/api/work-orders', authenticateToken, async (req, res) => {
+  console.log('[DEBUG] POST /api/work-orders - Creating new job:', JSON.stringify(req.body));
   try {
     const {
       clientId,
@@ -858,7 +858,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       id: result.insertId
     });
   } catch (error) {
-    console.error('[DATABASE ERROR] POST /api/jobs:', error);
+    console.error('[DATABASE ERROR] POST /api/work-orders:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create job',
@@ -871,9 +871,9 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
 /**
  * Endpoint to update an existing job (trabajo)
  */
-app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
+app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
   const jobId = req.params.id;
-  console.log(`[DEBUG] PUT /api/jobs/${jobId} - Updating job:`, JSON.stringify(req.body));
+  console.log(`[DEBUG] PUT /api/work-orders/${jobId} - Updating job:`, JSON.stringify(req.body));
   try {
     const {
       clientId,
@@ -934,7 +934,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       id: jobId
     });
   } catch (error) {
-    console.error(`[DATABASE ERROR] PUT /api/jobs/${jobId}:`, error);
+    console.error(`[DATABASE ERROR] PUT /api/work-orders/${jobId}:`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to update job',
@@ -947,9 +947,9 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
 /**
  * Soft delete a job (work order)
  */
-app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
+app.delete('/api/work-orders/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  console.log(`[DEBUG] DELETE /api/jobs/${id} - Soft delete requested`);
+  console.log(`[DEBUG] DELETE /api/work-orders/${id} - Soft delete requested`);
   try {
     const [result]: any = await pool.query(
       'UPDATE work_orders SET deletedAt = NOW() WHERE id = ?',
@@ -962,7 +962,7 @@ app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
 
     res.json({ success: true, message: 'Job soft-deleted successfully' });
   } catch (error: any) {
-    console.error('[DATABASE ERROR] DELETE /api/jobs:', error.message);
+    console.error('[DATABASE ERROR] DELETE /api/work-orders:', error.message);
     res.status(500).json({ error: 'Failed to delete job', details: error.message });
   }
 });
@@ -975,7 +975,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 /**
  * Upload attachments to a job
  */
-app.post('/api/jobs/:id/attachments', authenticateToken, upload.array('files'), async (req: any, res) => {
+app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('files'), async (req: any, res) => {
   const jobId = req.params.id;
   const files = req.files as Express.Multer.File[];
   const uploadedBy = req.user.id;
@@ -1005,7 +1005,7 @@ app.post('/api/jobs/:id/attachments', authenticateToken, upload.array('files'), 
 
     res.json({ success: true, message: 'Files uploaded successfully' });
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] POST /api/jobs/${jobId}/attachments:`, error.message);
+    console.error(`[DATABASE ERROR] POST /api/work-orders/${jobId}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to save attachments' });
   }
 });
@@ -1013,7 +1013,7 @@ app.post('/api/jobs/:id/attachments', authenticateToken, upload.array('files'), 
 /**
  * Fetch attachments for a job
  */
-app.get('/api/jobs/:id/attachments', authenticateToken, async (req, res) => {
+app.get('/api/work-orders/:id/attachments', authenticateToken, async (req, res) => {
   const jobId = req.params.id;
   try {
     const [rows]: any = await pool.query(
@@ -1029,7 +1029,7 @@ app.get('/api/jobs/:id/attachments', authenticateToken, async (req, res) => {
 
     res.json(attachments);
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] GET /api/jobs/${jobId}/attachments:`, error.message);
+    console.error(`[DATABASE ERROR] GET /api/work-orders/${jobId}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
   }
 });
@@ -1037,7 +1037,7 @@ app.get('/api/jobs/:id/attachments', authenticateToken, async (req, res) => {
 /**
  * Fetch observations for a job
  */
-app.get('/api/jobs/:id/observations', authenticateToken, async (req, res) => {
+app.get('/api/work-orders/:id/observations', authenticateToken, async (req, res) => {
   const jobId = req.params.id;
   try {
     const [rows]: any = await pool.query(
@@ -1051,7 +1051,7 @@ app.get('/api/jobs/:id/observations', authenticateToken, async (req, res) => {
     );
     res.json(rows);
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] GET /api/jobs/${jobId}/observations:`, error.message);
+    console.error(`[DATABASE ERROR] GET /api/work-orders/${jobId}/observations:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch observations' });
   }
 });
@@ -1059,7 +1059,7 @@ app.get('/api/jobs/:id/observations', authenticateToken, async (req, res) => {
 /**
  * Create a new observation for a job
  */
-app.post('/api/jobs/:id/observations', authenticateToken, async (req: any, res) => {
+app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any, res) => {
   const jobId = req.params.id;
   const userId = req.user.id;
   const { text } = req.body;
@@ -1086,7 +1086,7 @@ app.post('/api/jobs/:id/observations', authenticateToken, async (req: any, res) 
 
     res.json({ success: true, observation: rows[0] });
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] POST /api/jobs/${jobId}/observations:`, error.message);
+    console.error(`[DATABASE ERROR] POST /api/work-orders/${jobId}/observations:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to create observation' });
   }
 });
@@ -1283,8 +1283,8 @@ app.post('/api/test/reset-fields', async (req, res) => {
 /**
  * RESET JOBS (Dev only)
  */
-app.post('/api/test/reset-jobs', async (req, res) => {
-  console.log('[DEBUG] POST /api/test/reset-jobs');
+app.post('/api/test/reset-work-orders', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-work-orders');
   const connection = await pool.getConnection();
   try {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');

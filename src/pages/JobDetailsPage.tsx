@@ -40,7 +40,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
     try {
       const token = localStorage.getItem('authToken');
       if (!token) return;
-      const response = await fetch(`/api/jobs/${id}/observations`, {
+      const response = await fetch(`/api/work-orders/${id}/observations`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -59,7 +59,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
     try {
       const token = localStorage.getItem('authToken');
       if (!token) return;
-      const response = await fetch(`/api/jobs/${id}/observations`, {
+      const response = await fetch(`/api/work-orders/${id}/observations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -92,7 +92,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch(`/api/jobs/${id}/attachments`, {
+      const response = await fetch(`/api/work-orders/${id}/attachments`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -115,7 +115,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
         formData.append('files', file);
       });
 
-      const response = await fetch(`/api/jobs/${id}/attachments`, {
+      const response = await fetch(`/api/work-orders/${id}/attachments`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
         body: formData
@@ -162,7 +162,7 @@ export default function JobDetailsPage({ userRole = 'profesional' }: { userRole?
           return;
         }
 
-        const response = await fetch('/api/jobs', {
+        const response = await fetch('/api/work-orders', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

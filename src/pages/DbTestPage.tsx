@@ -32,7 +32,10 @@ export default function DbTestPage() {
 
   const fetchClients = async () => {
     try {
-      const response = await fetch('/api/clients');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/clients', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setClients(data);
@@ -45,7 +48,10 @@ export default function DbTestPage() {
 
   const fetchProfesionales = async () => {
     try {
-      const response = await fetch('/api/profesionales');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/profesionales', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         setProfesionales(data);
@@ -57,7 +63,10 @@ export default function DbTestPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         setAllUsers(data);
@@ -69,7 +78,10 @@ export default function DbTestPage() {
 
   const fetchFields = async () => {
     try {
-      const response = await fetch('/api/fields');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/fields', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         setFields(data);
@@ -81,7 +93,12 @@ export default function DbTestPage() {
 
   const fetchJobs = async () => {
     try {
-      const response = await fetch('/api/jobs');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/work-orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setWorkOrders(data);
@@ -93,7 +110,10 @@ export default function DbTestPage() {
 
   const fetchAttachments = async () => {
     try {
-      const response = await fetch('/api/attachments');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/attachments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         setAttachments(await response.json());
       }
@@ -104,7 +124,10 @@ export default function DbTestPage() {
 
   const fetchObservations = async () => {
     try {
-      const response = await fetch('/api/observations');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/observations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         setObservations(await response.json());
       }
@@ -174,7 +197,7 @@ export default function DbTestPage() {
         endpoint = `/api/test/reset-${
           resetTarget === 'clientes' ? 'clients' : 
           resetTarget === 'campos' ? 'fields' : 
-          resetTarget === 'ordenes' ? 'jobs' : 
+          resetTarget === 'ordenes' ? 'work-orders' : 
           resetTarget === 'anexos' ? 'attachments' : 
           resetTarget === 'observaciones' ? 'observations' : 'profesionals'
         }`;

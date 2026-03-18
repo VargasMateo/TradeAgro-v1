@@ -1,4 +1,4 @@
-import { useState, ChangeEvent, useEffect } from "react";
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import {
   Info,
   Settings,
@@ -127,7 +127,7 @@ export default function CreateJobModal() {
         const token = localStorage.getItem('authToken');
         if (!token) return;
 
-        fetch('/api/jobs', {
+        fetch('/api/work-orders', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -208,22 +208,28 @@ export default function CreateJobModal() {
     setSearchParams(newParams);
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    if (name === 'client') {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        clientId: '', // Reset ID when typing manually
-        field: '', // Clear field as it depends on client
-        lot: '' // Clear lot
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // If user types in the client input manually, we must clear the clientId 
+      // so they are forced to pick an existing one or create a new one.
+      if (name === 'client') {
+        const matchingClient = clients.find(c => c.name.toLowerCase() === value.toLowerCase());
+        if (matchingClient) {
+          updated.clientId = matchingClient.id;
+        } else {
+          updated.clientId = '';
+          updated.field = '';
+          updated.lot = '';
+        }
+      }
+
+      return updated;
+    });
+
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -265,6 +271,11 @@ export default function CreateJobModal() {
       }
     });
 
+    // Special validation: ensure a valid client was selected (clientId must exist)
+    if (!formData.clientId) {
+      newErrors.client = 'Debe seleccionar un cliente de la lista o crear uno nuevo';
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       // Scroll to first error? For now just set state.
@@ -279,7 +290,7 @@ export default function CreateJobModal() {
     setErrors({});
     try {
       const isEdit = !!editJobId;
-      const url = isEdit ? `/api/jobs/${editJobId}` : '/api/jobs';
+      const url = isEdit ? `/api/work-orders/${editJobId}` : '/api/work-orders';
       const method = isEdit ? 'PUT' : 'POST';
 
       const storedProfile = localStorage.getItem("userProfile");
@@ -310,7 +321,7 @@ export default function CreateJobModal() {
           formDataUpload.append('files', file);
         });
 
-        const uploadRes = await fetch(`/api/jobs/${jobId}/attachments`, {
+        const uploadRes = await fetch(`/api/work-orders/${jobId}/attachments`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`

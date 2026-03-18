@@ -54,7 +54,7 @@ export default function UpcomingJobs() {
         return;
       }
 
-      const response = await fetch('/api/jobs', {
+      const response = await fetch('/api/work-orders', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

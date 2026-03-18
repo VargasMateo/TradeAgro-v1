@@ -69,7 +69,7 @@ export default function JobsPage({ userRole = 'profesional' }: { userRole?: 'pro
         return;
       }
 
-      const response = await fetch('/api/jobs', {
+      const response = await fetch('/api/work-orders', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
