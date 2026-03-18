@@ -21,6 +21,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import CreateClientModal from "./CreateClientModal";
 import CreateFieldModal from "./CreateFieldModal";
+import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder } from "../types/database";
 
 export default function CreateWorkOrderModal() {
@@ -34,6 +35,7 @@ export default function CreateWorkOrderModal() {
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<'profesional' | 'client' | 'admin' | null>(null);
 
   const fetchClients = async () => {
     try {
@@ -55,10 +57,27 @@ export default function CreateWorkOrderModal() {
       if (stored) setClients(JSON.parse(stored));
     }
   };
+  const fetchProfesionales = async () => {
+    try {
+      const response = await fetch('/api/profesionales');
+      const data = await response.json();
+      setProfesionales(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching profesionales:', error);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
+      const storedProfile = localStorage.getItem("userProfile");
+      const user = storedProfile ? JSON.parse(storedProfile) : null;
+      const role = user?.role || 'profesional';
+      setUserRole(role);
+
       fetchClients();
+      if (role === 'admin') {
+        fetchProfesionales();
+      }
     }
   }, [isOpen]);
 
@@ -70,9 +89,11 @@ export default function CreateWorkOrderModal() {
 
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
   const [isCreateFieldModalOpen, setIsCreateFieldModalOpen] = useState(false);
+  const [isCreateProfesionalModalOpen, setIsCreateProfesionalModalOpen] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showFieldSuggestions, setShowFieldSuggestions] = useState(false);
   const [showLotSuggestions, setShowLotSuggestions] = useState(false);
+  const [showProfesionalSuggestions, setShowProfesionalSuggestions] = useState(false);
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -89,7 +110,8 @@ export default function CreateWorkOrderModal() {
     number: '',
     amount: '',
     notes: '',
-    profesionalId: ''
+    profesionalId: '',
+    profesional: ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -114,6 +136,11 @@ export default function CreateWorkOrderModal() {
   const selectedFieldObj = availableFields.find((f: any) => f.name.trim().toLowerCase() === formData.field.trim().toLowerCase());
   const lotSuggestions = selectedFieldObj ? (selectedFieldObj.lots || []).filter((l: string) => l.toLowerCase().includes(formData.lot.toLowerCase())) : [];
 
+  const profesionalSuggestions = profesionales.filter((p: any) =>
+    (p.displayName || '').toLowerCase().includes(formData.profesional.toLowerCase()) ||
+    (p.specialty || '').toLowerCase().includes(formData.profesional.toLowerCase())
+  );
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -122,6 +149,7 @@ export default function CreateWorkOrderModal() {
       const storedProfile = localStorage.getItem("userProfile");
       const user = storedProfile ? JSON.parse(storedProfile) : null;
       const currentUserId = user?.id ? String(user.id) : '';
+      const role = user?.role || 'profesional';
 
       if (editJobId) {
         const token = localStorage.getItem('authToken');
@@ -133,9 +161,18 @@ export default function CreateWorkOrderModal() {
           }
         })
           .then(res => res.json())
-          .then((workOrders: WorkOrder[]) => {
+          .then(async (workOrders: WorkOrder[]) => {
             const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
             if (orderToEdit) {
+              // Get profesional info to populate name search
+              let pName = '';
+              try {
+                const pRes = await fetch('/api/profesionales');
+                const pData = await pRes.json();
+                const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
+                pName = foundP?.displayName || '';
+              } catch (e) { }
+
               setFormData({
                 clientId: orderToEdit.clientId || '',
                 client: (orderToEdit as any).client || '',
@@ -151,7 +188,8 @@ export default function CreateWorkOrderModal() {
                 number: (orderToEdit as any).number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
                 notes: orderToEdit.description || '',
-                profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId
+                profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId,
+                profesional: pName
               });
             }
           })
@@ -166,7 +204,8 @@ export default function CreateWorkOrderModal() {
         client: searchParams.get('client') || prev.client,
         date: searchParams.get('date') || prev.date,
         field: searchParams.get('field') || prev.field,
-        profesionalId: currentUserId
+        profesionalId: role === 'admin' ? '' : currentUserId,
+        profesional: role === 'admin' ? '' : (user?.displayName || user?.name || '')
       }));
     }
     setErrors({});
@@ -194,7 +233,8 @@ export default function CreateWorkOrderModal() {
       number: '',
       amount: '',
       notes: '',
-      profesionalId: currentUserId
+      profesionalId: userRole === 'admin' ? '' : currentUserId,
+      profesional: userRole === 'admin' ? '' : (user?.displayName || user?.name || '')
     });
     setErrors({});
     setSelectedFiles([]);
@@ -226,6 +266,15 @@ export default function CreateWorkOrderModal() {
           updated.clientId = '';
           updated.field = '';
           updated.lot = '';
+        }
+      }
+
+      if (name === 'profesional') {
+        const matchingP = profesionales.find(p => (p.displayName || '').toLowerCase() === value.toLowerCase());
+        if (matchingP) {
+          updated.profesionalId = matchingP.id;
+        } else {
+          updated.profesionalId = '';
         }
       }
 
@@ -276,6 +325,11 @@ export default function CreateWorkOrderModal() {
     // Special validation: ensure a valid client was selected (clientId must exist)
     if (!formData.clientId) {
       newErrors.client = 'Debe seleccionar un cliente de la lista o crear uno nuevo';
+    }
+
+    // Special validation: ensure a valid profesional was selected if admin (profesionalId must exist)
+    if (userRole === 'admin' && !formData.profesionalId) {
+      newErrors.profesionalId = 'Debe seleccionar un profesional de la lista o crear uno nuevo';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -425,6 +479,72 @@ export default function CreateWorkOrderModal() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  {userRole === 'admin' && (
+                    <div className="space-y-1.5 sm:col-span-2 relative">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Profesional Asignado <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          name="profesional"
+                          autoComplete="off"
+                          value={formData.profesional}
+                          onChange={(e) => {
+                            handleInputChange(e);
+                            setShowProfesionalSuggestions(true);
+                          }}
+                          onFocus={() => setShowProfesionalSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowProfesionalSuggestions(false), 200)}
+                          placeholder="Buscar profesional..."
+                          className={cn(
+                            "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2",
+                            errors.profesionalId
+                              ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                              : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                          )}
+                        />
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      </div>
+                      {errors.profesionalId && (
+                        <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                          {errors.profesionalId}
+                        </p>
+                      )}
+                      {showProfesionalSuggestions && (profesionalSuggestions.length > 0 || (formData.profesional.trim() !== '' && !profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()))) && (
+                        <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {profesionalSuggestions.map((p: any) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col cursor-pointer"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  profesional: p.displayName,
+                                  profesionalId: p.id
+                                }));
+                                setShowProfesionalSuggestions(false);
+                              }}
+                            >
+                              <span className="font-bold">{p.displayName}</span>
+                              {p.specialty && <span className="text-[10px] text-slate-500 capitalize">{p.specialty}</span>}
+                            </button>
+                          ))}
+                          {!profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()) && formData.profesional.trim() !== '' && (
+                            <button
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
+                              onClick={() => setIsCreateProfesionalModalOpen(true)}
+                            >
+                              + Crear "{formData.profesional}"
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">
                       Cliente <span className="text-red-500">*</span>
@@ -983,6 +1103,14 @@ export default function CreateWorkOrderModal() {
                         <p className="text-[10px] font-medium text-slate-400">Título</p>
                         <p className="text-sm font-semibold text-slate-900">{formData.title || '-'}</p>
                       </div>
+                      {userRole === 'admin' && (
+                        <div className="sm:col-span-2">
+                          <p className="text-[10px] font-medium text-slate-400">Profesional Asignado</p>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {profesionales.find(p => String(p.id) === String(formData.profesionalId))?.displayName || 'No asignado'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1133,9 +1261,19 @@ export default function CreateWorkOrderModal() {
         initialName={formData.client}
         onSave={(newClient) => {
           setClients((prev: any) => [newClient, ...prev]);
-          setFormData(prev => ({ ...prev, client: newClient.name }));
+          setFormData(prev => ({ ...prev, client: newClient.name, clientId: newClient.id }));
           setIsCreateClientModalOpen(false);
           setShowClientSuggestions(false);
+        }}
+      />
+      <CreateProfesionalModal
+        isOpen={isCreateProfesionalModalOpen}
+        onClose={() => setIsCreateProfesionalModalOpen(false)}
+        onSave={(newProf) => {
+          setProfesionales((prev: any) => [newProf, ...prev]);
+          setFormData(prev => ({ ...prev, profesional: newProf.displayName, profesionalId: newProf.id }));
+          setIsCreateProfesionalModalOpen(false);
+          setShowProfesionalSuggestions(false);
         }}
       />
       {/* Create Field Modal */}
