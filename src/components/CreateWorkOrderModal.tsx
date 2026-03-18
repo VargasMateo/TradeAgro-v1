@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import {
   Info,
   Settings,
@@ -210,10 +210,10 @@ export default function CreateWorkOrderModal() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
-      
+
       // If user types in the client input manually, we must clear the clientId 
       // so they are forced to pick an existing one or create a new one.
       if (name === 'client') {
@@ -238,7 +238,7 @@ export default function CreateWorkOrderModal() {
       });
     }
   };
-  
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -299,7 +299,7 @@ export default function CreateWorkOrderModal() {
 
       const response = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
@@ -594,10 +594,10 @@ export default function CreateWorkOrderModal() {
                             className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
                             onClick={() => {
                               const foundField = selectedClientObj?.fields?.find((fieldObj: any) => fieldObj.name === f);
-                              setFormData(prev => ({ 
-                                ...prev, 
-                                field: f, 
-                                fieldId: foundField?.id || '' 
+                              setFormData(prev => ({
+                                ...prev,
+                                field: f,
+                                fieldId: foundField?.id || ''
                               }));
                               setShowFieldSuggestions(false);
                             }}
@@ -871,15 +871,15 @@ export default function CreateWorkOrderModal() {
 
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-slate-700">Archivos Adjuntos</label>
-                    <div 
+                    <div
                       className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 transition-colors hover:bg-slate-100 cursor-pointer relative"
                       onClick={() => document.getElementById('file-upload')?.click()}
                     >
-                      <input 
+                      <input
                         id="file-upload"
-                        type="file" 
-                        multiple 
-                        className="hidden" 
+                        type="file"
+                        multiple
+                        className="hidden"
                         onChange={handleFileChange}
                       />
                       <div className="mb-2 rounded-full bg-emerald-100 p-2 text-emerald-600">
@@ -898,7 +898,7 @@ export default function CreateWorkOrderModal() {
                               <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
                               <span className="shrink-0 text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
                             </div>
-                            <button 
+                            <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -967,12 +967,12 @@ export default function CreateWorkOrderModal() {
                       <div>
                         <p className="text-[10px] font-medium text-slate-400">Fecha</p>
                         <p className="text-sm font-semibold text-slate-900">
-                          {formData.date 
-                            ? new Date(formData.date + 'T00:00:00').toLocaleDateString('es-ES', { 
-                                day: '2-digit', 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })
+                          {formData.date
+                            ? new Date(formData.date + 'T00:00:00').toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric'
+                            })
                             : '-'
                           }
                         </p>
@@ -1144,19 +1144,19 @@ export default function CreateWorkOrderModal() {
           client={selectedClientObj}
           initialFieldName={formData.field}
           onSave={(updatedClient) => {
-            setClients((prev: any) => prev.map((c: any) => 
+            setClients((prev: any) => prev.map((c: any) =>
               c.id === updatedClient.id ? updatedClient : c
             ));
-            
+
             // Find the newly added field to get its ID
             const newField = updatedClient.fields?.find(
               (f: any) => f.name.toLowerCase() === formData.field.toLowerCase()
             );
-            
-            setFormData(prev => ({ 
-              ...prev, 
+
+            setFormData(prev => ({
+              ...prev,
               field: formData.field,
-              fieldId: newField?.id?.toString() || '' 
+              fieldId: newField?.id?.toString() || ''
             }));
             setIsCreateFieldModalOpen(false);
           }}

@@ -1,15 +1,13 @@
 import React from "react";
-import { 
-  Calendar, 
-  MapPin, 
-  Tractor, 
-  Droplets, 
-  Wheat, 
-  Sprout, 
+import {
+  MapPin,
+  Tractor,
+  Droplets,
+  Wheat,
+  Sprout,
   Activity,
   ArrowRight,
   TrendingUp,
-  Tag
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../lib/utils";
@@ -108,7 +106,7 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Cliente</p>
           <p className="text-xs font-bold text-slate-700">{job.client}</p>
         </div>
-        
+
         <div className="flex items-center gap-2 text-right">
           <div className="flex flex-col items-end">
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Operador</p>
@@ -123,12 +121,12 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
       </div>
 
       {/* Action Overlay */}
-      <Link 
+      <Link
         to={`/work-orders/${String(job.id).replace('#', '')}`}
         className="absolute inset-0 z-10 cursor-pointer"
         aria-label="Ver detalles"
       />
-      
+
       {/* Decorative arrow that appears on hover */}
       <div className="absolute top-4 right-4 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-1">
         <ArrowRight className="h-4 w-4 text-slate-300" />
