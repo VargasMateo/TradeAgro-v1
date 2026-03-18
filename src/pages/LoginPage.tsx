@@ -143,7 +143,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => fillCredentials('cliente@tradeagro.com', 'client123')}
+                  onClick={() => fillCredentials('cliente@tradeagro.com', '123456')}
                   className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50/50 p-2 text-blue-700 transition-all hover:bg-blue-100 cursor-pointer"
                 >
                   <User className="h-4 w-4" />
@@ -151,7 +151,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillCredentials('profesional@tradeagro.com', 'prof123')}
+                  onClick={() => fillCredentials('profesional@tradeagro.com', '123456')}
                   className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-2 text-emerald-700 transition-all hover:bg-emerald-100 cursor-pointer"
                 >
                   <Briefcase className="h-4 w-4" />
@@ -166,12 +166,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   <span className="text-[10px] font-bold">Admin</span>
                 </button>
               </div>
-            </div>
-
-            <div className="mt-6 border-t border-slate-100 pt-6 text-center">
-              <p className="text-xs font-medium text-slate-400">
-                ¿No tienes cuenta? <span className="text-emerald-600 hover:underline cursor-pointer">Contactar soporte</span>
-              </p>
             </div>
           </form>
         </div>
