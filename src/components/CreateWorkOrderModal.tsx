@@ -104,7 +104,7 @@ export default function CreateWorkOrderModal() {
     hectares: '',
     service: '',
     secondaryService: '',
-    campaign: '',
+    campaign: '25/26',
     lot: '',
     number: '',
     amount: '',
@@ -182,7 +182,7 @@ export default function CreateWorkOrderModal() {
                 hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
                 service: orderToEdit.service || 'Cosecha',
                 secondaryService: (orderToEdit as any).secondaryService || '',
-                campaign: orderToEdit.campaign || '2023/24',
+                campaign: orderToEdit.campaign || '25/26',
                 lot: orderToEdit.lotName || '',
                 number: (orderToEdit as any).number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
@@ -227,7 +227,7 @@ export default function CreateWorkOrderModal() {
       hectares: '',
       service: '',
       secondaryService: '',
-      campaign: '',
+      campaign: '25/26',
       lot: '',
       number: '',
       amount: '',
@@ -954,8 +954,7 @@ export default function CreateWorkOrderModal() {
                         )}
                       >
                         <option value="">Seleccionar...</option>
-                        <option value="2023/24">2023/24</option>
-                        <option value="2022/23">2022/23</option>
+                        <option value="25/26">25/26</option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
