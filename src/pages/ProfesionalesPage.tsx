@@ -188,9 +188,9 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                         </button>
                       </>
                     )}
-                    {prof.phone && (
+                    {prof.phoneNumber && (
                       <a
-                        href={`https://wa.me/${formatPhoneNumberForWhatsApp(prof.phone)}`}
+                        href={`https://wa.me/${formatPhoneNumberForWhatsApp(prof.phoneNumber)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white shadow-sm transition-transform hover:scale-105 active:scale-95"
@@ -219,10 +219,10 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                     <Mail className="h-4 w-4 text-slate-400" />
                     <span className="truncate">{prof.email}</span>
                   </div>
-                  {prof.phone && (
+                  {prof.phoneNumber && (
                     <div className="flex items-center gap-3 text-sm text-slate-500">
                       <Phone className="h-4 w-4 text-slate-400" />
-                      <span>{prof.phone}</span>
+                      <span>{prof.phoneNumber}</span>
                     </div>
                   )}
                 </div>

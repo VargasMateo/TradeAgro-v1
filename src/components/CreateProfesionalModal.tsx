@@ -20,7 +20,7 @@ export default function CreateProfesionalModal({
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
-    phone: '',
+    phoneNumber: '',
     specialty: ''
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
@@ -29,6 +29,7 @@ export default function CreateProfesionalModal({
     displayName?: string;
     email?: string;
     specialty?: string;
+    phoneNumber?: string;
   }>({});
 
   const [isSaving, setIsSaving] = useState(false);
@@ -49,14 +50,14 @@ export default function CreateProfesionalModal({
       setFormData({
         displayName: editingProfesional.displayName || '',
         email: editingProfesional.email || '',
-        phone: editingProfesional.phoneNumber || '',
+        phoneNumber: editingProfesional.phoneNumber || '',
         specialty: editingProfesional.specialty || ''
       });
     } else {
       setFormData({
         displayName: '',
         email: '',
-        phone: '',
+        phoneNumber: '',
         specialty: ''
       });
     }
@@ -66,9 +67,15 @@ export default function CreateProfesionalModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    let finalValue = value;
+
+    if (name === 'phoneNumber') {
+      finalValue = value.replace(/\D/g, '');
+    }
+
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: finalValue
     }));
 
     if (errors[name as keyof typeof errors]) {
@@ -91,6 +98,10 @@ export default function CreateProfesionalModal({
 
     if (!formData.specialty.trim()) {
       newErrors.specialty = 'La especialidad es obligatoria';
+    }
+
+    if (formData.phoneNumber.trim() && !/^\d{8,20}$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Formate de teléfono inválido (solo números)';
     }
 
     setErrors(newErrors);
@@ -246,12 +257,22 @@ export default function CreateProfesionalModal({
               <label className="text-sm font-semibold text-slate-700">Teléfono (WhatsApp)</label>
               <input
                 type="tel"
-                name="phone"
-                value={formData.phone}
+                name="phoneNumber"
+                value={formData.phoneNumber}
                 onChange={handleInputChange}
-                placeholder="+54 9 ..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                placeholder="Ej: 1155551234"
+                className={cn(
+                  "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                  errors.phoneNumber
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                    : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                )}
               />
+              {errors.phoneNumber && (
+                <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {errors.phoneNumber}
+                </p>
+              )}
             </div>
             </div>
           ) : (

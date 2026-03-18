@@ -43,6 +43,7 @@ export default function CreateClientModal({
     cuit?: string;
     ivaCondition?: string;
     email?: string;
+    phone?: string;
     fields?: string;
   }>({});
 
@@ -93,9 +94,15 @@ export default function CreateClientModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    let finalValue = value;
+
+    if (name === 'phone') {
+      finalValue = value.replace(/\D/g, '');
+    }
+
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: finalValue
     }));
 
     if (errors[name as keyof typeof errors]) {
@@ -135,6 +142,10 @@ export default function CreateClientModal({
       newErrors.email = 'El email es obligatorio';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'El formato del email no es válido';
+    }
+
+    if (formData.phone.trim() && !/^\d{8,20}$/.test(formData.phone)) {
+      newErrors.phone = 'Formato de teléfono inválido (solo números)';
     }
 
     if (formData.fields.length === 0) {
@@ -375,9 +386,19 @@ export default function CreateClientModal({
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    placeholder="+54 9 ..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    placeholder="Ej: 1155551234"
+                    className={cn(
+                      "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                      errors.phone
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                        : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                    )}
                   />
+                  {errors.phone && (
+                    <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                      {errors.phone}
+                    </p>
+                  )}
                 </div>
               </div>
 
