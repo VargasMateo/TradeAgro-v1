@@ -174,14 +174,14 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                       <>
                         <button
                           onClick={() => handleOpenModal(prof)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 cursor-pointer"
                           title="Editar"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(prof)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100 cursor-pointer"
                           title="Eliminar"
                         >
                           <Trash2 className="h-4 w-4" />
