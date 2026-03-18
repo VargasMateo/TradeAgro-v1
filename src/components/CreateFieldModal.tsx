@@ -115,7 +115,7 @@ export default function CreateFieldModal({
           ...client,
           fields: updatedFields
         };
-        
+
         // Notify parent
         onSave(updatedClient);
       } else {
@@ -139,7 +139,7 @@ export default function CreateFieldModal({
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all">
       <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 p-6">
           <div>
@@ -311,9 +311,8 @@ export default function CreateFieldModal({
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
             >
-              <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl ${
-                dialog.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-              }`}>
+              <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl ${dialog.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                }`}>
                 {dialog.type === 'success' ? (
                   <CheckCircle2 className="h-10 w-10" />
                 ) : (
@@ -336,9 +335,8 @@ export default function CreateFieldModal({
                     onClose();
                   }
                 }}
-                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${
-                  dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200 cursor-pointer' : 'bg-red-600 shadow-red-200 cursor-pointer'
-                }`}
+                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200 cursor-pointer' : 'bg-red-600 shadow-red-200 cursor-pointer'
+                  }`}
               >
                 ENTENDIDO
               </button>

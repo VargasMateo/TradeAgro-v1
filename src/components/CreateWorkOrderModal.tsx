@@ -1353,8 +1353,8 @@ export default function CreateWorkOrderModal() {
               <div className={cn(
                 "mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl",
                 validationDialog.type === 'warning' ? "bg-amber-50 text-amber-600" :
-                validationDialog.type === 'error' ? "bg-red-50 text-red-600" :
-                "bg-emerald-50 text-emerald-600"
+                  validationDialog.type === 'error' ? "bg-red-50 text-red-600" :
+                    "bg-emerald-50 text-emerald-600"
               )}>
                 <AlertCircle className="h-10 w-10" />
               </div>
@@ -1372,8 +1372,8 @@ export default function CreateWorkOrderModal() {
                 className={cn(
                   "w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer",
                   validationDialog.type === 'warning' ? "bg-amber-600 shadow-amber-200" :
-                  validationDialog.type === 'error' ? "bg-red-600 shadow-red-200" :
-                  "bg-emerald-600 shadow-emerald-200"
+                    validationDialog.type === 'error' ? "bg-red-600 shadow-red-200" :
+                      "bg-emerald-600 shadow-emerald-200"
                 )}
               >
                 ENTENDIDO
