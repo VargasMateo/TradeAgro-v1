@@ -152,7 +152,7 @@ export default function CreateFieldModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -219,7 +219,7 @@ export default function CreateFieldModal({
                   onClick={() => {
                     setFieldData(prev => ({ ...prev, lots: [...prev.lots, ''] }));
                   }}
-                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700"
+                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                 >
                   <Plus className="h-3 w-3" />
                   AGREGAR LOTE
@@ -255,7 +255,7 @@ export default function CreateFieldModal({
                           const newLots = fieldData.lots.filter((_, i) => i !== lIndex);
                           setFieldData(prev => ({ ...prev, lots: newLots }));
                         }}
-                        className="text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                        className="text-slate-300 hover:text-red-500 transition-colors shrink-0 cursor-pointer"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -272,14 +272,14 @@ export default function CreateFieldModal({
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
             CANCELAR
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100"
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100 cursor-pointer"
           >
             {isSaving ? (
               <motion.div
@@ -337,7 +337,7 @@ export default function CreateFieldModal({
                   }
                 }}
                 className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${
-                  dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
+                  dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200 cursor-pointer' : 'bg-red-600 shadow-red-200 cursor-pointer'
                 }`}
               >
                 ENTENDIDO

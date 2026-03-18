@@ -246,7 +246,7 @@ export default function CreateClientModal({
           </h2>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -345,7 +345,7 @@ export default function CreateClientModal({
                       }
                     }}
                     className={cn(
-                      "w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                      "w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
                       errors.ivaCondition
                         ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                         : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -410,7 +410,7 @@ export default function CreateClientModal({
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, fields: [...prev.fields, { name: '', lat: undefined, lng: undefined, lots: [''] }] }))}
-                  className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                  className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 cursor-pointer"
                 >
                   <Plus className="h-3 w-3" />
                   Agregar Campo
@@ -437,7 +437,7 @@ export default function CreateClientModal({
                             const newFields = formData.fields.filter((_, i) => i !== fIndex);
                             setFormData(prev => ({ ...prev, fields: newFields }));
                           }}
-                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -501,7 +501,7 @@ export default function CreateClientModal({
                               newFields[fIndex].lots = [...newFields[fIndex].lots, ''];
                               setFormData(prev => ({ ...prev, fields: newFields }));
                             }}
-                            className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700"
+                            className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                           >
                             <Plus className="h-3 w-3" />
                             AGREGAR LOTE
@@ -533,7 +533,7 @@ export default function CreateClientModal({
                                     newFields[fIndex].lots = newFields[fIndex].lots.filter((_, i) => i !== lIndex);
                                     setFormData(prev => ({ ...prev, fields: newFields }));
                                   }}
-                                  className="text-slate-300 hover:text-red-500 transition-colors"
+                                  className="text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </button>
@@ -555,14 +555,14 @@ export default function CreateClientModal({
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
             CANCELAR
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100"
+            className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100 cursor-pointer"
           >
             {isSaving ? (
               <motion.div
@@ -618,7 +618,7 @@ export default function CreateClientModal({
                     onClose();
                   }
                 }}
-                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
+                className={`w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'
                   }`}
               >
                 ENTENDIDO
