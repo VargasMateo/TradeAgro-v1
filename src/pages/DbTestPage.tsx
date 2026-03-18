@@ -195,10 +195,10 @@ export default function DbTestPage() {
         endpoint = '/api/test/reset-users';
       } else {
         endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' :
-            resetTarget === 'campos' ? 'fields' :
-              resetTarget === 'ordenes' ? 'work-orders' :
-                resetTarget === 'anexos' ? 'attachments' :
-                  resetTarget === 'observaciones' ? 'observations' : 'profesionals'
+          resetTarget === 'campos' ? 'fields' :
+            resetTarget === 'ordenes' ? 'work-orders' :
+              resetTarget === 'anexos' ? 'attachments' :
+                resetTarget === 'observaciones' ? 'observations' : 'profesionals'
           }`;
       }
 
@@ -274,7 +274,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('clientes')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -313,7 +313,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('campos')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -363,7 +363,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('ordenes')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -422,7 +422,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('profesionales')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -462,7 +462,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('usuarios')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -479,8 +479,8 @@ export default function DbTestPage() {
                   <div key={u.id} className="p-5 rounded-3xl bg-slate-50 hover:bg-white border border-slate-100 shadow-sm transition-all group">
                     <div className="flex items-center gap-3">
                       <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-[10px] font-black ${u.role === 'admin' ? 'bg-rose-100 text-rose-600' :
-                          u.role === 'profesional' ? 'bg-indigo-100 text-indigo-600' :
-                            'bg-emerald-100 text-emerald-600'
+                        u.role === 'profesional' ? 'bg-indigo-100 text-indigo-600' :
+                          'bg-emerald-100 text-emerald-600'
                         }`}>
                         {u.role.charAt(0).toUpperCase()}
                       </div>
@@ -507,7 +507,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('anexos')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -546,7 +546,7 @@ export default function DbTestPage() {
               </div>
               <button
                 onClick={() => setResetTarget('observaciones')}
-                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100"
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
               >
                 RESETEAR
               </button>
@@ -617,14 +617,14 @@ export default function DbTestPage() {
                   <button
                     onClick={() => setResetTarget(null)}
                     disabled={isResetting}
-                    className="py-3.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors text-xs disabled:opacity-50"
+                    className="py-3.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors text-xs disabled:opacity-50 cursor-pointer"
                   >
                     CANCELAR
                   </button>
                   <button
                     onClick={resetDatabase}
                     disabled={isResetting}
-                    className="py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all active:scale-95 text-xs flex items-center justify-center gap-2 group disabled:opacity-80"
+                    className="py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all active:scale-95 text-xs flex items-center justify-center gap-2 group disabled:opacity-80 cursor-pointer"
                   >
                     {isResetting ? (
                       <span className="animate-pulse">ELIMINANDO</span>
@@ -648,7 +648,7 @@ export default function DbTestPage() {
               <p className="text-slate-500 font-bold text-sm mb-8">{dialog.message}</p>
               <button
                 onClick={() => setDialog({ ...dialog, show: false })}
-                className={`w-full py-4 rounded-2xl font-black text-white shadow-lg transition-all active:scale-95 ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-100' : 'bg-rose-600 shadow-rose-100'}`}
+                className={`w-full py-4 rounded-2xl font-black text-white shadow-lg transition-all active:scale-95 cursor-pointer ${dialog.type === 'success' ? 'bg-emerald-600 shadow-emerald-100' : 'bg-rose-600 shadow-rose-100'}`}
               >
                 ENTENDIDO
               </button>
