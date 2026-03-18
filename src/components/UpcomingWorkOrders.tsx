@@ -123,7 +123,7 @@ export default function UpcomingWorkOrders() {
           <Calendar className="h-5 w-5 text-emerald-600" /> Próximas Órdenes
         </h3>
         <Link to="/work-orders" className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1">
-          Ver todos <ArrowRight className="h-4 w-4" />
+          Ver todas <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
 
