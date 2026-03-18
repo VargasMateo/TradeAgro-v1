@@ -6,7 +6,6 @@ import {
   UploadCloud,
   X,
   File as FileIcon,
-  Image as ImageIcon,
   Save,
   ChevronDown,
   Calendar as CalendarIcon,
