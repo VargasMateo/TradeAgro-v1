@@ -9,16 +9,18 @@ interface CreateProfesionalModalProps {
   onClose: () => void;
   onSave: (profesional: Profesional) => void;
   editingProfesional?: Profesional | null;
+  initialDisplayName?: string;
 }
 
 export default function CreateProfesionalModal({
   isOpen,
   onClose,
   onSave,
-  editingProfesional
+  editingProfesional,
+  initialDisplayName = ''
 }: CreateProfesionalModalProps) {
   const [formData, setFormData] = useState({
-    displayName: '',
+    displayName: initialDisplayName,
     email: '',
     phoneNumber: '',
     specialty: ''
@@ -56,7 +58,7 @@ export default function CreateProfesionalModal({
       });
     } else {
       setFormData({
-        displayName: '',
+        displayName: initialDisplayName,
         email: '',
         phoneNumber: '',
         specialty: ''
@@ -65,7 +67,7 @@ export default function CreateProfesionalModal({
     setStep('form');
     setCreatedId(null);
     setErrors({});
-  }, [editingProfesional, isOpen]);
+  }, [editingProfesional, initialDisplayName, isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

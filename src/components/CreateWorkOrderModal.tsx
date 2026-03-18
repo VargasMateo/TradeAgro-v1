@@ -1267,6 +1267,7 @@ export default function CreateWorkOrderModal() {
       <CreateProfesionalModal
         isOpen={isCreateProfesionalModalOpen}
         onClose={() => setIsCreateProfesionalModalOpen(false)}
+        initialDisplayName={formData.profesional}
         onSave={(newProf) => {
           setProfesionales((prev: any) => [newProf, ...prev]);
           setFormData(prev => ({ ...prev, profesional: newProf.displayName, profesionalId: newProf.id }));
