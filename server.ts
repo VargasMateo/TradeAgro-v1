@@ -76,9 +76,9 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
     }
 
     console.log('[SEED] Starting default users insertion...');
-    const adminPass = await bcrypt.hash('admin123', 10);
-    const profPass = await bcrypt.hash('prof123', 10);
-    const clientPass = await bcrypt.hash('client123', 10);
+    const adminPass = await bcrypt.hash('123456', 10);
+    const profPass = await bcrypt.hash('123456', 10);
+    const clientPass = await bcrypt.hash('123456', 10);
 
     // 1. Admin
     console.log('[SEED] Inserting Admin...');
