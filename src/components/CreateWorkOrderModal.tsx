@@ -912,6 +912,7 @@ export default function CreateWorkOrderModal() {
                         name="hectares"
                         value={formData.hectares}
                         onChange={handleInputChange}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         placeholder="0.00"
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
@@ -940,6 +941,7 @@ export default function CreateWorkOrderModal() {
                         name="amount"
                         value={formData.amount}
                         onChange={handleInputChange}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         placeholder="0.00"
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
