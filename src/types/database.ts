@@ -49,7 +49,6 @@ export interface WorkOrder {
   date: string; // timestamp
   service: string;
   title: string;
-  description?: string;
   hectares: number;
   amountUsd: number;
   status: WorkOrderStatus;

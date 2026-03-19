@@ -100,7 +100,7 @@ export default function CreateWorkOrderModal() {
   const [formData, setFormData] = useState({
     clientId: '',
     client: searchParams.get('client') || '',
-    date: searchParams.get('date') || '',
+    date: searchParams.get('date') || new Date().toLocaleDateString('en-CA'),
     title: '',
     fieldId: '',
     field: searchParams.get('field') || '',
@@ -200,7 +200,7 @@ export default function CreateWorkOrderModal() {
                 lot: orderToEdit.lotName || '',
                 number: (orderToEdit as any).number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
-                notes: orderToEdit.description || '',
+                notes: '', // Ya no usamos description, las observaciones van por tabla separada
                 profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId,
                 profesional: pName
               });
@@ -215,7 +215,7 @@ export default function CreateWorkOrderModal() {
         ...prev,
         clientId: '',
         client: searchParams.get('client') || prev.client,
-        date: searchParams.get('date') || prev.date,
+        date: searchParams.get('date') || new Date().toLocaleDateString('en-CA'),
         field: searchParams.get('field') || prev.field,
         profesionalId: role === 'admin' ? '' : currentUserId,
         profesional: role === 'admin' ? '' : (user?.displayName || user?.name || '')
@@ -235,7 +235,7 @@ export default function CreateWorkOrderModal() {
     setFormData({
       clientId: '',
       client: '',
-      date: '',
+      date: new Date().toLocaleDateString('en-CA'),
       title: '',
       field: '',
       hectares: '',
@@ -1229,6 +1229,20 @@ export default function CreateWorkOrderModal() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Summary Section 4 - Observations */}
+                  {formData.notes && formData.notes.trim() && (
+                    <div>
+                      <h5 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <FileText className="h-3 w-3" /> Observaciones
+                      </h5>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                        <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap italic">
+                          "{formData.notes}"
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Summary Section 4 - NEW: Attachments */}
                   {selectedFiles.length > 0 && (

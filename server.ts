@@ -215,7 +215,6 @@ async function initializeDatabase() {
         lotName VARCHAR(255),
         hectares DECIMAL(10, 2),
         amountUsd DECIMAL(10, 2),
-        description TEXT,
         status VARCHAR(50),
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         createdBy VARCHAR(255),
@@ -306,8 +305,39 @@ async function initializeDatabase() {
         console.log('[INIT] Migrating work_orders: forcing AUTO_INCREMENT on id');
         await connection.query('ALTER TABLE work_orders MODIFY id INT AUTO_INCREMENT');
       }
+
+      // DATA MIGRATION: description -> work_order_observations
+      const [woColumns]: any = await connection.query('SHOW COLUMNS FROM work_orders LIKE "description"');
+      if (woColumns.length > 0) {
+        console.log('[INIT] Migrating work_orders: moving description to work_order_observations...');
+        const [ordersWithDesc]: any = await connection.query('SELECT id, description, createdBy FROM work_orders WHERE description IS NOT NULL AND description != ""');
+        
+        for (const order of ordersWithDesc) {
+          // Try to find a valid userId for the createdBy name if it's numeric, or default to a system user
+          let creatorId = parseInt(order.createdBy);
+          if (isNaN(creatorId)) {
+            const [adminRow]: any = await connection.query('SELECT id FROM users WHERE role = "admin" LIMIT 1');
+            creatorId = adminRow.length > 0 ? adminRow[0].id : 1;
+          }
+
+          await connection.query(
+            'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
+            [order.id, creatorId, order.description]
+          );
+        }
+        
+        console.log(`[INIT] Migrated ${ordersWithDesc.length} descriptions. Dropping column description.`);
+        try {
+          await connection.query('ALTER TABLE work_orders DROP COLUMN description');
+          console.log('[INIT] Column description dropped successfully.');
+        } catch (dropErr) {
+          console.error('[INIT ERROR] Failed to drop description column:', dropErr.message);
+        }
+      } else {
+        console.log('[INIT] Column description already removed from work_orders.');
+      }
     } catch (err) {
-      console.log('[INIT] Migration check for work_orders skipped or not needed.');
+      console.log('[INIT] Migration check for work_orders skipped or not needed:', err.message);
     }
 
     // Migration: Rename tbl_campos to fields if it exists
@@ -802,7 +832,6 @@ app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
       hectares: parseFloat(row.hectares) || 0,
       amountUsd: parseFloat(row.amountUsd) || 0,
       campaign: row.campaign,
-      description: row.description,
       status: row.status,
       operator: row.professionalName || "Asignación Pendiente",
       iconName: getIconNameForService(row.service),
@@ -858,7 +887,9 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       }
     }
 
-    const dbData = {
+    console.log('[DEBUG] POST /api/work-orders - RECIBIDO BODY:', JSON.stringify(req.body));
+    
+    const dbData: any = {
       clientId: finalClientId || null,
       profesionalId: profesionalId || null,
       date: date || null,
@@ -870,13 +901,27 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       lotName: lot || null,
       hectares: parseFloat(cleanHectares) || 0,
       amountUsd: parseFloat(cleanAmount) || 0,
-      description: notes || null,
       status: 'Pendiente',
-      createdBy: createdBy || 'System'
+      createdBy: (req as any).user?.id || 'System'
     };
 
-    console.log('[DEBUG] Inserting into work_orders:', JSON.stringify(dbData));
+    // Explicit audit: ensuring NO description field exists in dbData
+    if ('description' in dbData || 'description' in req.body) {
+      console.log('!!! AUDIT: description detected in body or data, removing it explicitly !!!');
+      delete dbData.description;
+    }
+
+    console.log('[DEBUG] Inserting into work_orders with dbData:', JSON.stringify(dbData));
     const [result]: any = await pool.query('INSERT INTO work_orders SET ?', [dbData]);
+
+    // If there is an observation, create it
+    if (notes && notes.trim()) {
+      const creatorId = (req as any).user.id;
+      await pool.query(
+        'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
+        [result.insertId, creatorId, notes.trim()]
+      );
+    }
 
     res.json({
       success: true,
@@ -944,7 +989,6 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       lotName: lot || null,
       hectares: parseFloat(cleanHectares) || 0,
       amountUsd: parseFloat(cleanAmount) || 0,
-      description: notes || null,
     };
 
     console.log(`[DEBUG] Updating work_orders id ${jobId}:`, JSON.stringify(dbData));
