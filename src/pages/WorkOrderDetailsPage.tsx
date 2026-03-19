@@ -203,7 +203,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           observation: foundJob.description || "No hay observaciones iniciales registradas.",
           observationAuthor: "SISTEMA",
           observationDate: foundJob.createdAt ? new Date(foundJob.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
-          coordinates: [-31.4201, -64.1888] as [number, number],
+          coordinates: (foundJob.lat !== null && foundJob.lng !== null) ? [Number(foundJob.lat), Number(foundJob.lng)] : null,
         });
 
       } catch (err: any) {
@@ -620,31 +620,35 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           </div>
 
           {/* Field Map Card */}
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center gap-2">
-              <MapIcon className="h-5 w-5 text-[#2e7d32]" />
-              <h2 className="text-lg font-bold text-slate-900">Mapa del Campo</h2>
-            </div>
-
-            <div className="h-64 w-full overflow-hidden rounded-xl bg-slate-100">
-              <Map center={job.coordinates} popupContent={
-                <div className="text-center">
-                  <p className="font-bold">{job.client}</p>
-                  <p className="text-xs">{job.location}</p>
+          {job.coordinates && (
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapIcon className="h-5 w-5 text-[#2e7d32]" />
+                  <h2 className="text-lg font-bold text-slate-900">Mapa del Campo</h2>
                 </div>
-              } />
-            </div>
+              </div>
 
-            <div className="mt-4 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-                <MapPin className="h-5 w-5" />
+              <div className="h-64 w-full overflow-hidden rounded-xl bg-slate-100">
+                <Map center={job.coordinates} popupContent={
+                  <div className="text-center">
+                    <p className="font-bold">{job.client}</p>
+                    <p className="text-xs">{job.location}</p>
+                  </div>
+                } />
               </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Coordenadas</p>
-                <p className="text-sm font-semibold text-slate-900">41.8781° N, 87.6298° W</p>
-              </div>
+
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${job.coordinates[0]},${job.coordinates[1]}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-white shadow-lg transition-all hover:bg-[#1b5e20] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              >
+                <MapPin className="h-4 w-4 text-emerald-100" />
+                Abrir en Google Maps
+              </a>
             </div>
-          </div>
+          )}
 
         </div>
       </div>

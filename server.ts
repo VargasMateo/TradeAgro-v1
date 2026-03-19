@@ -806,10 +806,12 @@ app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
 
   try {
     let query = `
-      SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName
+      SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
+             f.lat, f.lng
       FROM work_orders t
       LEFT JOIN users u ON t.clientId = u.id
       LEFT JOIN users p_user ON t.profesionalId = p_user.id
+      LEFT JOIN fields f ON t.fieldId = f.id
       WHERE t.deletedAt IS NULL
     `;
 
@@ -852,6 +854,8 @@ app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
       campaign: row.campaign,
       status: row.status,
       operator: row.professionalName || "Asignación Pendiente",
+      lat: row.lat,
+      lng: row.lng,
       iconName: getIconNameForService(row.service),
       color: getColorForService(row.service),
       createdAt: row.createdAt,

@@ -476,7 +476,8 @@ export default function CreateClientModal({
                                 setFormData(prev => ({ ...prev, fields: newFields }));
                               }}
                               placeholder="-31.4201"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 no-spinner"
+                              onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             />
                           </div>
                           <div>
@@ -490,7 +491,8 @@ export default function CreateClientModal({
                                 setFormData(prev => ({ ...prev, fields: newFields }));
                               }}
                               placeholder="-64.1888"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 no-spinner"
+                              onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             />
                           </div>
                         </div>
