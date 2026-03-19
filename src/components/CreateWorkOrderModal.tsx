@@ -747,25 +747,28 @@ export default function CreateWorkOrderModal() {
                     <label className="text-sm font-semibold text-slate-700">
                       Campo <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      name="field"
-                      autoComplete="off"
-                      value={formData.field}
-                      onChange={(e) => {
-                        handleInputChange(e);
-                        setShowFieldSuggestions(true);
-                      }}
-                      onFocus={() => setShowFieldSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowFieldSuggestions(false), 200)}
-                      placeholder="Buscar o crear campo..."
-                      className={cn(
-                        "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                        errors.field
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      )}
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="field"
+                        autoComplete="off"
+                        value={formData.field}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setShowFieldSuggestions(true);
+                        }}
+                        onFocus={() => setShowFieldSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowFieldSuggestions(false), 200)}
+                        placeholder="Buscar o crear campo..."
+                        className={cn(
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                          errors.field
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
+                      />
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
                     {errors.field && (
                       <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
                         {errors.field}
@@ -822,25 +825,28 @@ export default function CreateWorkOrderModal() {
                     <label className="text-sm font-semibold text-slate-700">
                       Lote <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      name="lot"
-                      autoComplete="off"
-                      value={formData.lot}
-                      onChange={(e) => {
-                        handleInputChange(e);
-                        setShowLotSuggestions(true);
-                      }}
-                      onFocus={() => setShowLotSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowLotSuggestions(false), 200)}
-                      placeholder="Identificador"
-                      className={cn(
-                        "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                        errors.lot
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      )}
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="lot"
+                        autoComplete="off"
+                        value={formData.lot}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setShowLotSuggestions(true);
+                        }}
+                        onFocus={() => setShowLotSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowLotSuggestions(false), 200)}
+                        placeholder="Identificador"
+                        className={cn(
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                          errors.lot
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                        )}
+                      />
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
                     <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
                       {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
