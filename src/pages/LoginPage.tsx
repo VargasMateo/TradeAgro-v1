@@ -159,7 +159,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillCredentials('admin@tradeagro.com', 'admin123')}
+                  onClick={() => fillCredentials('admin@tradeagro.com', '123456')}
                   className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-purple-100 bg-purple-50/50 p-2 text-purple-700 transition-all hover:bg-purple-100 cursor-pointer"
                 >
                   <Shield className="h-4 w-4" />
