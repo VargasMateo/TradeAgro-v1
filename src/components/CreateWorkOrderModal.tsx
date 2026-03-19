@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import CreateClientModal from "./CreateClientModal";
 import CreateFieldModal from "./CreateFieldModal";
+import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder } from "../types/database";
 
@@ -91,6 +92,7 @@ export default function CreateWorkOrderModal() {
 
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
   const [isCreateFieldModalOpen, setIsCreateFieldModalOpen] = useState(false);
+  const [isCreateLotModalOpen, setIsCreateLotModalOpen] = useState(false);
   const [isCreateProfesionalModalOpen, setIsCreateProfesionalModalOpen] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showFieldSuggestions, setShowFieldSuggestions] = useState(false);
@@ -148,6 +150,16 @@ export default function CreateWorkOrderModal() {
 
   const selectedFieldObj = availableFields.find((f: any) => f.name.trim().toLowerCase() === formData.field.trim().toLowerCase());
   const lotSuggestions = selectedFieldObj ? (selectedFieldObj.lots || []).filter((l: string) => l.toLowerCase().includes(formData.lot.toLowerCase())) : [];
+
+  useEffect(() => {
+    if (errors.lot && selectedFieldObj && selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase())) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.lot;
+        return newErrors;
+      });
+    }
+  }, [formData.lot, selectedFieldObj, errors.lot]);
 
   const profesionalSuggestions = profesionales.filter((p: any) =>
     (p.displayName || '').toLowerCase().includes(formData.profesional.toLowerCase()) ||
@@ -358,6 +370,11 @@ export default function CreateWorkOrderModal() {
     // Special validation: ensure a valid field was selected (fieldId must exist)
     if (!formData.fieldId) {
       newErrors.field = 'Debe seleccionar un campo de la lista o crear uno nuevo';
+    }
+
+    // Special validation: ensure a valid lot was selected (must exist in field lots)
+    if (selectedFieldObj && !selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase())) {
+      newErrors.lot = 'Debe seleccionar un lote de la lista o crear uno nuevo';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -848,7 +865,7 @@ export default function CreateWorkOrderModal() {
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
                     <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
-                      {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
+                      {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && !selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {lotSuggestions.map((l: string) => (
                             <button
@@ -863,23 +880,12 @@ export default function CreateWorkOrderModal() {
                               {l}
                             </button>
                           ))}
-                          {selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
+                          {selectedFieldObj && !selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
                             <button
                               type="button"
                               className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
                               onClick={() => {
-                                setClients((prev: any) => prev.map((c: any) =>
-                                  c.id === selectedClientObj.id
-                                    ? {
-                                      ...c,
-                                      fields: c.fields.map((f: any) =>
-                                        f.name === selectedFieldObj.name
-                                          ? { ...f, lots: [...f.lots, formData.lot] }
-                                          : f
-                                      )
-                                    }
-                                    : c
-                                ));
+                                setIsCreateLotModalOpen(true);
                                 setShowLotSuggestions(false);
                               }}
                             >
@@ -1394,6 +1400,29 @@ export default function CreateWorkOrderModal() {
               fieldId: newField?.id?.toString() || ''
             }));
             setIsCreateFieldModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Create Lot Modal */}
+      {selectedClientObj && selectedFieldObj && (
+        <CreateLotModal
+          isOpen={isCreateLotModalOpen}
+          onClose={() => setIsCreateLotModalOpen(false)}
+          client={selectedClientObj}
+          field={selectedFieldObj}
+          initialLotName={formData.lot}
+          onSave={(updatedClient, newLotName) => {
+            setClients((prev: any) => prev.map((c: any) =>
+              c.id === updatedClient.id ? updatedClient : c
+            ));
+            setFormData(prev => ({ ...prev, lot: newLotName }));
+            setErrors(prev => {
+              const newErrors = { ...prev };
+              delete newErrors.lot;
+              return newErrors;
+            });
+            setIsCreateLotModalOpen(false);
           }}
         />
       )}

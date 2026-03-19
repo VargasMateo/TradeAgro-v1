@@ -84,14 +84,14 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
     console.log('[SEED] Inserting Admin...');
     await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 'System']
+      ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 0]
     );
 
     // 2. Profesional
     console.log('[SEED] Inserting Profesional...');
     const [profRes]: any = await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 'System']
+      ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 0]
     );
     await connection.query(
       'INSERT INTO profesionals (userId, specialty, phoneNumber) VALUES (?, ?, ?)',
@@ -102,7 +102,7 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
     console.log('[SEED] Inserting Cliente...');
     const [clientRes]: any = await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 'System']
+      ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 0]
     );
     await connection.query(
       'INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber) VALUES (?, ?, ?, ?, ?)',
@@ -131,16 +131,23 @@ async function initializeDatabase() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         role ENUM('admin', 'profesional', 'client') NOT NULL,
-        createdBy VARCHAR(255) DEFAULT 'System',
+        createdBy INT DEFAULT 0,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Ensure users.id is AUTO_INCREMENT
-    const [userIdCol]: any = await connection.query('SHOW COLUMNS FROM users LIKE "id"');
-    if (userIdCol.length > 0 && userIdCol[0].Extra !== 'auto_increment') {
+    // Ensure users.id is AUTO_INCREMENT and createdBy is INT
+    const [idCol]: any = await connection.query('SHOW COLUMNS FROM users LIKE "id"');
+    if (idCol.length > 0 && idCol[0].Extra !== 'auto_increment') {
       console.log('[INIT] Migrating users: forcing AUTO_INCREMENT on id');
       await connection.query('ALTER TABLE users MODIFY id INT AUTO_INCREMENT');
+    }
+
+    const [createdByCol]: any = await connection.query('SHOW COLUMNS FROM users LIKE "createdBy"');
+    if (createdByCol.length > 0 && createdByCol[0].Type.toLowerCase().includes('varchar')) {
+      console.log('[INIT] Migrating users: changing createdBy from VARCHAR to INT');
+      await connection.query('UPDATE users SET createdBy = 0 WHERE createdBy = "System" OR createdBy = "" OR createdBy IS NULL');
+      await connection.query('ALTER TABLE users MODIFY createdBy INT DEFAULT 0');
     }
 
     // Extension: Professionals
@@ -288,7 +295,14 @@ async function initializeDatabase() {
       }
       if (!hasCreatedBy) {
         console.log('[INIT] Migrating work_orders: adding createdBy column');
-        await connection.query('ALTER TABLE work_orders ADD COLUMN createdBy VARCHAR(255)');
+        await connection.query('ALTER TABLE work_orders ADD COLUMN createdBy INT DEFAULT 0');
+      } else {
+        const [createdBySpec]: any = await connection.query('SHOW COLUMNS FROM work_orders LIKE "createdBy"');
+        if (createdBySpec.length > 0 && createdBySpec[0].Type.toLowerCase().includes('varchar')) {
+          console.log('[INIT] Migrating work_orders: changing createdBy from VARCHAR to INT');
+          await connection.query('UPDATE work_orders SET createdBy = 0 WHERE createdBy = "System" OR createdBy = "" OR createdBy IS NULL');
+          await connection.query('ALTER TABLE work_orders MODIFY createdBy INT DEFAULT 0');
+        }
       }
       if (!hasDeletedAt) {
         console.log('[INIT] Migrating work_orders: adding deletedAt column');
@@ -311,7 +325,7 @@ async function initializeDatabase() {
       if (woColumns.length > 0) {
         console.log('[INIT] Migrating work_orders: moving description to work_order_observations...');
         const [ordersWithDesc]: any = await connection.query('SELECT id, description, createdBy FROM work_orders WHERE description IS NOT NULL AND description != ""');
-        
+
         for (const order of ordersWithDesc) {
           // Try to find a valid userId for the createdBy name if it's numeric, or default to a system user
           let creatorId = parseInt(order.createdBy);
@@ -325,7 +339,7 @@ async function initializeDatabase() {
             [order.id, creatorId, order.description]
           );
         }
-        
+
         console.log(`[INIT] Migrated ${ordersWithDesc.length} descriptions. Dropping column description.`);
         try {
           await connection.query('ALTER TABLE work_orders DROP COLUMN description');
@@ -638,13 +652,17 @@ app.put('/api/clients/:id', async (req, res) => {
     await connection.commit();
     console.log('[DEBUG] Transaction committed successfully');
 
-    // Fetch updated fields to include IDs in response
+    // Fetch updated fields to include IDs in response, and parse lots
     const [fieldsRows]: any = await pool.query('SELECT * FROM fields WHERE clientId = ?', [userId]);
+    const formattedFields = fieldsRows.map((f: any) => ({
+      ...f,
+      lots: f.lotNames ? JSON.parse(f.lotNames) : []
+    }));
 
     res.json({
       success: true,
       id: userId,
-      fields: fieldsRows,
+      fields: formattedFields,
       message: 'Client and fields updated successfully'
     });
   } catch (error) {
@@ -888,7 +906,7 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
     }
 
     console.log('[DEBUG] POST /api/work-orders - RECIBIDO BODY:', JSON.stringify(req.body));
-    
+
     const dbData: any = {
       clientId: finalClientId || null,
       profesionalId: profesionalId || null,
@@ -902,7 +920,7 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       hectares: parseFloat(cleanHectares) || 0,
       amountUsd: parseFloat(cleanAmount) || 0,
       status: 'Pendiente',
-      createdBy: (req as any).user?.id || 'System'
+      createdBy: (req as any).user?.id || 0
     };
 
     // Explicit audit: ensuring NO description field exists in dbData
