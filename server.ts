@@ -84,29 +84,29 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
     console.log('[SEED] Inserting Admin...');
     await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 0]
+      ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 1]
     );
 
     // 2. Profesional
     console.log('[SEED] Inserting Profesional...');
     const [profRes]: any = await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 0]
+      ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 1]
     );
     await connection.query(
       'INSERT INTO profesionals (userId, specialty, phoneNumber) VALUES (?, ?, ?)',
-      [profRes.insertId, 'Ingeniero Agrónomo - Especialista en Riego', '+54 9 11 5555-1234']
+      [profRes.insertId, 'Ingeniero Agrónomo - Especialista en Riego', '5491155551234']
     );
 
     // 3. Cliente
     console.log('[SEED] Inserting Cliente...');
     const [clientRes]: any = await connection.query(
       'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 0]
+      ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 1]
     );
     await connection.query(
       'INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber) VALUES (?, ?, ?, ?, ?)',
-      [clientRes.insertId, 'La Estancia S.A.', '20-12345678-9', 'Responsable Inscripto', '+54 9 351 987-6543']
+      [clientRes.insertId, 'La Estancia S.A.', '20123456789', 'Responsable Inscripto', '5493519876543']
     );
 
     console.log('[SEED] SUCCESS: Default users and extensions seeded.');
@@ -131,7 +131,7 @@ async function initializeDatabase() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         role ENUM('admin', 'profesional', 'client') NOT NULL,
-        createdBy INT DEFAULT 0,
+        createdBy INT DEFAULT 1,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -295,7 +295,7 @@ async function initializeDatabase() {
       }
       if (!hasCreatedBy) {
         console.log('[INIT] Migrating work_orders: adding createdBy column');
-        await connection.query('ALTER TABLE work_orders ADD COLUMN createdBy INT DEFAULT 0');
+        await connection.query('ALTER TABLE work_orders ADD COLUMN createdBy INT DEFAULT 1');
       } else {
         const [createdBySpec]: any = await connection.query('SHOW COLUMNS FROM work_orders LIKE "createdBy"');
         if (createdBySpec.length > 0 && createdBySpec[0].Type.toLowerCase().includes('varchar')) {
