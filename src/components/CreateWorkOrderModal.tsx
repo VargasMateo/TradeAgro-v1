@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent, useRef } from 'react';
 import {
   Info,
   Settings,
@@ -29,6 +29,7 @@ export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const isOpen = searchParams.get('newJob') === 'true' || searchParams.get('editJob') !== null;
   const editJobId = searchParams.get('editJob');
@@ -361,7 +362,38 @@ export default function CreateWorkOrderModal() {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      // Scroll to first error? For now just set state.
+
+      // Scroll to first error
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          const errorKeyToName: Record<string, string> = {
+            profesionalId: 'profesional',
+            clientId: 'client',
+            client: 'client',
+            field: 'field',
+            lot: 'lot',
+            hectares: 'hectares',
+            amount: 'amount',
+            service: 'service',
+            title: 'title',
+            date: 'date',
+            campaign: 'campaign'
+          };
+
+          // Find the first error in the requiredFields order or from keys
+          const firstErrorKey = requiredFields.find(f => newErrors[f.key])?.key || Object.keys(newErrors)[0];
+          const inputName = errorKeyToName[firstErrorKey] || firstErrorKey;
+          
+          const errorElement = scrollContainerRef.current.querySelector(`[name="${inputName}"]`);
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Optionally focus the element as well
+            if (errorElement instanceof HTMLElement) {
+              errorElement.focus({ preventScroll: true });
+            }
+          }
+        }
+      }, 100);
       return;
     }
 
@@ -491,7 +523,7 @@ export default function CreateWorkOrderModal() {
         </div>
 
         {/* Content Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-3xl space-y-6 pb-4">
 
             {/* FORM STEP */}
