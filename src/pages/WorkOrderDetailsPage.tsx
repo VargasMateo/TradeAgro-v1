@@ -6,7 +6,6 @@ import {
   Edit,
   Info,
   MapPin,
-  User,
   Wrench,
   FileText,
   Paperclip,
@@ -531,7 +530,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               <button
                 onClick={handleAddObservation}
                 disabled={!newObservation.trim()}
-                className="flex items-center justify-center rounded-xl bg-[#2e7d32] px-4 py-2.5 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2e7d32] text-white transition-colors hover:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Send className="h-4 w-4" />
               </button>
