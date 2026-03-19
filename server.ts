@@ -608,9 +608,13 @@ app.put('/api/clients/:id', async (req, res) => {
     await connection.commit();
     console.log('[DEBUG] Transaction committed successfully');
 
+    // Fetch updated fields to include IDs in response
+    const [fieldsRows]: any = await pool.query('SELECT * FROM fields WHERE clientId = ?', [userId]);
+
     res.json({
       success: true,
       id: userId,
+      fields: fieldsRows,
       message: 'Client and fields updated successfully'
     });
   } catch (error) {

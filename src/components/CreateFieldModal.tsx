@@ -113,7 +113,7 @@ export default function CreateFieldModal({
 
         const updatedClient = {
           ...client,
-          fields: updatedFields
+          fields: data.fields || updatedFields
         };
 
         // Notify parent

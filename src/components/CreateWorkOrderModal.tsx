@@ -570,37 +570,39 @@ export default function CreateWorkOrderModal() {
                           {errors.profesionalId}
                         </p>
                       )}
-                      {showProfesionalSuggestions && (profesionalSuggestions.length > 0 || !profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase())) && (
-                        <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                          {profesionalSuggestions.map((p: any) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col cursor-pointer"
-                              onClick={() => {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  profesional: p.displayName,
-                                  profesionalId: p.id
-                                }));
-                                setShowProfesionalSuggestions(false);
-                              }}
-                            >
-                              <span className="font-bold">{p.displayName}</span>
-                              {p.specialty && <span className="text-[10px] text-slate-500 capitalize">{p.specialty}</span>}
-                            </button>
-                          ))}
-                          {!profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()) && (
-                            <button
-                              type="button"
-                              className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
-                              onClick={() => setIsCreateProfesionalModalOpen(true)}
-                            >
-                              {formData.profesional.trim() !== '' ? `+ Crear "${formData.profesional}"` : '+ Crear nuevo profesional'}
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                        {showProfesionalSuggestions && (profesionalSuggestions.length > 0 || !profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase())) && (
+                          <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                            {profesionalSuggestions.map((p: any) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col cursor-pointer"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    profesional: p.displayName,
+                                    profesionalId: p.id
+                                  }));
+                                  setShowProfesionalSuggestions(false);
+                                }}
+                              >
+                                <span className="font-bold">{p.displayName}</span>
+                                {p.specialty && <span className="text-[10px] text-slate-500 capitalize">{p.specialty}</span>}
+                              </button>
+                            ))}
+                            {!profesionales.some((p: any) => (p.displayName || '').toLowerCase() === formData.profesional.toLowerCase()) && (
+                              <button
+                                type="button"
+                                className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
+                                onClick={() => setIsCreateProfesionalModalOpen(true)}
+                              >
+                                {formData.profesional.trim() !== '' ? `+ Crear "${formData.profesional}"` : '+ Crear nuevo profesional'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -635,44 +637,47 @@ export default function CreateWorkOrderModal() {
                         {errors.client}
                       </p>
                     )}
-                    {showClientSuggestions && (clientSuggestions.length > 0 || !clients.some((c: any) => (c.name || '').toLowerCase() === formData.client.toLowerCase())) && (
-                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                        {clientSuggestions.map((c: any) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col cursor-pointer"
-                            onClick={() => {
-                              const hasSingleField = c.fields && c.fields.length === 1;
-                              const singleField = hasSingleField ? c.fields[0] : null;
-                              const hasSingleLot = singleField && singleField.lots && singleField.lots.length === 1;
-                              const singleLot = hasSingleLot ? singleField.lots[0] : '';
-
-                              setFormData(prev => ({
-                                ...prev,
-                                client: c.name,
-                                clientId: c.id,
-                                field: singleField ? singleField.name : '',
-                                lot: singleLot
-                              }));
-                              setShowClientSuggestions(false);
-                            }}
-                          >
-                            <span className="font-bold">{c.name}</span>
-                            {c.businessName && <span className="text-[10px] text-slate-500">{c.businessName}</span>}
-                          </button>
-                        ))}
-                        {!clients.some((c: any) => c.name.toLowerCase() === formData.client.toLowerCase()) && (
-                          <button
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
-                            onClick={() => setIsCreateClientModalOpen(true)}
-                          >
-                            {formData.client.trim() !== '' ? `+ Crear "${formData.client}"` : '+ Crear nuevo cliente'}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showClientSuggestions && (clientSuggestions.length > 0 || !clients.some((c: any) => (c.name || '').toLowerCase() === formData.client.toLowerCase())) && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {clientSuggestions.map((c: any) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex flex-col cursor-pointer"
+                              onClick={() => {
+                                const hasSingleField = c.fields && c.fields.length === 1;
+                                const singleField = hasSingleField ? c.fields[0] : null;
+                                const hasSingleLot = singleField && singleField.lots && singleField.lots.length === 1;
+                                const singleLot = hasSingleLot ? singleField.lots[0] : '';
+  
+                                setFormData(prev => ({
+                                  ...prev,
+                                  client: c.name,
+                                  clientId: c.id,
+                                  field: singleField ? singleField.name : '',
+                                  fieldId: singleField ? singleField.id : '',
+                                  lot: singleLot
+                                }));
+                                setShowClientSuggestions(false);
+                              }}
+                            >
+                              <span className="font-bold">{c.name}</span>
+                              {c.businessName && <span className="text-[10px] text-slate-500">{c.businessName}</span>}
+                            </button>
+                          ))}
+                          {!clients.some((c: any) => c.name.toLowerCase() === formData.client.toLowerCase()) && (
+                            <button
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
+                              onClick={() => setIsCreateClientModalOpen(true)}
+                            >
+                              {formData.client.trim() !== '' ? `+ Crear "${formData.client}"` : '+ Crear nuevo cliente'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -766,49 +771,51 @@ export default function CreateWorkOrderModal() {
                         {errors.field}
                       </p>
                     )}
-                    {showFieldSuggestions && (fieldSuggestions.length > 0 || !fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase())) && (
-                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                        {fieldSuggestions.map((f: string) => (
-                          <button
-                            key={f}
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
-                            onClick={() => {
-                              const foundField = selectedClientObj?.fields?.find((fieldObj: any) => fieldObj.name === f);
-                              setFormData(prev => ({
-                                ...prev,
-                                field: f,
-                                fieldId: foundField?.id || ''
-                              }));
-                              setShowFieldSuggestions(false);
-                            }}
-                          >
-                            {f}
-                          </button>
-                        ))}
-                        {!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && (
-                          <button
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
-                            onClick={() => {
-                              if (selectedClientObj) {
-                                setIsCreateFieldModalOpen(true);
-                              } else {
-                                setValidationDialog({
-                                  show: true,
-                                  title: 'Selección Requerida',
-                                  message: 'Por favor, seleccione un cliente primero para poder asociar el campo.',
-                                  type: 'warning'
-                                });
-                              }
-                              setShowFieldSuggestions(false);
-                            }}
-                          >
-                            {formData.field.trim() !== '' ? `+ Crear "${formData.field}"` : '+ Crear nuevo campo'}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showFieldSuggestions && (fieldSuggestions.length > 0 || !fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase())) && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {fieldSuggestions.map((f: string) => (
+                            <button
+                              key={f}
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
+                              onClick={() => {
+                                const foundField = selectedClientObj?.fields?.find((fieldObj: any) => fieldObj.name === f);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  field: f,
+                                  fieldId: foundField?.id || ''
+                                }));
+                                setShowFieldSuggestions(false);
+                              }}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                          {!fieldNames.some((f: any) => f && f.toLowerCase() === formData.field.toLowerCase()) && (
+                            <button
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
+                              onClick={() => {
+                                if (selectedClientObj) {
+                                  setIsCreateFieldModalOpen(true);
+                                } else {
+                                  setValidationDialog({
+                                    show: true,
+                                    title: 'Selección Requerida',
+                                    message: 'Por favor, seleccione un cliente primero para poder asociar el campo.',
+                                    type: 'warning'
+                                  });
+                                }
+                                setShowFieldSuggestions(false);
+                              }}
+                            >
+                              {formData.field.trim() !== '' ? `+ Crear "${formData.field}"` : '+ Crear nuevo campo'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5 relative">
@@ -834,46 +841,48 @@ export default function CreateWorkOrderModal() {
                           : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                       )}
                     />
-                    {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
-                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                        {lotSuggestions.map((l: string) => (
-                          <button
-                            key={l}
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
-                            onClick={() => {
-                              setFormData(prev => ({ ...prev, lot: l }));
-                              setShowLotSuggestions(false);
-                            }}
-                          >
-                            {l}
-                          </button>
-                        ))}
-                        {selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
-                          <button
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
-                            onClick={() => {
-                              setClients((prev: any) => prev.map((c: any) =>
-                                c.id === selectedClientObj.id
-                                  ? {
-                                    ...c,
-                                    fields: c.fields.map((f: any) =>
-                                      f.name === selectedFieldObj.name
-                                        ? { ...f, lots: [...f.lots, formData.lot] }
-                                        : f
-                                    )
-                                  }
-                                  : c
-                              ));
-                              setShowLotSuggestions(false);
-                            }}
-                          >
-                            {formData.lot.trim() !== '' ? `+ Crear lote "${formData.lot}"` : '+ Crear nuevo lote'}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showLotSuggestions && (lotSuggestions.length > 0 || (selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()))) && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {lotSuggestions.map((l: string) => (
+                            <button
+                              key={l}
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, lot: l }));
+                                setShowLotSuggestions(false);
+                              }}
+                            >
+                              {l}
+                            </button>
+                          ))}
+                          {selectedFieldObj && !selectedFieldObj.lots.some((l: string) => l.toLowerCase() === formData.lot.toLowerCase()) && (
+                            <button
+                              type="button"
+                              className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
+                              onClick={() => {
+                                setClients((prev: any) => prev.map((c: any) =>
+                                  c.id === selectedClientObj.id
+                                    ? {
+                                      ...c,
+                                      fields: c.fields.map((f: any) =>
+                                        f.name === selectedFieldObj.name
+                                          ? { ...f, lots: [...f.lots, formData.lot] }
+                                          : f
+                                      )
+                                    }
+                                    : c
+                                ));
+                                setShowLotSuggestions(false);
+                              }}
+                            >
+                              {formData.lot.trim() !== '' ? `+ Crear lote "${formData.lot}"` : '+ Crear nuevo lote'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {errors.lot && (
                       <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
                         {errors.lot}
