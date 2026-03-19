@@ -558,7 +558,11 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                 <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
               ) : (
                 attachments.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group">
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group cursor-pointer"
+                    onClick={() => window.open(`${file.fileUrl}?download=true&t=${Date.now()}`, '_blank')}
+                  >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className={cn(
                         "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
@@ -577,16 +581,20 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                     </div>
                     <div className="flex items-center gap-1">
                       <a
-                        href={file.fileUrl}
+                        href={`${file.fileUrl}?download=true&t=${Date.now()}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <Download className="h-4 w-4" />
                       </a>
                       {(userRole === 'admin' || (currentUser && currentUser.id === file.uploadedBy)) && (
                         <button
-                          onClick={() => handleDeleteAttachment(file.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAttachment(file.id);
+                          }}
                           className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                         >
                           <X className="h-4 w-4" />

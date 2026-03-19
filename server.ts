@@ -1181,6 +1181,8 @@ app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any
 // New Endpoint: Serve File Content from DB
 app.get('/api/attachments/:id/content', async (req, res) => {
   const { id } = req.params;
+  const { download } = req.query;
+  console.log(`[DEBUG] GET /api/attachments/${id}/content - download=${download}`);
   try {
     const [rows]: any = await pool.query('SELECT fileData, fileName, fileType FROM work_order_attachments WHERE id = ?', [id]);
 
@@ -1189,9 +1191,11 @@ app.get('/api/attachments/:id/content', async (req, res) => {
     }
 
     const { fileData, fileName, fileType } = rows[0];
+    console.log(`[DEBUG] Serving file: ${fileName} (${fileType}) - download mode: ${download === 'true'}`);
+    const disposition = download === 'true' ? 'attachment' : 'inline';
 
     res.setHeader('Content-Type', fileType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `${disposition}; filename="${fileName}"`);
     res.send(fileData);
   } catch (error: any) {
     console.error('[DATABASE ERROR] GET /api/attachments/:id/content:', error.message);
