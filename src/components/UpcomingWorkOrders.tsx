@@ -1,45 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Clock, MapPin, ArrowRight, Plus } from "lucide-react";
-
-const initialJobs = [
-  {
-    id: "#AG-8842",
-    client: "AgroExport S.A.",
-    location: "Lote 24, Sector Norte",
-    service: "Siembra Maíz",
-    status: "En Proceso",
-    date: "Hoy, 08:00 AM",
-    color: "emerald",
-  },
-  {
-    id: "#AG-8841",
-    client: "Finca La Estela",
-    location: "Parcela 12",
-    service: "Fumigación",
-    status: "Pendiente",
-    date: "Mañana, 07:30 AM",
-    color: "blue",
-  },
-  {
-    id: "#AG-8839",
-    client: "Cooperativa Sur",
-    location: "Distrito Industrial",
-    service: "Fertilización",
-    status: "En Proceso",
-    date: "Mañana, 10:00 AM",
-    color: "indigo",
-  },
-  {
-    id: "#AG-8837",
-    client: "Campo Verde",
-    location: "Lote 10",
-    service: "Siembra Soja",
-    status: "Pendiente",
-    date: "Jue 12, 09:00 AM",
-    color: "emerald",
-  },
-];
+import { ClipboardList, Clock, MapPin, ArrowRight } from "lucide-react";
 
 export default function UpcomingWorkOrders() {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -120,7 +81,7 @@ export default function UpcomingWorkOrders() {
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <Calendar className="h-5 w-5 text-emerald-600" /> Próximas Órdenes
+          <ClipboardList className="h-5 w-5 text-emerald-600" /> Próximas Órdenes
         </h3>
         <Link to="/work-orders" className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1">
           Ver todas <ArrowRight className="h-4 w-4" />
@@ -166,7 +127,7 @@ export default function UpcomingWorkOrders() {
           ))
         ) : (
           <div className="w-full flex flex-col items-center justify-center py-10 px-6 rounded-3xl border-2 border-dashed border-slate-100 bg-white">
-            <Calendar className="h-8 w-8 mb-6 text-slate-300" />
+            <ClipboardList className="h-8 w-8 mb-6 text-slate-300" />
             <h4 className="text-slate-900 font-bold text-lg mb-2 text-center">No hay órdenes programadas</h4>
             <p className="text-slate-500 text-sm text-center max-w-[320px] mb-8 leading-relaxed">
               Tu agenda está despejada por ahora...

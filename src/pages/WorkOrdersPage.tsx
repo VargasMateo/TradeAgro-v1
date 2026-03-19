@@ -21,6 +21,7 @@ import {
   X,
   LayoutGrid,
   List,
+  ClipboardList
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import WorkOrderCard from "../components/WorkOrderCard";
@@ -465,7 +466,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="rounded-2xl bg-slate-50 p-8 text-center border border-dashed border-slate-200">
-            <Tractor className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+            <ClipboardList className="mx-auto h-10 w-10 text-slate-300 mb-3" />
             <h3 className="text-sm font-semibold text-slate-900">No se encontraron órdenes</h3>
             <p className="text-xs text-slate-500 mt-1">Intenta ajustar los filtros o crea una nueva.</p>
           </div>
@@ -527,7 +528,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center rounded-[2rem] bg-white border border-dashed border-slate-200 shadow-sm">
-            <Tractor className="h-12 w-12 text-slate-200 mb-4" />
+            <ClipboardList className="h-12 w-12 text-slate-200 mb-4" />
             <h3 className="text-lg font-bold text-slate-900">Sin resultados</h3>
             <p className="text-slate-500 text-sm max-w-xs text-center">
               No hay órdenes que coincidan con los criterios seleccionados.

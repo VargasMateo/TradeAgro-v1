@@ -12,7 +12,8 @@ import {
   Users,
   UserCheck,
   Calendar,
-  Shield
+  Shield,
+  ClipboardList
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
@@ -92,7 +93,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   const navItems = [
     { path: "/dashboard", label: "Inicio", icon: Home },
     //{ path: "/calendar", label: "Calendario", icon: Calendar },
-    { path: "/work-orders", label: "Órdenes", icon: Briefcase },
+    { path: "/work-orders", label: "Órdenes", icon: ClipboardList },
     //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
