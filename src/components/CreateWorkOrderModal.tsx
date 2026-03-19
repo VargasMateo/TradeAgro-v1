@@ -914,7 +914,7 @@ export default function CreateWorkOrderModal() {
                         onChange={handleInputChange}
                         placeholder="0.00"
                         className={cn(
-                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                           errors.hectares
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -942,7 +942,7 @@ export default function CreateWorkOrderModal() {
                         onChange={handleInputChange}
                         placeholder="0.00"
                         className={cn(
-                          "w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                          "w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                           errors.amount
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
