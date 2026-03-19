@@ -558,10 +558,10 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                 <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
               ) : (
                 attachments.map((file, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group cursor-pointer"
-                    onClick={() => window.open(`${file.fileUrl}?download=true&t=${Date.now()}`, '_blank')}
+                    onClick={() => window.open(`${file.fileUrl}`, '_blank')}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className={cn(
