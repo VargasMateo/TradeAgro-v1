@@ -1056,73 +1056,75 @@ export default function CreateWorkOrderModal() {
               </div>
 
               {/* Observaciones y Adjuntos */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900">Observaciones y Adjuntos</h3>
-                </div>
-
-                <div className="space-y-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Observaciones</label>
-                    <textarea
-                      rows={3}
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleInputChange}
-                      placeholder="Agregue detalles adicionales..."
-                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    ></textarea>
+              {!editJobId && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Observaciones y Adjuntos</h3>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700">Archivos Adjuntos</label>
-                    <div
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 transition-colors hover:bg-slate-100 cursor-pointer relative"
-                      onClick={() => document.getElementById('file-upload')?.click()}
-                    >
-                      <input
-                        id="file-upload"
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                      <div className="mb-2 rounded-full bg-emerald-100 p-2 text-emerald-600">
-                        <UploadCloud className="h-5 w-5" />
-                      </div>
-                      <p className="text-sm font-medium text-slate-900">Haz clic para subir o arrastra y suelta</p>
-                      <p className="mt-0.5 text-xs text-slate-500">Imágenes, PDF, etc. (Máx. 10MB)</p>
+                  <div className="space-y-5">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold text-slate-700">Observaciones</label>
+                      <textarea
+                        rows={3}
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        placeholder="Agregue detalles adicionales..."
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      ></textarea>
                     </div>
 
-                    {selectedFiles.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {selectedFiles.map((file, idx) => (
-                          <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm">
-                            <div className="flex items-center gap-2 overflow-hidden">
-                              <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
-                              <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
-                              <span className="shrink-0 text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFileRemove(idx);
-                              }}
-                              className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold text-slate-700">Archivos Adjuntos</label>
+                      <div
+                        className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 transition-colors hover:bg-slate-100 cursor-pointer relative"
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                      >
+                        <input
+                          id="file-upload"
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                        <div className="mb-2 rounded-full bg-emerald-100 p-2 text-emerald-600">
+                          <UploadCloud className="h-5 w-5" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-900">Haz clic para subir o arrastra y suelta</p>
+                        <p className="mt-0.5 text-xs text-slate-500">Imágenes, PDF, etc. (Máx. 10MB)</p>
                       </div>
-                    )}
+
+                      {selectedFiles.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {selectedFiles.map((file, idx) => (
+                            <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm">
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
+                                <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
+                                <span className="shrink-0 text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileRemove(idx);
+                                }}
+                                className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* SUCCESS STEP */}
@@ -1243,7 +1245,7 @@ export default function CreateWorkOrderModal() {
                   </div>
 
                   {/* Summary Section 4 - Observations */}
-                  {formData.notes && formData.notes.trim() && (
+                  {!editJobId && formData.notes && formData.notes.trim() && (
                     <div>
                       <h5 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                         <FileText className="h-3 w-3" /> Observaciones
@@ -1257,7 +1259,7 @@ export default function CreateWorkOrderModal() {
                   )}
 
                   {/* Summary Section 4 - NEW: Attachments */}
-                  {selectedFiles.length > 0 && (
+                  {!editJobId && selectedFiles.length > 0 && (
                     <div>
                       <h5 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                         <Paperclip className="h-3 w-3" /> Archivos Adjuntos ({selectedFiles.length})
