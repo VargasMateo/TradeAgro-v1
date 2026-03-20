@@ -4,6 +4,23 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect } from 'react';
 
+// Custom CSS to clean up Leaflet popups
+const popupStyles = `
+  .custom-map-popup .leaflet-popup-content-wrapper {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  .custom-map-popup .leaflet-popup-content {
+    margin: 0;
+    width: auto !important;
+  }
+  .custom-map-popup .leaflet-popup-tip-container {
+    display: none;
+  }
+`;
+
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
@@ -85,43 +102,46 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
     }
   }, [markers]);
   return (
-    <MapContainer
-      center={center}
-      zoom={13}
-      scrollWheelZoom={false}
-      zoomControl={false}
-      style={{ height: '100%', width: '100%', borderRadius: '1rem' }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <ZoomControl position="bottomleft" />
-      <ZoomHandler />
-      {markers && <FitBounds markers={markers} />}
-      {markers ? (
-        markers.map((marker, index) => {
-          console.log(`[MAP COMPONENT] Marker ${index}: position=${marker.position[0]},${marker.position[1]}`);
-          return (
-            <Marker key={index} position={marker.position} icon={customFieldIcon}>
-              {marker.popupContent && (
-                <Popup>
-                  {marker.popupContent}
-                </Popup>
-              )}
-            </Marker>
-          );
-        })
-      ) : (
-        <Marker position={center} icon={customFieldIcon}>
-          {popupContent && (
-            <Popup>
-              {popupContent}
-            </Popup>
-          )}
-        </Marker>
-      )}
-    </MapContainer>
+    <>
+      <style>{popupStyles}</style>
+      <MapContainer 
+        center={center} 
+        zoom={13} 
+        scrollWheelZoom={false} 
+        zoomControl={false}
+        style={{ height: '100%', width: '100%', borderRadius: '1rem' }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ZoomControl position="bottomleft" />
+        <ZoomHandler />
+        {markers && <FitBounds markers={markers} />}
+        {markers ? (
+          markers.map((marker, index) => {
+            console.log(`[MAP COMPONENT] Marker ${index}: position=${marker.position[0]},${marker.position[1]}`);
+            return (
+              <Marker key={index} position={marker.position} icon={customFieldIcon}>
+                {marker.popupContent && (
+                  <Popup className="custom-map-popup" minWidth={180} maxWidth={240}>
+                    {marker.popupContent}
+                  </Popup>
+                )}
+              </Marker>
+            );
+          })
+        ) : (
+          <Marker position={center} icon={customFieldIcon}>
+            {popupContent && (
+              <Popup className="custom-map-popup" minWidth={180} maxWidth={240}>
+                {popupContent}
+              </Popup>
+            )}
+          </Marker>
+        )}
+      </MapContainer>
+    </>
   );
 };
 

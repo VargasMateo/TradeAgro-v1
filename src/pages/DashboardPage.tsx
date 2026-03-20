@@ -284,9 +284,39 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             .map((field: any) => ({
               position: [field.lat, field.lng] as [number, number],
               popupContent: (
-                <div className="text-center p-1">
-                  <p className="text-xs font-bold text-slate-900 mb-0.5">{client.name}</p>
-                  <p className="text-[10px] text-slate-500 leading-tight">{field.name}</p>
+                <div className="w-[200px] p-4 font-sans bg-white border-t-4 border-[#0A6C35]">
+                  <div className="space-y-4">
+                    {/* Header: Field Info */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-widest font-extrabold text-[#0A6C35]">Detalles del Campo</span>
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900 leading-tight">{field.name}</h4>
+                    </div>
+
+                    {/* Owner Info */}
+                    <div className="flex items-center gap-3 border-y border-slate-50">
+                      <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200">
+                        {client.name.charAt(0)}
+                      </div>
+                      <div className="flex flex-col">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none">Propietario</p>
+                        <p className="text-xs text-slate-700 font-bold truncate leading-none">{client.name}</p>
+                      </div>
+                    </div>
+
+                    {/* Branded Action Button */}
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#0A6C35] !text-white rounded-lg text-xs font-bold hover:opacity-90 transition-all shadow-md active:scale-[0.98] no-underline"
+                      style={{ color: 'white' }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
+                      Cómo llegar
+                    </a>
+                  </div>
                 </div>
               )
             }))
