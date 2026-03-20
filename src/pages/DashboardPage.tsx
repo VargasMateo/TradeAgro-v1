@@ -21,11 +21,13 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const [clients, setClients] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(true);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [userName, setUserName] = useState("Admin");
 
   useEffect(() => {
     const fetchClients = async () => {
       try {
+        setIsLoadingClients(true);
         const response = await fetch('/api/clients');
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
@@ -35,6 +37,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       } catch (error) {
         console.error('Error fetching clients on dashboard:', error);
         setClients([]);
+      } finally {
+        setIsLoadingClients(false);
       }
     };
 
@@ -113,6 +117,13 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     </div>
   );
 
+  const SkeletonMap = () => (
+    <div className="space-y-4 lg:col-span-2 order-5 animate-pulse">
+      <div className="h-7 w-48 bg-slate-100 rounded-md" />
+      <div className="h-[400px] w-full rounded-2xl bg-slate-100 border border-slate-200" />
+    </div>
+  );
+
   // Calculate real stats
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -146,7 +157,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const hasAnyWorkOrders = workOrders.length > 0;
 
   return (
-    <div className="animate-in fade-in duration-500 grid grid-cols-1 gap-8 lg:grid-cols-2">
+    <div className="animate-in fade-in duration-500 grid grid-cols-1 gap-y-6 gap-x-8 lg:grid-cols-2">
       {/* Greeting Card */}
       <div className="lg:col-span-2 order-first">
         <div className="rounded-2xl bg-[#2e7d32] p-6 text-white shadow-md">
@@ -253,9 +264,11 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       )}
 
-      {/* Map & Weather - Only for profesional and admin and if there are markers */}
+      {/* Map & Weather - Only for profesional and admin and if there are markers or loading */}
       {(userRole === 'profesional' || userRole === 'admin') && (() => {
-        const mapMarkers = clients.flatMap(client => 
+        if (isLoadingClients) return <SkeletonMap />;
+
+        const mapMarkers = clients.flatMap(client =>
           (client.fields || [])
             .filter((f: any) => f.lat !== undefined && f.lng !== undefined)
             .map((field: any) => ({
@@ -272,20 +285,15 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         if (mapMarkers.length === 0) return null;
 
         return (
-          <div className="rounded-[2rem] bg-slate-100 p-6 lg:col-span-2 order-5">
-            <div className="grid grid-cols-1 gap-8">
-              {/* Map Section */}
-              <div className="space-y-4">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                  <MapPin className="h-5 w-5 text-[#2e4a33]" /> Mapa de Clientes
-                </h3>
-                <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
-                  <Map markers={mapMarkers} />
-                  <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none">
-                    <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-                    {mapMarkers.length} {mapMarkers.length === 1 ? 'Campo Registrado' : 'Campos Registrados'}
-                  </div>
-                </div>
+          <div className="space-y-4 order-5 lg:col-span-2">
+            <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+              <MapPin className="h-5 w-5 text-emerald-600" /> Mapa de Clientes
+            </h3>
+            <div className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
+              <Map markers={mapMarkers} />
+              <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none border border-slate-100 transition-opacity">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                {mapMarkers.length} {mapMarkers.length === 1 ? 'Campo Registrado' : 'Campos Registrados'}
               </div>
             </div>
           </div>
