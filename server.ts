@@ -988,9 +988,16 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
  * Endpoint to update an existing job (trabajo)
  */
 app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
-  const jobId = req.params.id;
-  console.log(`[DEBUG] PUT /api/work-orders/${jobId} - Updating job:`, JSON.stringify(req.body));
+  const { id } = req.params;
+  console.log(`[DEBUG] PUT /api/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
   try {
+    // Resolve UUID/Numeric ID to internal numeric ID
+    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    if (woRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+    const internalJobId = woRows[0].id;
+
     const {
       clientId,
       profesionalId,
@@ -1037,8 +1044,8 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       amountUsd: parseFloat(cleanAmount) || 0,
     };
 
-    console.log(`[DEBUG] Updating work_orders id ${jobId}:`, JSON.stringify(dbData));
-    const [result]: any = await pool.query('UPDATE work_orders SET ? WHERE id = ?', [dbData, jobId]);
+    console.log(`[DEBUG] Updating work_orders id ${internalJobId}:`, JSON.stringify(dbData));
+    const [result]: any = await pool.query('UPDATE work_orders SET ? WHERE id = ?', [dbData, internalJobId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Job not found' });
@@ -1046,10 +1053,10 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      id: jobId
+      id: id
     });
-  } catch (error) {
-    console.error(`[DATABASE ERROR] PUT /api/work-orders/${jobId}:`, error);
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] PUT /api/work-orders/${id}:`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to update job',
@@ -1162,7 +1169,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
  * Upload attachments to a job
  */
 app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('files'), async (req: any, res) => {
-  const jobId = req.params.id;
+  const { id } = req.params;
   const files = req.files as Express.Multer.File[];
   const uploadedBy = req.user.id;
 
@@ -1171,10 +1178,17 @@ app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('fi
   }
 
   try {
+    // Resolve UUID/Numeric ID to internal numeric ID
+    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    if (woRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+    const internalJobId = woRows[0].id;
+
     const values = (req.files as Express.Multer.File[]).map(file => [
-      jobId,
+      internalJobId,
       file.originalname,
-      `/api/attachments/content/`, // Placeholder, will be updated or handled dynamically
+      `/api/attachments/content/`, // Placeholder
       file.mimetype,
       file.size,
       file.buffer, // Save the actual file data
@@ -1191,7 +1205,7 @@ app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('fi
 
     res.json({ success: true, message: 'Files uploaded successfully' });
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] POST /api/work-orders/${jobId}/attachments:`, error.message);
+    console.error(`[DATABASE ERROR] POST /api/work-orders/${id}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to save attachments' });
   }
 });
@@ -1200,11 +1214,18 @@ app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('fi
  * Fetch attachments for a job
  */
 app.get('/api/work-orders/:id/attachments', authenticateToken, async (req, res) => {
-  const jobId = req.params.id;
+  const { id } = req.params;
   try {
+    // Resolve UUID/Numeric ID to internal numeric ID
+    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    if (woRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+    const internalJobId = woRows[0].id;
+
     const [rows]: any = await pool.query(
       'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC',
-      [jobId]
+      [internalJobId]
     );
 
     // Add the dynamic URL for each attachment
@@ -1215,7 +1236,7 @@ app.get('/api/work-orders/:id/attachments', authenticateToken, async (req, res) 
 
     res.json(attachments);
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] GET /api/work-orders/${jobId}/attachments:`, error.message);
+    console.error(`[DATABASE ERROR] GET /api/work-orders/${id}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
   }
 });
@@ -1224,8 +1245,15 @@ app.get('/api/work-orders/:id/attachments', authenticateToken, async (req, res) 
  * Fetch observations for a job
  */
 app.get('/api/work-orders/:id/observations', authenticateToken, async (req, res) => {
-  const jobId = req.params.id;
+  const { id } = req.params;
   try {
+    // Resolve UUID/Numeric ID to internal numeric ID
+    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    if (woRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+    const internalJobId = woRows[0].id;
+
     const [rows]: any = await pool.query(
       `SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
               u.displayName, u.role
@@ -1233,11 +1261,11 @@ app.get('/api/work-orders/:id/observations', authenticateToken, async (req, res)
        JOIN users u ON o.userId = u.id
        WHERE o.workOrderId = ?
        ORDER BY o.createdAt ASC`,
-      [jobId]
+      [internalJobId]
     );
     res.json(rows);
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] GET /api/work-orders/${jobId}/observations:`, error.message);
+    console.error(`[DATABASE ERROR] GET /api/work-orders/${id}/observations:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch observations' });
   }
 });
@@ -1246,7 +1274,7 @@ app.get('/api/work-orders/:id/observations', authenticateToken, async (req, res)
  * Create a new observation for a job
  */
 app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any, res) => {
-  const jobId = req.params.id;
+  const { id } = req.params;
   const userId = req.user.id;
   const { text } = req.body;
 
@@ -1255,9 +1283,16 @@ app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any
   }
 
   try {
+    // Resolve UUID/Numeric ID to internal numeric ID
+    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    if (woRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+    const internalJobId = woRows[0].id;
+
     const [result]: any = await pool.query(
       'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
-      [jobId, userId, text.trim()]
+      [internalJobId, userId, text.trim()]
     );
 
     // Fetch the created observation with user info
@@ -1272,7 +1307,7 @@ app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any
 
     res.json({ success: true, observation: rows[0] });
   } catch (error: any) {
-    console.error(`[DATABASE ERROR] POST /api/work-orders/${jobId}/observations:`, error.message);
+    console.error(`[DATABASE ERROR] POST /api/work-orders/${id}/observations:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to create observation' });
   }
 });
