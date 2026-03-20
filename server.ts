@@ -571,11 +571,16 @@ app.get('/api/clients', async (req, res) => {
       if (!fieldsByClient[row.clientId]) {
         fieldsByClient[row.clientId] = [];
       }
+      const lat = row.lat !== null ? parseFloat(row.lat) : null;
+      const lng = row.lng !== null ? parseFloat(row.lng) : null;
+      
+      console.log(`[SERVER DEBUG] Processing field "${row.name}" (ID: ${row.id}): lat=${lat}, lng=${lng}`);
+
       fieldsByClient[row.clientId].push({
         id: row.id,
         name: row.name,
-        lat: row.lat !== null ? parseFloat(row.lat) : null,
-        lng: row.lng !== null ? parseFloat(row.lng) : null,
+        lat: lat,
+        lng: lng,
         lots: row.lotNames ? JSON.parse(row.lotNames) : []
       });
     });

@@ -272,7 +272,15 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
 
         const mapMarkers = clients.flatMap(client =>
           (client.fields || [])
-            .filter((f: any) => f.lat != null && f.lng != null)
+            .filter((f: any) => {
+              const isValid = f.lat != null && f.lng != null;
+              if (!isValid && f.name) {
+                console.log(`[MAP DEBUG] Filtering out field "${f.name}" (Client: ${client.name}) due to missing coordinates: lat=${f.lat}, lng=${f.lng}`);
+              } else if (isValid) {
+                console.log(`[MAP DEBUG] Adding marker for field "${f.name}" (Client: ${client.name}) at [${f.lat}, ${f.lng}]`);
+              }
+              return isValid;
+            })
             .map((field: any) => ({
               position: [field.lat, field.lng] as [number, number],
               popupContent: (
