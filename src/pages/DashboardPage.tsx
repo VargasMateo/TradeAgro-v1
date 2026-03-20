@@ -119,7 +119,9 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
 
   const SkeletonMap = () => (
     <div className="space-y-4 lg:col-span-2 order-5 animate-pulse">
-      <div className="h-7 w-48 bg-slate-100 rounded-md" />
+      <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+        <MapPin className="h-5 w-5 text-emerald-600" /> Mapa de Clientes
+      </h3>
       <div className="h-[400px] w-full rounded-2xl bg-slate-100 border border-slate-200" />
     </div>
   );
