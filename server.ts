@@ -574,8 +574,8 @@ app.get('/api/clients', async (req, res) => {
       fieldsByClient[row.clientId].push({
         id: row.id,
         name: row.name,
-        lat: parseFloat(row.lat) || 0,
-        lng: parseFloat(row.lng) || 0,
+        lat: row.lat !== null ? parseFloat(row.lat) : null,
+        lng: row.lng !== null ? parseFloat(row.lng) : null,
         lots: row.lotNames ? JSON.parse(row.lotNames) : []
       });
     });
