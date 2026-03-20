@@ -46,7 +46,7 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
     <MapContainer
       center={center}
       zoom={13}
-      scrollWheelZoom={true}
+      scrollWheelZoom={false}
       zoomControl={false}
       style={{ height: '100%', width: '100%', borderRadius: '1rem' }}
     >

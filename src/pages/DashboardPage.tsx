@@ -272,7 +272,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
 
         const mapMarkers = clients.flatMap(client =>
           (client.fields || [])
-            .filter((f: any) => f.lat !== undefined && f.lng !== undefined)
+            .filter((f: any) => f.lat != null && f.lng != null)
             .map((field: any) => ({
               position: [field.lat, field.lng] as [number, number],
               popupContent: (
@@ -284,7 +284,9 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             }))
         );
 
-        if (mapMarkers.length === 0) return null;
+        const totalFields = clients.reduce((acc, client) => acc + (client.fields?.length || 0), 0);
+
+        if (mapMarkers.length === 0 && !isLoadingClients) return null;
 
         return (
           <div className="space-y-4 order-5 lg:col-span-2">
@@ -295,7 +297,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
               <Map markers={mapMarkers} />
               <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none border border-slate-100 transition-opacity">
                 <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                {mapMarkers.length} {mapMarkers.length === 1 ? 'Campo Registrado' : 'Campos Registrados'}
+                {totalFields} {totalFields === 1 ? 'Campo Registrado' : 'Campos Registrados'}
               </div>
             </div>
           </div>
