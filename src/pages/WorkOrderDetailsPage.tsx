@@ -587,7 +587,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                   <div
                     key={index}
                     className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group cursor-pointer"
-                    onClick={() => window.open(`${file.fileUrl}`, '_blank')}
+                    onClick={() => window.open(`${file.fileUrl}?token=${localStorage.getItem('authToken')}&t=${Date.now()}`, '_blank')}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className={cn(
