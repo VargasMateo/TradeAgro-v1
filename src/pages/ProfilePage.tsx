@@ -8,7 +8,8 @@ import {
   Save,
   X,
   Loader2,
-  LogOut
+  LogOut,
+  ChevronDown
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -281,13 +282,21 @@ export default function ProfilePage({ userRole = 'profesional', onLogout }: Prof
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">Condición IVA</label>
-                      <input
-                        type="text"
-                        disabled={!isEditing}
-                        value={profile.ivaCondition || ''}
-                        onChange={(e) => setProfile({ ...profile, ivaCondition: e.target.value })}
-                        className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:text-slate-500"
-                      />
+                      <div className="relative">
+                        <select
+                          disabled={!isEditing}
+                          value={profile.ivaCondition || ''}
+                          onChange={(e) => setProfile({ ...profile, ivaCondition: e.target.value })}
+                          className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:border-emerald-500 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:text-slate-500"
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Responsable Inscripto">Responsable Inscripto</option>
+                          <option value="Monotributista">Monotributista</option>
+                        </select>
+                        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                          <ChevronDown className="h-4 w-4" />
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">Teléfono</label>
