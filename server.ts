@@ -53,7 +53,12 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Middleware to verify JWT
 const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  // Soporte para token por query param (útil para descargas directas)
+  if (!token && req.query.token) {
+    token = req.query.token as string;
+  }
 
   if (!token) {
     return res.status(401).json({ success: false, error: 'Acceso denegado. Token no proporcionado.' });
@@ -1190,20 +1195,41 @@ app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any
   }
 });
 
-// New Endpoint: Serve File Content from DB
-app.get('/api/attachments/:id/content', async (req, res) => {
+// New Endpoint: Serve File Content from DB (Secured)
+app.get('/api/attachments/:id/content', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const { download } = req.query;
-  console.log(`[DEBUG] GET /api/attachments/${id}/content - download=${download}`);
+  const user = req.user;
+  console.log(`[SECURE DEBUG] GET /api/attachments/${id}/content - UserID: ${user.id}, Role: ${user.role}, download=${download}`);
+  
   try {
-    const [rows]: any = await pool.query('SELECT fileData, fileName, fileType FROM work_order_attachments WHERE id = ?', [id]);
+    // Join with work_orders to check permissions in a single query
+    const [rows]: any = await pool.query(`
+      SELECT a.fileData, a.fileName, a.fileType, wo.clientId, wo.profesionalId
+      FROM work_order_attachments a
+      JOIN work_orders wo ON a.workOrderId = wo.id
+      WHERE a.id = ?
+    `, [id]);
 
     if (rows.length === 0 || !rows[0].fileData) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ error: 'Archivo no encontrado' });
     }
 
-    const { fileData, fileName, fileType } = rows[0];
-    console.log(`[DEBUG] Serving file: ${fileName} (${fileType}) - download mode: ${download === 'true'}`);
+    const { fileData, fileName, fileType, clientId, profesionalId } = rows[0];
+
+    // Authorization Check: Must be uploader (not explicitly needed if associated with job), 
+    // Admin, the assigned Profesional, or the Client for this job.
+    const isAuthorized = 
+      user.role === 'admin' || 
+      user.id === clientId || 
+      user.id === profesionalId;
+
+    if (!isAuthorized) {
+      console.warn(`[SECURE CAUTION] Unauthorized access attempt by UID ${user.id} to attachment ${id}`);
+      return res.status(403).json({ error: 'No tienes permisos para acceder a este archivo.' });
+    }
+
+    console.log(`[SECURE SUCCESS] Serving file: ${fileName} (${fileType}) to UID ${user.id}`);
     const disposition = download === 'true' ? 'attachment' : 'inline';
 
     res.setHeader('Content-Type', fileType || 'application/octet-stream');

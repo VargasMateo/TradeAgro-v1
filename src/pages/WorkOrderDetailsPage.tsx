@@ -581,7 +581,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                     </div>
                     <div className="flex items-center gap-1">
                       <a
-                        href={`${file.fileUrl}?download=true&t=${Date.now()}`}
+                        href={`${file.fileUrl}?token=${localStorage.getItem('authToken')}&download=true&t=${Date.now()}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors"
