@@ -15,31 +15,12 @@ import Map from "../components/Map";
 import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
 
-const stats = [
-  {
-    label: "Órdenes este mes",
-    value: "24",
-    change: "+12%",
-    icon: Clock,
-    color: "text-emerald-600",
-    bg: "bg-emerald-50",
-    changeColor: "text-emerald-600",
-    changeBg: "bg-emerald-100",
-  },
-  {
-    label: "Órdenes por hacer",
-    value: "09",
-    change: "-2%",
-    icon: Calendar,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    changeColor: "text-rose-600",
-    changeBg: "bg-rose-100",
-  },
-];
+
 
 export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [clients, setClients] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(true);
   const [userName, setUserName] = useState("Admin");
 
   useEffect(() => {
@@ -57,7 +38,24 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       }
     };
 
-    fetchClients();
+    const fetchWorkOrders = async () => {
+      setIsLoadingWorkOrders(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await fetch('/api/work-orders', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to fetch work orders');
+        const data = await response.json();
+        setWorkOrders(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching work orders on dashboard:', error);
+      } finally {
+        setIsLoadingWorkOrders(false);
+      }
+    };
 
     const loadProfile = () => {
       const storedProfile = localStorage.getItem("userProfile");
@@ -74,13 +72,17 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       }
     };
 
+    fetchClients();
+    fetchWorkOrders();
     loadProfile();
 
     window.addEventListener("profile-updated", loadProfile);
     window.addEventListener("clients-updated", fetchClients);
+    window.addEventListener("job-created", fetchWorkOrders);
     return () => {
       window.removeEventListener("profile-updated", loadProfile);
       window.removeEventListener("clients-updated", fetchClients);
+      window.removeEventListener("job-created", fetchWorkOrders);
     };
   }, []);
 
@@ -90,7 +92,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const formattedDate = today.toLocaleDateString('es-ES', options);
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
 
-  // Determinar el saludo según la hora
+  // Determine el saludo según la hora
   const hour = today.getHours();
   let greeting = "Buenos días";
   if (hour >= 12 && hour < 20) {
@@ -98,6 +100,50 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   } else if (hour >= 20 || hour < 6) {
     greeting = "Buenas noches";
   }
+
+  const SkeletonStats = () => (
+    <div className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="h-9 w-9 bg-slate-100 rounded-lg"></div>
+      </div>
+      <div className="mt-2 space-y-2">
+        <div className="h-3 w-20 bg-slate-50 rounded"></div>
+        <div className="h-8 w-12 bg-slate-100 rounded"></div>
+      </div>
+    </div>
+  );
+
+  // Calculate real stats
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const ordersThisMonth = workOrders.filter(wo => {
+    if (!wo.date) return false;
+    const d = new Date(wo.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).length;
+
+  const ordersPending = workOrders.filter(wo => wo.status !== 'Completado').length;
+
+  const dynamicStats = [
+    {
+      label: "Órdenes este mes",
+      value: ordersThisMonth.toString(),
+      icon: Clock,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+    {
+      label: "Órdenes por hacer",
+      value: ordersPending.toString(),
+      icon: Calendar,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+  ];
+
+  const hasAnyWorkOrders = workOrders.length > 0;
 
   return (
     <div className="animate-in fade-in duration-500 grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -161,14 +207,19 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       )}
 
-      {/* Stats Grid - Hidden for admin, visible for profesional */}
-      {userRole === 'profesional' && (
+      {/* Stats Grid - Hidden for admin, visible for profesional if there is data or loading */}
+      {userRole === 'profesional' && (isLoadingWorkOrders || hasAnyWorkOrders) && (
         <div className="space-y-4 order-3 lg:col-span-1">
           <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
             <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Órdenes
           </h3>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
-            {stats.map((stat, i) => (
+            {isLoadingWorkOrders ? (
+              <>
+                <SkeletonStats />
+                <SkeletonStats />
+              </>
+            ) : dynamicStats.map((stat, i) => (
               <div key={i} className="h-full">
                 <MagneticEffect className="rounded-2xl">
                   <div
@@ -178,13 +229,6 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                       <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
                         <stat.icon className="h-5 w-5" />
                       </div>
-                      {stat.change && (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stat.changeBg} ${stat.changeColor}`}
-                        >
-                          {stat.change}
-                        </span>
-                      )}
                     </div>
                     <div className="mt-2">
                       <p className="text-xs font-medium text-slate-500 truncate">
@@ -202,10 +246,12 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       )}
 
-      {/* Upcoming Jobs Section */}
-      <div className="order-4 lg:col-span-2">
-        <UpcomingWorkOrders />
-      </div>
+      {/* Upcoming Jobs Section - Hidden if no work orders AND not loading */}
+      {(isLoadingWorkOrders || hasAnyWorkOrders) && (
+        <div className="order-4 lg:col-span-2">
+          <UpcomingWorkOrders data={workOrders} isLoading={isLoadingWorkOrders} />
+        </div>
+      )}
 
       {/* Map & Weather - Only for profesional and admin */}
       {(userRole === 'profesional' || userRole === 'admin') && (

@@ -2,16 +2,36 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Clock, MapPin, ArrowRight } from "lucide-react";
 
-export default function UpcomingWorkOrders() {
-  const [workOrders, setWorkOrders] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function UpcomingWorkOrders({ data, isLoading: propLoading }: { data?: any[], isLoading?: boolean }) {
+  const [localWorkOrders, setLocalWorkOrders] = useState<any[]>([]);
+  const [localLoading, setLocalLoading] = useState(true);
+
+  const rawWorkOrders = data || localWorkOrders;
+  const isLoading = propLoading !== undefined ? propLoading : localLoading;
+
+  // Ensure dates are formatted correctly even when data is passed from parent
+  const workOrders = rawWorkOrders.slice(0, 5).map((wo: any) => {
+    // If date is already formatted (contains letters or is not ISO), keep it
+    // If it's an ISO string, format it
+    const isISO = wo.date && typeof wo.date === 'string' && wo.date.includes('T');
+    const formattedDate = isISO
+      ? new Date(wo.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+      : (wo.date || "Pendiente de fecha");
+
+    return {
+      ...wo,
+      date: formattedDate,
+      location: wo.location || `${wo.fieldName || 'Campo N/A'} - ${wo.lotName || 'Lote N/A'}`
+    };
+  });
 
   const loadWorkOrders = async () => {
-    setIsLoading(true);
+    if (data) return; // Skip if data is provided via props
+    setLocalLoading(true);
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        setIsLoading(false);
+        setLocalLoading(false);
         return;
       }
 
@@ -34,12 +54,12 @@ export default function UpcomingWorkOrders() {
           location: `${workOrder.fieldName || 'Campo N/A'} - ${workOrder.lotName || 'Lote N/A'}`
         }));
 
-      setWorkOrders(activeWorkOrders);
+      setLocalWorkOrders(activeWorkOrders);
     } catch (error) {
       console.error('Error fetching upcoming work orders:', error);
-      setWorkOrders([]);
+      setLocalWorkOrders([]);
     } finally {
-      setIsLoading(false);
+      setLocalLoading(false);
     }
   };
 
@@ -110,7 +130,7 @@ export default function UpcomingWorkOrders() {
                 <span className="text-xs font-semibold text-slate-400">{`#AG-${workOrder.id}`}</span>
               </div>
 
-              <h4 className="font-bold text-slate-900 mb-1 truncate">{workOrder.service}</h4>
+              <h4 className="font-bold text-slate-900 mb-1 truncate">{workOrder.service || workOrder.title}</h4>
               <p className="text-xs text-slate-500 mb-3 truncate">{workOrder.client}</p>
 
               <div className="space-y-2 pt-3 border-t border-slate-50">
