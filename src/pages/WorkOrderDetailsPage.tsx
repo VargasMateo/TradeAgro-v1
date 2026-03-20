@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom"
 import {
   ArrowLeft,
   Share2,
+  CheckCircle,
   Edit,
   Info,
   MapPin,
@@ -215,6 +216,18 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     fetchAttachments();
   }, [id]);
 
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="animate-in fade-in duration-500 pb-10">
@@ -336,9 +349,24 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           </div>
 
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
-              <Share2 className="h-4 w-4" />
-              Compartir
+            <button
+              onClick={handleShare}
+              className={cn(
+                "flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-300 active:scale-95 cursor-pointer",
+                copied
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
+              )}
+            >
+              {copied ? (
+                <>
+                  <CheckCircle className="h-4 w-4" /> ¡Copiado!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4" /> Compartir
+                </>
+              )}
             </button>
             {(userRole === 'profesional' || userRole === 'admin') && (
               <button
