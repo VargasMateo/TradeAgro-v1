@@ -20,10 +20,14 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists (safely for Vercel Serverless environment)
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (error: any) {
+  console.warn('[WARNING] Skipping uploads directory creation (expected in Serverless environments):', error.message);
 }
 
 // Multer config - Now using memory storage to save to DB
@@ -1622,6 +1626,10 @@ app.post('/api/test/reset-data', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Backend server running at http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Backend server running at http://localhost:${port}`);
+  });
+}
+
+export default app;

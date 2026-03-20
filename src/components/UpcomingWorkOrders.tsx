@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { ClipboardList, Clock, MapPin, ArrowRight } from "lucide-react";
 
 export default function UpcomingWorkOrders() {
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadJobs = async () => {
+  const loadWorkOrders = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('authToken');
@@ -22,37 +22,37 @@ export default function UpcomingWorkOrders() {
       });
       if (!response.ok) throw new Error('Failed to fetch jobs');
 
-      const parsedJobs = await response.json();
+      const parsedWorkOrders = await response.json();
 
-      // Filter for active/pending jobs
-      const activeJobs = parsedJobs
-        .filter((job: any) => job.status !== "Completado")
+      // Filter for active/pending work orders
+      const activeWorkOrders = parsedWorkOrders
+        .filter((workOrder: any) => workOrder.status !== "Completado")
         .slice(0, 5)
-        .map((job: any) => ({
-          ...job,
-          date: job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Pendiente de fecha",
-          location: `${job.fieldName || 'Campo N/A'} - ${job.lotName || 'Lote N/A'}`
+        .map((workOrder: any) => ({
+          ...workOrder,
+          date: workOrder.date ? new Date(workOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Pendiente de fecha",
+          location: `${workOrder.fieldName || 'Campo N/A'} - ${workOrder.lotName || 'Lote N/A'}`
         }));
 
-      setJobs(activeJobs);
+      setWorkOrders(activeWorkOrders);
     } catch (error) {
-      console.error('Error fetching upcoming jobs:', error);
-      setJobs([]);
+      console.error('Error fetching upcoming work orders:', error);
+      setWorkOrders([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadJobs();
+    loadWorkOrders();
 
-    const handleJobCreated = () => {
-      loadJobs();
+    const handleWorkOrderCreated = () => {
+      loadWorkOrders();
     };
 
-    window.addEventListener('job-created', handleJobCreated);
+    window.addEventListener('job-created', handleWorkOrderCreated);
     return () => {
-      window.removeEventListener('job-created', handleJobCreated);
+      window.removeEventListener('job-created', handleWorkOrderCreated);
     };
   }, []);
 
@@ -95,32 +95,32 @@ export default function UpcomingWorkOrders() {
             <SkeletonCard />
             <SkeletonCard />
           </>
-        ) : jobs.length > 0 ? (
-          jobs.map((job) => (
+        ) : workOrders.length > 0 ? (
+          workOrders.map((workOrder) => (
             <Link
-              key={job.id || Math.random()}
-              to={`/work-orders/${String(job.id).replace('#', '')}`}
+              key={workOrder.id || Math.random()}
+              to={`/work-orders/${String(workOrder.id).replace('#', '')}`}
               className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${job.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${workOrder.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
                   }`}>
-                  {job.status}
+                  {workOrder.status}
                 </span>
-                <span className="text-xs font-semibold text-slate-400">{`#AG-${job.id}`}</span>
+                <span className="text-xs font-semibold text-slate-400">{`#AG-${workOrder.id}`}</span>
               </div>
 
-              <h4 className="font-bold text-slate-900 mb-1 truncate">{job.service}</h4>
-              <p className="text-xs text-slate-500 mb-3 truncate">{job.client}</p>
+              <h4 className="font-bold text-slate-900 mb-1 truncate">{workOrder.service}</h4>
+              <p className="text-xs text-slate-500 mb-3 truncate">{workOrder.client}</p>
 
               <div className="space-y-2 pt-3 border-t border-slate-50">
                 <div className="flex items-center gap-2 text-xs text-slate-600">
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{job.date}</span>
+                  <span>{workOrder.date}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-600">
                   <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="truncate">{job.location}</span>
+                  <span className="truncate">{workOrder.location}</span>
                 </div>
               </div>
             </Link>
