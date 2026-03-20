@@ -253,40 +253,44 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       )}
 
-      {/* Map & Weather - Only for profesional and admin */}
-      {(userRole === 'profesional' || userRole === 'admin') && (
-        <div className="rounded-[2rem] bg-slate-100 p-6 lg:col-span-2 order-5">
-          <div className="grid grid-cols-1 gap-8">
-            {/* Map Section */}
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                <MapPin className="h-5 w-5 text-[#2e4a33]" /> Mapa de Clientes
-              </h3>
-              <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
-                <Map
-                  markers={clients.filter(c => c.lat && c.lng).map(client => ({
-                    position: [client.lat, client.lng],
-                    popupContent: (
-                      <div className="text-center">
-                        <strong className="block text-sm text-slate-900">{client.name}</strong>
-                        <span className="text-xs text-slate-500">
-                          {client.fields && client.fields.length > 0
-                            ? (typeof client.fields[0] === 'string' ? client.fields[0] : client.fields[0].name)
-                            : 'Sin campo'}
-                        </span>
-                      </div>
-                    )
-                  }))}
-                />
-                <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none">
-                  <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-                  {clients.length} Clientes Registrados
+      {/* Map & Weather - Only for profesional and admin and if there are markers */}
+      {(userRole === 'profesional' || userRole === 'admin') && (() => {
+        const mapMarkers = clients.flatMap(client => 
+          (client.fields || [])
+            .filter((f: any) => f.lat !== undefined && f.lng !== undefined)
+            .map((field: any) => ({
+              position: [field.lat, field.lng] as [number, number],
+              popupContent: (
+                <div className="text-center p-1">
+                  <p className="text-xs font-bold text-slate-900 mb-0.5">{client.name}</p>
+                  <p className="text-[10px] text-slate-500 leading-tight">{field.name}</p>
+                </div>
+              )
+            }))
+        );
+
+        if (mapMarkers.length === 0) return null;
+
+        return (
+          <div className="rounded-[2rem] bg-slate-100 p-6 lg:col-span-2 order-5">
+            <div className="grid grid-cols-1 gap-8">
+              {/* Map Section */}
+              <div className="space-y-4">
+                <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                  <MapPin className="h-5 w-5 text-[#2e4a33]" /> Mapa de Clientes
+                </h3>
+                <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
+                  <Map markers={mapMarkers} />
+                  <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none">
+                    <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                    {mapMarkers.length} {mapMarkers.length === 1 ? 'Campo Registrado' : 'Campos Registrados'}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
