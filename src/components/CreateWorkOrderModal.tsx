@@ -992,7 +992,7 @@ export default function CreateWorkOrderModal() {
                         value={formData.service}
                         onChange={handleInputChange}
                         className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
                           errors.service
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -1035,7 +1035,7 @@ export default function CreateWorkOrderModal() {
                         value={formData.campaign}
                         onChange={handleInputChange}
                         className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
+                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
                           errors.campaign
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
