@@ -7,28 +7,43 @@ import {
   Home,
   Briefcase,
   FileText,
-  Settings,
-  LogOut,
   Menu,
   Sun,
   Users,
+  UserCheck,
   Calendar,
-  Shield
+  Shield,
+  ClipboardList
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
 import NotificationsDropdown from "./NotificationsDropdown";
-import CreateJobModal from "./CreateJobModal";
+import CreateWorkOrderModal from "./CreateWorkOrderModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
-import { MOCK_USERS } from "../lib/mockUsers";
+import GlobalCreateProfesionalModal from "./GlobalCreateProfesionalModal";
 
-export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function Layout({ children, onLogout, userRole = 'profesional' }: { children: ReactNode, onLogout?: () => void, userRole?: 'profesional' | 'client' | 'admin' }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const [userProfile, setUserProfile] = useState(MOCK_USERS[userRole]);
+  const getInitialProfile = () => {
+    const saved = localStorage.getItem("userProfile");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.displayName || parsed.name || "Usuario",
+          email: parsed.email || "",
+          avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
+        };
+      } catch (e) { /* fall through */ }
+    }
+    return { name: "Usuario", email: "", avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+  };
+
+  const [userProfile, setUserProfile] = useState(getInitialProfile);
 
   useEffect(() => {
     const loadProfile = () => {
@@ -37,9 +52,9 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
         try {
           const parsed = JSON.parse(saved);
           setUserProfile({
-            name: parsed.name || "Admin User",
-            email: parsed.email || "admin@tradeagro.com",
-            avatarUrl: parsed.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+            name: parsed.displayName || parsed.name || "Usuario",
+            email: parsed.email || "",
+            avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
         } catch (e) {
           console.error("Error parsing user profile", e);
@@ -78,7 +93,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   const navItems = [
     { path: "/dashboard", label: "Inicio", icon: Home },
     //{ path: "/calendar", label: "Calendario", icon: Calendar },
-    { path: "/jobs", label: "Trabajos", icon: Briefcase },
+    { path: "/work-orders", label: "Órdenes", icon: ClipboardList },
     //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
@@ -87,15 +102,16 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/stations", label: "Estaciones", icon: Sun }
     );
-  } else if (userRole === 'cliente') {
+  } else if (userRole === 'client') {
     navItems.push(
-      { path: "/profesionales", label: "Profesionales", icon: Users }
+      { path: "/profesionales", label: "Profesionales", icon: UserCheck }
     );
-  } else if (userRole === 'superadmin') {
+  } else if (userRole === 'admin') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
-      { path: "/profesionales", label: "Profesionales", icon: Users },
-      { path: "/stations", label: "Estaciones", icon: Sun }
+      { path: "/profesionales", label: "Profesionales", icon: UserCheck },
+      { path: "/stations", label: "Estaciones", icon: Sun },
+      { path: "/db-test", label: "DB Test", icon: Shield },
     );
   }
 
@@ -172,8 +188,19 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
           {/* User Profile */}
           <div className="border-t border-slate-100 p-6">
-            <Link to="/profile" className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:bg-slate-100">
-              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow-sm">
+            <Link 
+              to="/profile" 
+              className={cn(
+                "flex items-center gap-3 rounded-2xl border p-3 transition-colors",
+                isActive("/profile") 
+                  ? "border-emerald-100 bg-emerald-50 shadow-sm"
+                  : "border-slate-100 bg-slate-50/50 hover:bg-slate-100"
+              )}
+            >
+              <div className={cn(
+                "h-10 w-10 overflow-hidden rounded-full border-2 shadow-sm",
+                isActive("/profile") ? "border-emerald-200" : "border-white"
+              )}>
                 <img
                   src={userProfile.avatarUrl}
                   alt={userProfile.name}
@@ -182,23 +209,19 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
                 />
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-bold text-slate-900">
+                <p className={cn(
+                  "truncate text-sm font-bold",
+                  isActive("/profile") ? "text-emerald-700" : "text-slate-900"
+                )}>
                   {userProfile.name}
                 </p>
-                <p className="truncate text-xs font-medium text-slate-500">
+                <p className={cn(
+                  "truncate text-xs font-medium",
+                  isActive("/profile") ? "text-emerald-600/80" : "text-slate-500"
+                )}>
                   {userProfile.email}
                 </p>
               </div>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onLogout?.();
-                }}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600 hover:shadow-sm"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
             </Link>
           </div>
         </div>
@@ -259,9 +282,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               />
             </div> */}
 
-            <Link to="/profile" className="hidden rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200 sm:block">
-              <Settings className="h-5 w-5" />
-            </Link>
+
 
             <Link to="/profile" className="h-8 w-8 overflow-hidden rounded-full border border-slate-200 sm:hidden">
               <img
@@ -281,8 +302,9 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       </div>
 
       {/* Global Modals */}
-      <CreateJobModal />
+      <CreateWorkOrderModal />
       <GlobalCreateClientModal />
+      <GlobalCreateProfesionalModal />
     </div>
   );
 }

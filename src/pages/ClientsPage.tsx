@@ -1,103 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle, RefreshCw, Copy, Check } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { Client, ClientField } from "../types/client";
 
-const initialClients: Client[] = [
-  {
-    id: 1,
-    name: "AgroExport S.A.",
-    businessName: "AgroExport Sociedad Anónima",
-    cuit: "30-12345678-9",
-    ivaCondition: "Responsable Inscripto",
-    email: "contacto@agroexport.com",
-    phone: "+54 9 11 1234-5678",
-    initials: "AE",
-    color: "bg-emerald-100 text-emerald-700",
-    lat: -34.6037,
-    lng: -58.3816,
-    fields: [
-      { name: 'Sector Norte', lat: -34.6037, lng: -58.3816, lots: ['Lote 24', 'Lote 25'] },
-      { name: 'Sector Sur', lat: -34.6100, lng: -58.3900, lots: ['Lote 15'] }
-    ]
-  },
-  {
-    id: 2,
-    name: "Finca La Estela",
-    businessName: "Estela Agricola S.R.L.",
-    cuit: "30-87654321-0",
-    ivaCondition: "Responsable Inscripto",
-    email: "admin@laestela.com",
-    phone: "+54 9 351 9876-5432",
-    initials: "FL",
-    color: "bg-blue-100 text-blue-700",
-    lat: -31.4201,
-    lng: -64.1888,
-    fields: [
-      { name: 'Campo Principal', lat: -31.4201, lng: -64.1888, lots: ['A1', 'A2'] },
-      { name: 'Anexo 1', lat: -31.4300, lng: -64.2000, lots: ['B1'] }
-    ]
-  },
-  {
-    id: 3,
-    name: "Juan Pérez",
-    cuit: "20-55554444-3",
-    ivaCondition: "Monotributista",
-    email: "juan.perez@email.com",
-    phone: "+54 9 341 5555-4444",
-    initials: "JP",
-    color: "bg-amber-100 text-amber-700",
-    lat: -31.6107,
-    lng: -60.6973,
-    fields: [
-      { name: 'El Ombú', lat: -31.6107, lng: -60.6973, lots: ['Lote Único'] },
-      { name: 'La Esperanza', lat: -31.6200, lng: -60.7000, lots: ['Potrero 1'] }
-    ]
-  },
-  {
-    id: 4,
-    name: "Cooperativa Sur",
-    businessName: "Cooperativa de Trabajo Sur Ltda.",
-    cuit: "33-11112222-4",
-    ivaCondition: "Responsable Inscripto",
-    email: "info@coopsur.org.ar",
-    phone: "+54 9 299 1111-2222",
-    initials: "CS",
-    color: "bg-indigo-100 text-indigo-700",
-    lat: -38.9516,
-    lng: -68.0591,
-    fields: []
-  },
-  {
-    id: 5,
-    name: "Los Alamos",
-    businessName: "Los Alamos S.A.",
-    cuit: "30-33339999-5",
-    ivaCondition: "Responsable Inscripto",
-    email: "gerencia@losalamos.com",
-    phone: "+54 9 261 3333-9999",
-    initials: "LA",
-    color: "bg-rose-100 text-rose-700",
-    lat: -32.8895,
-    lng: -68.8458,
-    fields: []
-  }
-];
-
 export default function ClientsPage() {
   const location = useLocation();
-  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Delete Modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -111,33 +32,29 @@ export default function ClientsPage() {
     fields: []
   });
 
-  useEffect(() => {
-    const loadClients = () => {
-      const storedClients = localStorage.getItem("clients");
-      if (storedClients) {
-        setClients(JSON.parse(storedClients));
-      } else {
-        localStorage.setItem("clients", JSON.stringify(initialClients));
+  const fetchClients = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/clients');
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
       }
-    };
-
-    loadClients();
-
-    // Check for openForm state
-    if (location.state && (location.state as any).openForm) {
-      handleAddNew();
-      // Clear state to prevent reopening on refresh (optional, but good practice)
-      window.history.replaceState({}, document.title);
+      const data = await response.json();
+      setClients(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      setClients([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    window.addEventListener('clients-updated', loadClients);
-    return () => window.removeEventListener('clients-updated', loadClients);
-  }, [location]);
-
-  const saveToLocalStorage = (newClients: Client[]) => {
-    localStorage.setItem("clients", JSON.stringify(newClients));
-    setClients(newClients);
   };
+
+  useEffect(() => {
+    fetchClients();
+
+    window.addEventListener('clients-updated', fetchClients);
+    return () => window.removeEventListener('clients-updated', fetchClients);
+  }, [location]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -179,36 +96,75 @@ export default function ClientsPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (clientToDelete) {
-      const newClients = clients.filter(c => c.id !== clientToDelete.id);
-      saveToLocalStorage(newClients);
-      setIsDeleteModalOpen(false);
-      setClientToDelete(null);
-    }
+  const handleCopyPhone = (id: number, phone: string) => {
+    const cleanPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    navigator.clipboard.writeText(cleanPhone);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleSaveDirect = (clientData: Client) => {
-    if (editingClient) {
-      // Update existing
-      const updatedClients = clients.map(c => {
-        if (c.id === editingClient.id) {
-          return clientData;
-        }
-        return c;
-      });
-      saveToLocalStorage(updatedClients);
-    } else {
-      // Create new
-      saveToLocalStorage([clientData, ...clients]);
-    }
+  const confirmDelete = async () => {
+    if (!clientToDelete) return;
 
-    setView('list');
+    try {
+      const response = await fetch(`/api/clients/${clientToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        fetchClients();
+        setIsDeleteModalOpen(false);
+        setClientToDelete(null);
+      } else {
+        throw new Error(data.error || 'Failed to delete');
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      alert('Error al eliminar el cliente');
+    }
+  };
+  const handleSaveDirect = (clientData: Client) => {
+    // Refresh list via event
+    fetchClients();
   };
 
   const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const ClientSkeleton = () => (
+    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm animate-pulse h-full">
+      <div className="mb-6 flex items-start justify-between">
+        <div className="h-16 w-16 rounded-full bg-slate-100" />
+        <div className="flex gap-2">
+          <div className="h-8 w-8 rounded-lg bg-slate-50" />
+          <div className="h-8 w-8 rounded-lg bg-slate-50" />
+        </div>
+      </div>
+      <div className="mb-6 space-y-3">
+        <div className="h-6 w-3/4 bg-slate-100 rounded" />
+        <div className="h-4 w-1/2 bg-slate-50 rounded" />
+        <div className="flex gap-2 mt-2">
+          <div className="h-5 w-20 bg-slate-100 rounded-md" />
+          <div className="h-5 w-24 bg-emerald-50 rounded-md" />
+        </div>
+      </div>
+      <div className="space-y-4 border-t border-slate-100 pt-6">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-4 rounded-full bg-slate-100" />
+          <div className="h-4 w-40 bg-slate-50 rounded" />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-4 rounded-full bg-slate-100" />
+            <div className="h-4 w-32 bg-slate-50 rounded" />
+          </div>
+          <div className="h-8 w-24 bg-[#25D366]/20 rounded-xl" />
+        </div>
+      </div>
+    </div>
   );
 
   const formatPhoneNumberForWhatsApp = (phone: string) => {
@@ -241,19 +197,28 @@ export default function ClientsPage() {
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-64"
             />
           </div>
-          <Link
-            to="?newClient=true"
-            className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+          <button
+            onClick={handleAddNew}
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Nuevo Cliente
-          </Link>
+          </button>
         </div>
       </div>
 
       {/* LIST VIEW */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredClients.map((client) => (
+        {isLoading ? (
+          <>
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+          </>
+        ) : filteredClients.map((client) => (
           <div key={client.id} className="h-full">
             <MagneticEffect className="rounded-2xl">
               <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200 h-full">
@@ -265,28 +230,60 @@ export default function ClientsPage() {
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEdit(client)}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-emerald-600"
-                      title="Editar"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(client)}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEdit(client)}
+                        className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
+                        title="Editar"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(client)}
+                        className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      {client.phone && (
+                        <a
+                          href={`https://wa.me/${formatPhoneNumberForWhatsApp(client.phone)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-1 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 py-1.5 text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-105 active:scale-95"
+                          title="WhatsApp"
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                          </svg>
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
+                    </div>
+                    {client.phone && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 transition-colors hover:border-emerald-200 group/phone">
+                        <span>+{client.phone.replace(/^\+/, '')}</span>
+                        <button
+                          onClick={() => handleCopyPhone(client.id, client.phone)}
+                          className="cursor-pointer text-slate-300 hover:text-emerald-600 transition-colors p-0.5 rounded active:scale-90"
+                          title="Copiar"
+                        >
+                          {copiedId === client.id ? (
+                            <Check className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">{client.name}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors capitalize">{client.name}</h3>
                   {client.businessName && (
-                    <p className="text-xs font-medium text-slate-500 mt-1">{client.businessName}</p>
+                    <p className="text-xs font-medium text-slate-500 mt-1 capitalize">{client.businessName}</p>
                   )}
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600">
@@ -303,26 +300,6 @@ export default function ClientsPage() {
                     <Mail className="h-4 w-4 text-slate-400" />
                     <span className="truncate">{client.email}</span>
                   </div>
-                  {client.phone && (
-                    <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-4 w-4 text-slate-400" />
-                        <span>{client.phone}</span>
-                      </div>
-                      <a 
-                        href={`https://wa.me/${formatPhoneNumberForWhatsApp(client.phone)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 py-2 text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-105 active:scale-95"
-                        title="WhatsApp"
-                      >
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                        </svg>
-                        <span>WhatsApp</span>
-                      </a>
-                    </div>
-                  )}
                 </div>
               </div>
             </MagneticEffect>

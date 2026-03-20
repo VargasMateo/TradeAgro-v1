@@ -212,7 +212,7 @@ export default function StationsPage() {
           <button
             onClick={handlePrev}
             disabled={scrollIndex === 0}
-            className="p-2 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors cursor-pointer disabled:cursor-default"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -223,7 +223,7 @@ export default function StationsPage() {
                 key={day.key}
                 onClick={() => setSelectedDayIndex(day.index)}
                 className={cn(
-                  "flex w-24 flex-col items-center rounded-lg px-2 py-2 text-sm font-medium transition-all",
+                  "flex w-24 flex-col items-center rounded-lg px-2 py-2 text-sm font-medium transition-all cursor-pointer",
                   selectedDayIndex === day.index
                     ? "bg-white text-emerald-700 shadow-sm"
                     : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700"
@@ -238,7 +238,7 @@ export default function StationsPage() {
           <button
             onClick={handleNext}
             disabled={scrollIndex >= days.length - VISIBLE_DAYS}
-            className="p-2 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors cursor-pointer disabled:cursor-default"
           >
             <ChevronRight className="h-5 w-5" />
           </button>

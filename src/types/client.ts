@@ -1,4 +1,5 @@
 export interface ClientField {
+  id?: string;
   name: string;
   lat?: number;
   lng?: number;
@@ -6,16 +7,13 @@ export interface ClientField {
 }
 
 export interface Client {
-  id: string | number;
-  name: string; // Nombre Completo
-  businessName?: string; // Razón Social
-  cuit: string;
-  ivaCondition: 'Responsable Inscripto' | 'Monotributista';
+  id: number;
+  name: string;
+  businessName?: string;
+  cuit?: string;
+  ivaCondition?: string;
   email: string;
-  phone: string;
-  initials?: string;
-  color?: string;
-  lat?: number;
-  lng?: number;
+  phone?: string;
   fields?: ClientField[];
+  createdAt?: string;
 }

@@ -1,25 +1,59 @@
 import React, { useState } from 'react';
-import { Tractor, ArrowRight, Briefcase, User, Shield } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Shield, Briefcase, User } from 'lucide-react';
 
 import logo from '../assets/logo.png';
 
 interface LoginPageProps {
-  onLogin: (role: 'profesional' | 'cliente' | 'superadmin') => void;
+  onLogin: (role: 'profesional' | 'client' | 'admin') => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent, role: 'profesional' | 'cliente' | 'superadmin') => {
-    e.preventDefault();
+  const fillCredentials = (e: string, p: string) => {
+    setEmail(e);
+    setPassword(p);
+  };
 
-    // Save mock user data based on role
-    import('../lib/mockUsers').then(({ MOCK_USERS }) => {
-      localStorage.setItem("userProfile", JSON.stringify(MOCK_USERS[role]));
-      window.dispatchEvent(new Event("profile-updated"));
-      onLogin(role);
-    });
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Basic client-side validation
+    if (!email.trim() || !password.trim()) {
+      setError('Por favor, completa todos los campos');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userProfile", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("profile-updated"));
+        onLogin(data.user.role);
+      } else {
+        setError(data.error || 'Error al iniciar sesión');
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,7 +65,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <div className="absolute bottom-[40%] left-0 w-full h-[12%] bg-[#2e7d32] rounded-[100%] rotate-[-12deg] transform-gpu shadow-[0_0_30px_rgba(46,125,50,0.2)]"></div>
           <div className="absolute bottom-[60%] left-0 w-full h-[10%] bg-[#2e7d32] rounded-[100%] rotate-[-10deg] transform-gpu shadow-[0_0_20px_rgba(46,125,50,0.2)]"></div>
         </div>
-        
+
         {/* Subtle accent circles */}
         <div className="absolute -top-64 -right-64 w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-3xl"></div>
         <div className="absolute -bottom-32 -left-32 w-[300px] h-[300px] rounded-full bg-blue-500/10 blur-3xl"></div>
@@ -59,46 +93,79 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Contraseña</label>
+              <label className="text-sm font-semibold text-slate-700">Contraseña</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              <div className="flex justify-end">
                 <a href="#" className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, 'profesional')}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-xl bg-emerald-600 px-2 py-3 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/20 active:scale-[0.98]"
-              >
-                <Briefcase className="h-5 w-5" />
-                <span className="text-[10px] sm:text-xs text-center">Profesional</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, 'cliente')}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-xl bg-blue-600 px-2 py-3 font-bold text-white transition-all hover:bg-blue-700 hover:shadow-md hover:shadow-blue-600/20 active:scale-[0.98]"
-              >
-                <User className="h-5 w-5" />
-                <span className="text-[10px] sm:text-xs text-center">Cliente</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, 'superadmin')}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-xl bg-purple-600 px-2 py-3 font-bold text-white transition-all hover:bg-purple-700 hover:shadow-md hover:shadow-purple-600/20 active:scale-[0.98]"
-              >
-                <Shield className="h-5 w-5" />
-                <span className="text-[10px] sm:text-xs text-center">Superadmin</span>
-              </button>
+            {error && (
+              <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-emerald-600 px-6 py-4 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 cursor-pointer"
+            >
+              {isLoading ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <>
+                  <span>Iniciar Sesión</span>
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+
+            <div className="mt-8 border-t border-slate-100 pt-6">
+              <p className="mb-4 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Acceso Rápido (Temporal)</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('cliente@tradeagro.com', '123456')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50/50 p-2 text-blue-700 transition-all hover:bg-blue-100 cursor-pointer"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Client</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('profesional@tradeagro.com', '123456')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-2 text-emerald-700 transition-all hover:bg-emerald-100 cursor-pointer"
+                >
+                  <Briefcase className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Prof.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('admin@tradeagro.com', '123456')}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-purple-100 bg-purple-50/50 p-2 text-purple-700 transition-all hover:bg-purple-100 cursor-pointer"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span className="text-[10px] font-bold">Admin</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>

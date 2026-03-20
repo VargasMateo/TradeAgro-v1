@@ -13,17 +13,9 @@ export default function GlobalCreateClientModal() {
   };
 
   const handleSave = (clientData: Client) => {
-    const storedClients = localStorage.getItem("clients");
-    let clients = storedClients ? JSON.parse(storedClients) : [];
-    
-    // Check if we are editing or creating (Global is usually only for creating)
-    // For now, this global modal only handles creation from dashboard/clients buttons
-    const newClients = [clientData, ...clients];
-    localStorage.setItem("clients", JSON.stringify(newClients));
-    
-    // Notify other components that clients have been updated
-    window.dispatchEvent(new Event('clients-updated'));
-    
+    // The modal now handles the API call and event emission internally.
+    // This prop can be used for additional side effects or logging if needed.
+    console.log('[DEBUG] Client saved globally:', clientData.id);
     handleClose();
   };
 

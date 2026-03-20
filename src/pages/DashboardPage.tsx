@@ -1,113 +1,92 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  FileText,
   Plus,
   UserPlus,
-  Download,
-  RefreshCw,
   MapPin,
-  CloudRain,
-  Settings,
-  Tractor,
+  Zap,
+  UserCheck,
   Clock,
   Calendar,
-  Zap,
   BarChart3
 } from "lucide-react";
+import { cn } from "../lib/utils";
 import Map from "../components/Map";
-import UpcomingJobs from "../components/UpcomingJobs";
+import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
 
-const stats = [
-  {
-    label: "Trabajos este mes",
-    value: "24",
-    change: "+12%",
-    icon: Clock,
-    color: "text-emerald-600",
-    bg: "bg-emerald-50",
-    changeColor: "text-emerald-600",
-    changeBg: "bg-emerald-100",
-  },
-  {
-    label: "Trabajos por hacer",
-    value: "09",
-    change: "-2%",
-    icon: Calendar,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    changeColor: "text-rose-600",
-    changeBg: "bg-rose-100",
-  },
-];
 
-const activities = [
-  {
-    title: "Nuevo informe generado",
-    desc: "Sector Agrícola A-12 • Por Admin",
-    time: "Hace 2h",
-    icon: FileText,
-    bg: "bg-emerald-100",
-    color: "text-emerald-600",
-  },
-  {
-    title: "Cliente registrado",
-    desc: "AgroExport S.A. • Registro exitoso",
-    time: "Hace 5h",
-    icon: UserPlus,
-    bg: "bg-emerald-100",
-    color: "text-emerald-600",
-  },
-  {
-    title: "Alerta meteorológica",
-    desc: "Estación Norte • Baja de temperatura",
-    time: "Ayer",
-    icon: CloudRain,
-    bg: "bg-amber-100",
-    color: "text-amber-600",
-  },
-  {
-    title: "Mantenimiento de sistema",
-    desc: "Base de datos optimizada",
-    time: "Ayer",
-    icon: Settings,
-    bg: "bg-slate-100",
-    color: "text-slate-600",
-  },
-];
 
-export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'cliente' | 'superadmin' }) {
+export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [clients, setClients] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(true);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [userName, setUserName] = useState("Admin");
 
   useEffect(() => {
-    const storedClients = localStorage.getItem("clients");
-    if (storedClients) {
-      setClients(JSON.parse(storedClients));
-    }
-    
+    const fetchClients = async () => {
+      try {
+        setIsLoadingClients(true);
+        const response = await fetch('/api/clients');
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        const data = await response.json();
+        setClients(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching clients on dashboard:', error);
+        setClients([]);
+      } finally {
+        setIsLoadingClients(false);
+      }
+    };
+
+    const fetchWorkOrders = async () => {
+      setIsLoadingWorkOrders(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await fetch('/api/work-orders', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to fetch work orders');
+        const data = await response.json();
+        setWorkOrders(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching work orders on dashboard:', error);
+      } finally {
+        setIsLoadingWorkOrders(false);
+      }
+    };
+
     const loadProfile = () => {
       const storedProfile = localStorage.getItem("userProfile");
       if (storedProfile) {
         try {
           const profile = JSON.parse(storedProfile);
-          if (profile.name) {
-            // Extract first name or use the full name if preferred
-            const firstName = profile.name.split(' ')[0];
-            setUserName(firstName);
-          }
+          const nameToUse = profile.displayName || profile.name || (userRole === 'admin' ? "Admin" : "Usuario");
+          // Extract first name
+          const firstName = nameToUse.split(' ')[0];
+          setUserName(firstName);
         } catch (e) {
           console.error("Failed to parse profile", e);
         }
       }
     };
 
+    fetchClients();
+    fetchWorkOrders();
     loadProfile();
 
     window.addEventListener("profile-updated", loadProfile);
+    window.addEventListener("clients-updated", fetchClients);
+    window.addEventListener("job-created", fetchWorkOrders);
     return () => {
       window.removeEventListener("profile-updated", loadProfile);
+      window.removeEventListener("clients-updated", fetchClients);
+      window.removeEventListener("job-created", fetchWorkOrders);
     };
   }, []);
 
@@ -117,7 +96,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const formattedDate = today.toLocaleDateString('es-ES', options);
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
 
-  // Determinar el saludo según la hora
+  // Determine el saludo según la hora
   const hour = today.getHours();
   let greeting = "Buenos días";
   if (hour >= 12 && hour < 20) {
@@ -126,8 +105,61 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     greeting = "Buenas noches";
   }
 
+  const SkeletonStats = () => (
+    <div className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="h-9 w-9 bg-slate-100 rounded-lg"></div>
+      </div>
+      <div className="mt-2 space-y-2">
+        <div className="h-3 w-20 bg-slate-50 rounded"></div>
+        <div className="h-8 w-12 bg-slate-100 rounded"></div>
+      </div>
+    </div>
+  );
+
+  const SkeletonMap = () => (
+    <div className="space-y-4 lg:col-span-2 order-5 animate-pulse">
+      <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+        <MapPin className="h-5 w-5 text-emerald-600" /> Mapa de Clientes
+      </h3>
+      <div className="h-[400px] w-full rounded-2xl bg-slate-100 border border-slate-200" />
+    </div>
+  );
+
+  // Calculate real stats
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const ordersThisMonth = workOrders.filter(wo => {
+    if (!wo.date) return false;
+    const d = new Date(wo.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).length;
+
+  const ordersPending = workOrders.filter(wo => wo.status !== 'Completado').length;
+
+  const dynamicStats = [
+    {
+      label: "Órdenes este mes",
+      value: ordersThisMonth.toString(),
+      icon: Clock,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+    {
+      label: "Órdenes por hacer",
+      value: ordersPending.toString(),
+      icon: Calendar,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+  ];
+
+  const hasAnyWorkOrders = workOrders.length > 0;
+
   return (
-    <div className="animate-in fade-in duration-500 grid grid-cols-1 gap-8 lg:grid-cols-2">
+    <div className="animate-in fade-in duration-500 grid grid-cols-1 gap-y-6 gap-x-8 lg:grid-cols-2">
       {/* Greeting Card */}
       <div className="lg:col-span-2 order-first">
         <div className="rounded-2xl bg-[#2e7d32] p-6 text-white shadow-md">
@@ -139,17 +171,20 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       </div>
 
-      {/* Quick Actions - Only for profesional and superadmin */}
-      {(userRole === 'profesional' || userRole === 'superadmin') && (
-        <div className="space-y-4 order-2 lg:col-span-1">
+      {/* Quick Actions - Only for profesional and admin */}
+      {(userRole === 'profesional' || userRole === 'admin') && (
+        <div className={cn("space-y-4 order-2", userRole === 'admin' ? "lg:col-span-2" : "lg:col-span-1")}>
           <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
             <Zap className="h-5 w-5 text-emerald-600" /> Acciones Rápidas
           </h3>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className={cn(
+            "grid grid-cols-1 gap-3 sm:gap-4",
+            userRole === 'admin' ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          )}>
             <MagneticEffect className="rounded-2xl">
               <Link
                 to="?newJob=true"
-                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-[#2e4a33] text-white shadow-sm transition-transform active:scale-[0.98] lg:h-32 lg:gap-3"
+                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-[#2e4a33] text-white shadow-sm transition-transform active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
               >
                 <div className="rounded-full bg-white/20 p-1.5 lg:p-2">
                   <Plus className="h-5 w-5 lg:h-6 lg:w-6" />
@@ -158,9 +193,9 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
               </Link>
             </MagneticEffect>
             <MagneticEffect className="rounded-2xl">
-              <Link 
+              <Link
                 to="?newClient=true"
-                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] lg:h-32 lg:gap-3"
+                className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
               >
                 <div className="rounded-full bg-slate-100 p-1.5 lg:p-2">
                   <UserPlus className="h-5 w-5 text-slate-600 lg:h-6 lg:w-6" />
@@ -168,88 +203,144 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                 <span className="text-sm font-semibold lg:text-base">Añadir Cliente</span>
               </Link>
             </MagneticEffect>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Grid */}
-      <div className={`space-y-4 order-3 ${userRole === 'cliente' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
-        <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Trabajos
-        </h3>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
-          {stats.map((stat, i) => (
-            <div key={i} className="h-full">
+            {userRole === 'admin' && (
               <MagneticEffect className="rounded-2xl">
-              <div
-                className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
-              >
-                <div className="flex items-start justify-between">
-                  <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
-                    <stat.icon className="h-5 w-5" />
+                <Link
+                  to="?newProfesional=true"
+                  className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform hover:bg-slate-50 active:scale-[0.98] cursor-pointer lg:h-32 lg:gap-3"
+                >
+                  <div className="rounded-full bg-emerald-50 p-1.5 lg:p-2">
+                    <UserCheck className="h-5 w-5 text-emerald-600 lg:h-6 lg:w-6" />
                   </div>
-                  {stat.change && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stat.changeBg} ${stat.changeColor}`}
-                    >
-                      {stat.change}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2">
-                  <p className="text-xs font-medium text-slate-500 truncate">
-                    {stat.label}
-                  </p>
-                  <h3 className="mt-0.5 text-2xl font-bold text-slate-900">
-                    {stat.value}
-                  </h3>
-                </div>
-              </div>
+                  <span className="text-sm font-semibold lg:text-base">Crear Profesional</span>
+                </Link>
               </MagneticEffect>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Upcoming Jobs Section */}
-      <div className="order-4 lg:col-span-2">
-        <UpcomingJobs />
-      </div>
-
-      {/* Map & Weather - Only for profesional and superadmin */}
-      {(userRole === 'profesional' || userRole === 'superadmin') && (
-        <div className="rounded-[2rem] bg-slate-100 p-6 lg:col-span-2 order-5">
-          <div className="grid grid-cols-1 gap-8">
-            {/* Map Section */}
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                <MapPin className="h-5 w-5 text-[#2e4a33]" /> Mapa de Clientes
-              </h3>
-              <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
-                <Map 
-                  markers={clients.filter(c => c.lat && c.lng).map(client => ({
-                    position: [client.lat, client.lng],
-                    popupContent: (
-                      <div className="text-center">
-                        <strong className="block text-sm text-slate-900">{client.name}</strong>
-                        <span className="text-xs text-slate-500">
-                          {client.fields && client.fields.length > 0 
-                            ? (typeof client.fields[0] === 'string' ? client.fields[0] : client.fields[0].name) 
-                            : 'Sin campo'}
-                        </span>
-                      </div>
-                    )
-                  }))}
-                />
-                <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none">
-                  <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-                  {clients.length} Clientes Registrados
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* Stats Grid - Hidden for admin, visible for profesional if there is data or loading */}
+      {userRole === 'profesional' && (isLoadingWorkOrders || hasAnyWorkOrders) && (
+        <div className="space-y-4 order-3 lg:col-span-1">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <BarChart3 className="h-5 w-5 text-emerald-600" /> Resumen de Órdenes
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+            {isLoadingWorkOrders ? (
+              <>
+                <SkeletonStats />
+                <SkeletonStats />
+              </>
+            ) : dynamicStats.map((stat, i) => (
+              <div key={i} className="h-full">
+                <MagneticEffect className="rounded-2xl">
+                  <div
+                    className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-4 shadow-sm flex flex-col justify-between h-full min-h-[110px] lg:h-32"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className={`rounded-lg p-2 ${stat.bg} ${stat.color}`}>
+                        <stat.icon className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-slate-500 truncate">
+                        {stat.label}
+                      </p>
+                      <h3 className="mt-0.5 text-2xl font-bold text-slate-900">
+                        {stat.value}
+                      </h3>
+                    </div>
+                  </div>
+                </MagneticEffect>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Jobs Section - Hidden if no work orders AND not loading */}
+      {(isLoadingWorkOrders || hasAnyWorkOrders) && (
+        <div className="order-4 lg:col-span-2">
+          <UpcomingWorkOrders data={workOrders} isLoading={isLoadingWorkOrders} />
+        </div>
+      )}
+
+      {/* Map & Weather - Only for profesional and admin and if there are markers or loading */}
+      {(userRole === 'profesional' || userRole === 'admin') && (() => {
+        if (isLoadingClients) return <SkeletonMap />;
+
+        const mapMarkers = clients.flatMap(client =>
+          (client.fields || [])
+            .filter((f: any) => {
+              const isValid = f.lat != null && f.lng != null;
+              if (!isValid && f.name) {
+                console.log(`[MAP DEBUG] Filtering out field "${f.name}" (Client: ${client.name}) due to missing coordinates: lat=${f.lat}, lng=${f.lng}`);
+              } else if (isValid) {
+                console.log(`[MAP DEBUG] Adding marker for field "${f.name}" (Client: ${client.name}) at [${f.lat}, ${f.lng}]`);
+              }
+              return isValid;
+            })
+            .map((field: any) => ({
+              position: [field.lat, field.lng] as [number, number],
+              popupContent: (
+                <div className="w-[200px] p-4 font-sans bg-white border-t-4 border-[#0A6C35]">
+                  <div className="space-y-4">
+                    {/* Header: Field Info */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-widest font-extrabold text-[#0A6C35]">Detalles del Campo</span>
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900 leading-tight">{field.name}</h4>
+                    </div>
+
+                    {/* Owner Info */}
+                    <div className="flex items-center gap-3 border-y border-slate-50">
+                      <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200">
+                        {client.name.charAt(0)}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Propietario</span>
+                        <span className="text-xs text-slate-700 font-bold truncate leading-none">{client.name}</span>
+                      </div>
+                    </div>
+
+                    {/* Branded Action Button */}
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#0A6C35] !text-white rounded-lg text-xs font-bold hover:opacity-90 transition-all shadow-md active:scale-[0.98] no-underline"
+                      style={{ color: 'white' }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
+                      Cómo llegar
+                    </a>
+                  </div>
+                </div>
+              )
+            }))
+        );
+
+        const totalFields = clients.reduce((acc, client) => acc + (client.fields?.length || 0), 0);
+
+        if (mapMarkers.length === 0 && !isLoadingClients) return null;
+
+        return (
+          <div className="space-y-4 order-5 lg:col-span-2">
+            <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+              <MapPin className="h-5 w-5 text-emerald-600" /> Mapa de Clientes
+            </h3>
+            <div className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
+              <Map markers={mapMarkers} />
+              <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none border border-slate-100 transition-opacity">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                {totalFields} {totalFields === 1 ? 'Campo Registrado' : 'Campos Registrados'}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
