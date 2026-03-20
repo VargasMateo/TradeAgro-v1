@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Mail, Phone, Plus, Edit2, Trash2 } from "lucide-react";
+import { Search, Mail, Phone, Plus, Edit2, Trash2, Copy, Check } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
@@ -18,6 +18,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   // Delete Modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [profesionalToDelete, setProfesionalToDelete] = useState<Profesional | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const loadProfesionales = async () => {
     setIsLoading(true);
@@ -67,6 +68,13 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const handleDelete = (profesional: Profesional) => {
     setProfesionalToDelete(profesional);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleCopyPhone = (id: number, phone: string) => {
+    const cleanPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    navigator.clipboard.writeText(cleanPhone);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const confirmDelete = async () => {
@@ -220,9 +228,22 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                     <span className="truncate">{prof.email}</span>
                   </div>
                   {prof.phoneNumber && (
-                    <div className="flex items-center gap-3 text-sm text-slate-500">
-                      <Phone className="h-4 w-4 text-slate-400" />
-                      <span>{prof.phoneNumber}</span>
+                    <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-4 w-4 text-slate-400" />
+                        <span>+{prof.phoneNumber.replace(/^\+/, '')}</span>
+                      </div>
+                      <button
+                        onClick={() => handleCopyPhone(prof.id, prof.phoneNumber)}
+                        className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 transition-all active:scale-90 cursor-pointer"
+                        title="Copiar número"
+                      >
+                        {copiedId === prof.id ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
