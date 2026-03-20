@@ -400,7 +400,7 @@ export default function CreateWorkOrderModal() {
           // Find the first error in the requiredFields order or from keys
           const firstErrorKey = requiredFields.find(f => newErrors[f.key])?.key || Object.keys(newErrors)[0];
           const inputName = errorKeyToName[firstErrorKey] || firstErrorKey;
-          
+
           const errorElement = scrollContainerRef.current.querySelector(`[name="${inputName}"]`);
           if (errorElement) {
             errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -516,7 +516,7 @@ export default function CreateWorkOrderModal() {
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
-              {step === 'form' ? (editJobId ? 'Editar Carga de Orden' : 'Nueva Carga de Orden') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Orden')}
+              {step === 'form' ? (editJobId ? 'Editar Orden' : 'Nueva Orden') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Orden')}
             </h2>
             <p className="text-sm text-slate-500">
               {step === 'form'
@@ -667,7 +667,7 @@ export default function CreateWorkOrderModal() {
                                 const singleField = hasSingleField ? c.fields[0] : null;
                                 const hasSingleLot = singleField && singleField.lots && singleField.lots.length === 1;
                                 const singleLot = hasSingleLot ? singleField.lots[0] : '';
-  
+
                                 setFormData(prev => ({
                                   ...prev,
                                   client: c.name,
@@ -1386,7 +1386,7 @@ export default function CreateWorkOrderModal() {
           initialFieldName={formData.field}
           onSave={async (updatedClient) => {
             await fetchClients();
-            
+
             // Find the newly added field to get its database ID
             const newField = updatedClient.fields?.find(
               (f: any) => f.name.toLowerCase() === formData.field.toLowerCase()

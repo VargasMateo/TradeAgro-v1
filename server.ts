@@ -8,6 +8,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -220,6 +221,7 @@ async function initializeDatabase() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS work_orders (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        uuid VARCHAR(36) UNIQUE,
         clientId INT,
         profesionalId INT,
         date DATETIME,
@@ -293,6 +295,13 @@ async function initializeDatabase() {
       const hasCreatedBy = columns.some((c: any) => c.Field === 'createdBy');
       const hasDeletedAt = columns.some((c: any) => c.Field === 'deletedAt');
       const hasFieldId = columns.some((c: any) => c.Field === 'fieldId');
+      const hasUuid = columns.some((c: any) => c.Field === 'uuid');
+
+      if (!hasUuid) {
+        console.log('[INIT] Migrating work_orders: adding uuid column');
+        await connection.query('ALTER TABLE work_orders ADD COLUMN uuid VARCHAR(36) UNIQUE AFTER id');
+        await connection.query('UPDATE work_orders SET uuid = (SELECT UUID()) WHERE uuid IS NULL');
+      }
 
       if (hasUserId) {
         console.log('[INIT] Migrating work_orders: renaming userId to profesionalId');
@@ -852,6 +861,7 @@ app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
     // Map database rows to frontend Job format
     const jobs = rows.map((row: any) => ({
       id: row.id,
+      uuid: row.uuid,
       clientId: row.clientId,
       profesionalId: row.profesionalId,
       client: row.clientName || 'Cliente Desconocido',
@@ -937,7 +947,8 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       hectares: parseFloat(cleanHectares) || 0,
       amountUsd: parseFloat(cleanAmount) || 0,
       status: 'Pendiente',
-      createdBy: (req as any).user?.id || 0
+      createdBy: (req as any).user?.id || 0,
+      uuid: randomUUID()
     };
 
     // Explicit audit: ensuring NO description field exists in dbData
@@ -1068,6 +1079,77 @@ app.delete('/api/work-orders/:id', authenticateToken, async (req, res) => {
   } catch (error: any) {
     console.error('[DATABASE ERROR] DELETE /api/work-orders:', error.message);
     res.status(500).json({ error: 'Failed to delete job', details: error.message });
+  }
+});
+
+/**
+ * Endpoint to fetch a single work order by ID or UUID (Secured)
+ */
+app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  const user = req.user;
+  console.log(`[SECURE DEBUG] GET /api/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
+
+  try {
+    const query = `
+      SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
+             f.lat, f.lng
+      FROM work_orders t
+      LEFT JOIN users u ON t.clientId = u.id
+      LEFT JOIN users p_user ON t.profesionalId = p_user.id
+      LEFT JOIN fields f ON t.fieldId = f.id
+      WHERE (t.id = ? OR t.uuid = ?) AND t.deletedAt IS NULL
+    `;
+
+    const [rows]: any = await pool.query(query, [id, id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+
+    const row = rows[0];
+
+    // Authorization Check: Admin, Assigned Professional, or Client
+    const isAuthorized = 
+      user.role === 'admin' || 
+      user.id === row.clientId || 
+      user.id === row.profesionalId;
+
+    if (!isAuthorized) {
+      console.warn(`[SECURE CAUTION] Unauthorized WO access attempt by UID ${user.id} to WO ${id}`);
+      return res.status(403).json({ success: false, error: 'No tienes permiso para ver esta orden' });
+    }
+
+    const job = {
+      id: row.id,
+      uuid: row.uuid,
+      clientId: row.clientId,
+      profesionalId: row.profesionalId,
+      client: row.clientName || 'Cliente Desconocido',
+      date: row.date,
+      location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
+      service: row.service || 'Sin servicio',
+      title: row.title || row.service,
+      fieldId: row.fieldId,
+      fieldName: row.fieldName,
+      lotName: row.lotName,
+      hectares: parseFloat(row.hectares) || 0,
+      amountUsd: parseFloat(row.amountUsd) || 0,
+      campaign: row.campaign,
+      status: row.status,
+      operator: row.professionalName || "Asignación Pendiente",
+      lat: row.lat,
+      lng: row.lng,
+      iconName: getIconNameForService(row.service),
+      color: getColorForService(row.service),
+      createdAt: row.createdAt,
+      createdBy: row.createdBy
+    };
+
+    res.json(job);
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /api/work-orders/${id}:`, error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

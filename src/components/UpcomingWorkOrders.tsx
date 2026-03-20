@@ -119,7 +119,7 @@ export default function UpcomingWorkOrders({ data, isLoading: propLoading }: { d
           workOrders.map((workOrder) => (
             <Link
               key={workOrder.id || Math.random()}
-              to={`/work-orders/${String(workOrder.id).replace('#', '')}`}
+              to={`/work-orders/${workOrder.uuid || String(workOrder.id).replace('#', '')}`}
               className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">

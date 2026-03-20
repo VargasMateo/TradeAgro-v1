@@ -161,7 +161,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           return;
         }
 
-        const response = await fetch('/api/work-orders', {
+        const response = await fetch(`/api/work-orders/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -172,25 +172,23 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           return;
         }
 
-        if (!response.ok) throw new Error('Failed to load jobs');
-
-        const data = await response.json();
-        // Fallback to searching by ID
-        const foundJob = data.find((j: any) => String(j.id) === id);
-
-        if (!foundJob) {
-          throw new Error('Trabajo no encontrado');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to load job details');
         }
 
-        // Map database job to UI job
+        const foundJob = await response.json();
+
+        // Map database job to UI job format
         setJob({
           id: `#AG-${foundJob.id}`,
           internalId: foundJob.id,
+          uuid: foundJob.uuid,
           status: foundJob.status,
           created: foundJob.date ? new Date(foundJob.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
           updated: "Hace un momento",
           client: foundJob.client,
-          location: `${foundJob.fieldName || ''} ${foundJob.lotName ? `- ${foundJob.lotName}` : ''}`,
+          location: foundJob.location,
           priority: "Estándar",
           assignedTo: foundJob.operator || "Asignación Pendiente",
           services: [

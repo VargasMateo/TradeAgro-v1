@@ -3,12 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Filter,
   Plus,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
-  Calendar,
-  Clock,
-  CheckCircle,
   AlertCircle,
   Tractor,
   Droplets,
@@ -579,7 +575,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                   {filteredOrders.map((order) => (
                     <tr
                       key={order.id}
-                      onClick={() => navigate(`/work-orders/${String(order.id).replace('#', '')}`)}
+                      onClick={() => navigate(`/work-orders/${order.uuid || order.id}`)}
                       className="group cursor-pointer transition-colors hover:bg-slate-50/80"
                     >
                       <td className="px-8 py-6">
@@ -679,7 +675,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSearchParams({ editJob: String(order.id).replace('#', '') });
+                                  setSearchParams({ editJob: String(order.uuid || order.id) });
                                 }}
                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
                                 title="Editar"
@@ -696,7 +692,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                             </>
                           )}
                           <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${String(order.id).replace('#', '')}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${order.uuid || order.id}`); }}
                             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
                             title="Ir"
                           >

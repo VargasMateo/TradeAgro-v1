@@ -122,7 +122,7 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
 
       {/* Action Overlay */}
       <Link
-        to={`/work-orders/${String(job.id).replace('#', '')}`}
+        to={`/work-orders/${job.uuid || String(job.id).replace('#', '')}`}
         className="absolute inset-0 z-10 cursor-pointer"
         aria-label="Ver detalles"
       />
