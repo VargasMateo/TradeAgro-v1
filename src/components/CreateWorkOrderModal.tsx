@@ -1359,8 +1359,8 @@ export default function CreateWorkOrderModal() {
         isOpen={isCreateClientModalOpen}
         onClose={() => setIsCreateClientModalOpen(false)}
         initialName={formData.client}
-        onSave={(newClient) => {
-          setClients((prev: any) => [newClient, ...prev]);
+        onSave={async (newClient) => {
+          await fetchClients();
           setFormData(prev => ({ ...prev, client: newClient.name, clientId: newClient.id }));
           setIsCreateClientModalOpen(false);
           setShowClientSuggestions(false);
@@ -1384,12 +1384,10 @@ export default function CreateWorkOrderModal() {
           onClose={() => setIsCreateFieldModalOpen(false)}
           client={selectedClientObj}
           initialFieldName={formData.field}
-          onSave={(updatedClient) => {
-            setClients((prev: any) => prev.map((c: any) =>
-              c.id === updatedClient.id ? updatedClient : c
-            ));
-
-            // Find the newly added field to get its ID
+          onSave={async (updatedClient) => {
+            await fetchClients();
+            
+            // Find the newly added field to get its database ID
             const newField = updatedClient.fields?.find(
               (f: any) => f.name.toLowerCase() === formData.field.toLowerCase()
             );
