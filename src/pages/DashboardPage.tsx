@@ -300,8 +300,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                         {client.name.charAt(0)}
                       </div>
                       <div className="flex flex-col">
-                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none">Propietario</p>
-                        <p className="text-xs text-slate-700 font-bold truncate leading-none">{client.name}</p>
+                        <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Propietario</span>
+                        <span className="text-xs text-slate-700 font-bold truncate leading-none">{client.name}</span>
                       </div>
                     </div>
 
