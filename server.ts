@@ -434,7 +434,7 @@ app.put('/api/profile', async (req, res) => {
     } else if (role === 'client') {
       await connection.query(
         'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ? WHERE userId = ?',
-        [businessName || null, cuit || null, ivaCondition || 'RI', phoneNumber || null, id]
+        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, id]
       );
     }
 
@@ -585,8 +585,7 @@ app.get('/api/clients', async (req, res) => {
       // Mapping for frontend compatibility
       name: row.displayName,
       phone: row.phoneNumber,
-      ivaCondition: row.ivaCondition === 'RI' ? 'Responsable Inscripto' :
-        row.ivaCondition === 'MT' ? 'Monotributista' : row.ivaCondition,
+      ivaCondition: row.ivaCondition,
       fields: fieldsByClient[row.id] || []
     }));
 
@@ -629,7 +628,7 @@ app.put('/api/clients/:id', async (req, res) => {
     const clientData = {
       businessName: businessName,
       cuit: cuit,
-      ivaCondition: ivaCondition || 'RI',
+      ivaCondition: ivaCondition || 'Responsable Inscripto',
       phoneNumber: phoneNumber
     };
 
@@ -738,7 +737,7 @@ app.post('/api/clients', async (req, res) => {
       userId: newUserId,
       businessName: businessName,
       cuit: cuit,
-      ivaCondition: ivaCondition || 'RI',
+      ivaCondition: ivaCondition || 'Responsable Inscripto',
       phoneNumber: phoneNumber
     };
 

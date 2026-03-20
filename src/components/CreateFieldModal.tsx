@@ -83,7 +83,7 @@ export default function CreateFieldModal({
         displayName: client.name,
         businessName: client.businessName,
         cuit: client.cuit,
-        ivaCondition: client.ivaCondition === 'Monotributista' ? 'MT' : 'RI',
+        ivaCondition: client.ivaCondition,
         email: client.email,
         phoneNumber: client.phone,
         fields: updatedFields.map(f => ({

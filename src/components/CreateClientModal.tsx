@@ -112,10 +112,6 @@ export default function CreateClientModal({
     }
   };
 
-  const ivaMapping: Record<string, string> = {
-    'Responsable Inscripto': 'RI',
-    'Monotributista': 'MT'
-  };
 
 
 
@@ -183,7 +179,7 @@ export default function CreateClientModal({
         displayName: formData.name,
         businessName: formData.businessName,
         cuit: formData.cuit,
-        ivaCondition: ivaMapping[formData.ivaCondition] || 'RI',
+        ivaCondition: formData.ivaCondition || 'Responsable Inscripto',
         email: formData.email,
         phoneNumber: formData.phone,
         createdBy: currentUserId,

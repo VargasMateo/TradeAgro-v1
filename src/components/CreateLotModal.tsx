@@ -68,7 +68,7 @@ export default function CreateLotModal({
         displayName: client.name,
         businessName: client.businessName,
         cuit: client.cuit,
-        ivaCondition: client.ivaCondition === 'Monotributista' ? 'MT' : 'RI',
+        ivaCondition: client.ivaCondition,
         email: client.email,
         phoneNumber: client.phone,
         fields: updatedFields.map(f => ({
@@ -240,9 +240,9 @@ export default function CreateLotModal({
                   }
                 }}
                 className={cn(
-                "w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer",
-                dialog.type === 'success' ? "bg-emerald-600 shadow-emerald-200" : "bg-red-600 shadow-red-200"
-              )}
+                  "w-full rounded-2xl py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer",
+                  dialog.type === 'success' ? "bg-emerald-600 shadow-emerald-200" : "bg-red-600 shadow-red-200"
+                )}
               >
                 ENTENDIDO
               </button>
