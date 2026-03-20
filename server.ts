@@ -424,7 +424,7 @@ app.put('/api/profile', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const {
-      id, displayName, email, location, description, role,
+      id, displayName, email, role,
       phoneNumber: profPhoneNumber, specialty, // Prof fields
       businessName, cuit, ivaCondition, phoneNumber // Client fields
     } = req.body;
@@ -587,7 +587,7 @@ app.get('/api/clients', async (req, res) => {
       }
       const lat = row.lat !== null ? parseFloat(row.lat) : null;
       const lng = row.lng !== null ? parseFloat(row.lng) : null;
-      
+
       console.log(`[SERVER DEBUG] Processing field "${row.name}" (ID: ${row.id}): lat=${lat}, lng=${lng}`);
 
       fieldsByClient[row.clientId].push({
@@ -1117,9 +1117,9 @@ app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
     const row = rows[0];
 
     // Authorization Check: Admin, Assigned Professional, or Client
-    const isAuthorized = 
-      user.role === 'admin' || 
-      user.id === row.clientId || 
+    const isAuthorized =
+      user.role === 'admin' ||
+      user.id === row.clientId ||
       user.id === row.profesionalId;
 
     if (!isAuthorized) {
@@ -1318,7 +1318,7 @@ app.get('/api/attachments/:id/content', authenticateToken, async (req: any, res)
   const { download } = req.query;
   const user = req.user;
   console.log(`[SECURE DEBUG] GET /api/attachments/${id}/content - UserID: ${user.id}, Role: ${user.role}, download=${download}`);
-  
+
   try {
     // Join with work_orders to check permissions in a single query
     const [rows]: any = await pool.query(`
@@ -1336,9 +1336,9 @@ app.get('/api/attachments/:id/content', authenticateToken, async (req: any, res)
 
     // Authorization Check: Must be uploader (not explicitly needed if associated with job), 
     // Admin, the assigned Profesional, or the Client for this job.
-    const isAuthorized = 
-      user.role === 'admin' || 
-      user.id === clientId || 
+    const isAuthorized =
+      user.role === 'admin' ||
+      user.id === clientId ||
       user.id === profesionalId;
 
     if (!isAuthorized) {
