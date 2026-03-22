@@ -48,6 +48,7 @@ export interface WorkOrder {
   profesionalId: number;
   date: string; // timestamp
   service: string;
+  secondaryService?: string;
   title: string;
   hectares: number;
   amountUsd: number;

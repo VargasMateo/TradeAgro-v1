@@ -227,6 +227,7 @@ async function initializeDatabase() {
         date DATETIME,
         title VARCHAR(255),
         service VARCHAR(255),
+        secondaryService VARCHAR(255) DEFAULT NULL,
         campaign VARCHAR(100),
         fieldId INT,
         fieldName VARCHAR(255),
@@ -241,6 +242,14 @@ async function initializeDatabase() {
         FOREIGN KEY (profesionalId) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
+
+    // Migration: add secondaryService column if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE work_orders ADD COLUMN secondaryService VARCHAR(255) DEFAULT NULL AFTER service');
+      console.log('[INIT] Added secondaryService column to work_orders');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] secondaryService migration error:', e.message);
+    }
 
     console.log('[INIT] Creating work_order_attachments table...');
     await connection.query(`
@@ -868,6 +877,7 @@ app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
       date: row.date,
       location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
       service: row.service || 'Sin servicio',
+      secondaryService: row.secondaryService || null,
       title: row.title || row.service,
       fieldId: row.fieldId,
       fieldName: row.fieldName,
@@ -908,6 +918,7 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       lot,
       hectares,
       service,
+      secondaryService,
       campaign,
       amount,
       notes,
@@ -940,6 +951,7 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       date: date || null,
       title: title,
       service: service,
+      secondaryService: secondaryService || null,
       campaign: campaign || null,
       fieldId: fieldId || null,
       fieldName: field || null,
@@ -1007,6 +1019,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       lot,
       hectares,
       service,
+      secondaryService,
       campaign,
       amount,
       fieldId,
@@ -1036,6 +1049,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       date: date || null,
       title: title,
       service: service,
+      secondaryService: secondaryService || null,
       campaign: campaign || null,
       fieldId: fieldId || null,
       fieldName: field || null,
@@ -1136,6 +1150,7 @@ app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
       date: row.date,
       location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
       service: row.service || 'Sin servicio',
+      secondaryService: row.secondaryService || null,
       title: row.title || row.service,
       fieldId: row.fieldId,
       fieldName: row.fieldName,

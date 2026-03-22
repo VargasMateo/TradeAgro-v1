@@ -197,7 +197,12 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               name: foundJob.service,
               description: foundJob.description || `Trabajo en campo: ${foundJob.campaign || 'Campaña Actual'}, Superficie: ${foundJob.hectares || 0} ha.`,
               price: Number(foundJob.amountUsd) || 0,
-            }
+            },
+            ...(foundJob.secondaryService ? [{
+              name: foundJob.secondaryService,
+              description: `Servicio secundario - ${foundJob.campaign || 'Campaña Actual'}`,
+              price: 0,
+            }] : [])
           ],
           observation: foundJob.description || "No hay observaciones iniciales registradas.",
           observationAuthor: "SISTEMA",
