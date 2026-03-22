@@ -178,36 +178,26 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           throw new Error(errorData.error || 'Failed to load job details');
         }
 
-        const foundJob = await response.json();
+        const foundWorkOrder = await response.json();
 
         // Map database job to UI job format
         setJob({
-          id: `#AG-${foundJob.id}`,
-          internalId: foundJob.id,
-          uuid: foundJob.uuid,
-          status: foundJob.status,
-          created: foundJob.date ? new Date(foundJob.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
+          id: `#AG-${foundWorkOrder.id}`,
+          internalId: foundWorkOrder.id,
+          uuid: foundWorkOrder.uuid,
+          status: foundWorkOrder.status,
+          created: foundWorkOrder.date ? new Date(foundWorkOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
           updated: "Hace un momento",
-          client: foundJob.client,
-          location: foundJob.location,
-          priority: "Estándar",
-          assignedTo: foundJob.operator || "Asignación Pendiente",
-          services: [
-            {
-              name: foundJob.service,
-              description: foundJob.description || `Trabajo en campo: ${foundJob.campaign || 'Campaña Actual'}, Superficie: ${foundJob.hectares || 0} ha.`,
-              price: Number(foundJob.amountUsd) || 0,
-            },
-            ...(foundJob.secondaryService ? [{
-              name: foundJob.secondaryService,
-              description: `Servicio secundario - ${foundJob.campaign || 'Campaña Actual'}`,
-              price: 0,
-            }] : [])
-          ],
-          observation: foundJob.description || "No hay observaciones iniciales registradas.",
+          client: foundWorkOrder.client,
+          assignedTo: foundWorkOrder.operator || "Asignación Pendiente",
+          service: foundWorkOrder.service,
+          secondaryService: foundWorkOrder.secondaryService || null,
+          serviceDescription: `Trabajo en campo: ${foundWorkOrder.campaign || 'Campaña Actual'}, Superficie: ${foundWorkOrder.hectares || 0} ha.`,
+          servicePrice: Number(foundWorkOrder.amountUsd) || 0,
+          observation: foundWorkOrder.description || "No hay observaciones iniciales registradas.",
           observationAuthor: "SISTEMA",
-          observationDate: foundJob.createdAt ? new Date(foundJob.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
-          coordinates: (foundJob.lat !== null && foundJob.lng !== null) ? [Number(foundJob.lat), Number(foundJob.lng)] : null,
+          observationDate: foundWorkOrder.createdAt ? new Date(foundWorkOrder.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
+          coordinates: (foundWorkOrder.lat !== null && foundWorkOrder.lng !== null) ? [Number(foundWorkOrder.lat), Number(foundWorkOrder.lng)] : null,
         });
 
       } catch (err: any) {
@@ -435,18 +425,22 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               <h2 className="text-lg font-bold text-slate-900">Detalles del Servicio</h2>
             </div>
 
-            <div className="space-y-6">
-              {job.services.map((service, index) => (
-                <div key={index} className={cn("pb-6", index !== job.services.length - 1 && "border-b border-slate-100")}>
-                  <div className="mb-2 flex justify-between items-start">
-                    <h3 className="font-bold text-slate-900">{service.name}</h3>
-                    <span className="font-bold text-[#2e7d32]">${service.price.toFixed(2)}</span>
-                  </div>
-                  <p className="text-sm text-slate-500 leading-relaxed">
-                    {service.description}
-                  </p>
+            <div className="pb-2">
+              <div className="mb-2 flex justify-between items-start">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-slate-900">{job.service}</h3>
+                  {job.secondaryService && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <h3 className="font-bold text-slate-900">{job.secondaryService}</h3>
+                    </>
+                  )}
                 </div>
-              ))}
+                <span className="font-bold text-[#2e7d32] shrink-0 ml-4">${job.servicePrice.toFixed(2)}</span>
+              </div>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                {job.serviceDescription}
+              </p>
             </div>
           </div>
 
