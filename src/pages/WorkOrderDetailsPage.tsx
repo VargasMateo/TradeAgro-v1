@@ -189,6 +189,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           created: foundWorkOrder.date ? new Date(foundWorkOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
           updated: "Hace un momento",
           client: foundWorkOrder.client,
+          location: foundWorkOrder.location,
           assignedTo: foundWorkOrder.operator || "Asignación Pendiente",
           service: foundWorkOrder.service,
           secondaryService: foundWorkOrder.secondaryService || null,
