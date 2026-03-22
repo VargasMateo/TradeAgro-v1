@@ -958,7 +958,7 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       lotName: lot || null,
       hectares: parseFloat(cleanHectares) || 0,
       amountUsd: parseFloat(cleanAmount) || 0,
-      status: 'Pendiente',
+      status: req.body.status || 'Pendiente',
       createdBy: (req as any).user?.id || 0,
       uuid: randomUUID()
     };
@@ -1020,6 +1020,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       hectares,
       service,
       secondaryService,
+      status,
       campaign,
       amount,
       fieldId,
@@ -1056,6 +1057,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       lotName: lot || null,
       hectares: parseFloat(cleanHectares) || 0,
       amountUsd: parseFloat(cleanAmount) || 0,
+      status: status || undefined,
     };
 
     console.log(`[DEBUG] Updating work_orders id ${internalJobId}:`, JSON.stringify(dbData));

@@ -109,6 +109,7 @@ export default function CreateWorkOrderModal() {
     hectares: '',
     service: '',
     secondaryService: '',
+    status: 'Pendiente',
     campaign: '25/26',
     lot: '',
     number: '',
@@ -208,6 +209,7 @@ export default function CreateWorkOrderModal() {
                 hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
                 service: orderToEdit.service || 'Cosecha',
                 secondaryService: (orderToEdit as any).secondaryService || '',
+                status: orderToEdit.status || 'Pendiente',
                 campaign: orderToEdit.campaign || '25/26',
                 lot: orderToEdit.lotName || '',
                 number: (orderToEdit as any).number || '',
@@ -253,6 +255,7 @@ export default function CreateWorkOrderModal() {
       hectares: '',
       service: '',
       secondaryService: '',
+      status: 'Pendiente',
       campaign: '25/26',
       lot: '',
       number: '',
@@ -724,27 +727,50 @@ export default function CreateWorkOrderModal() {
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-sm font-semibold text-slate-700">
-                      Título de la carga <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      placeholder="Ej: Cosecha de Maíz - Lote 4"
-                      className={cn(
-                        "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
-                        errors.title
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      )}
-                    />
-                    {errors.title && (
-                      <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
-                        {errors.title}
-                      </p>
-                    )}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="text-sm font-semibold text-slate-700">
+                          Título de la carga <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="title"
+                          value={formData.title}
+                          onChange={handleInputChange}
+                          placeholder="Ej: Cosecha de Maíz - Lote 4"
+                          className={cn(
+                            "w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                            errors.title
+                              ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                              : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                          )}
+                        />
+                        {errors.title && (
+                          <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
+                            {errors.title}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-700">
+                          Estado
+                        </label>
+                        <div className="relative">
+                          <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleInputChange}
+                            className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:border-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
+                          >
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Completado">Completado</option>
+                            <option value="Cancelado">Cancelado</option>
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                 </div>
