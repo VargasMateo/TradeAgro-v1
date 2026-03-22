@@ -388,32 +388,25 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               <h2 className="text-lg font-bold text-slate-900">Datos Generales</h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-y-6 md:grid-cols-2">
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Cliente</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="rounded-xl bg-slate-50 px-4 py-3">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Cliente</p>
                 <p className="font-semibold text-slate-900">{job.client}</p>
               </div>
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Ubicación</p>
-                <div className="flex items-center gap-1 font-semibold text-slate-900">
-                  {job.location}
-                  <MapPin className="h-3 w-3 text-[#2e7d32]" />
+              <div className="rounded-xl bg-slate-50 px-4 py-3">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Ubicación</p>
+                <div className="flex items-center gap-1.5 font-semibold text-slate-900">
+                  <MapPin className="h-3.5 w-3.5 text-[#2e7d32] shrink-0" />
+                  <span className="truncate">{job.location}</span>
                 </div>
               </div>
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Prioridad</p>
+              <div className="rounded-xl bg-slate-50 px-4 py-3">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Asignado a</p>
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-red-500"></span>
-                  <p className="font-semibold text-slate-900">{job.priority}</p>
-                </div>
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Asignado a</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600">
-                    CM
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
+                    {job.assignedTo.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
-                  <p className="font-semibold text-slate-900">{job.assignedTo}</p>
+                  <p className="font-semibold text-slate-900 truncate">{job.assignedTo}</p>
                 </div>
               </div>
             </div>
