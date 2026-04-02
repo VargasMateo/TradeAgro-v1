@@ -77,47 +77,49 @@ const authenticateToken = (req: any, res: any, next: any) => {
 const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool) => {
   // ... (rest of the code unchanged until /api/jobs)
   try {
-    console.log('[SEED] Checking if users table needs seeding...');
-    const [userRows]: any = await connection.query('SELECT COUNT(*) as count FROM users');
-
-    if (userRows[0].count > 0) {
-      console.log(`[SEED] Table 'users' already has ${userRows[0].count} records. Skipping seed.`);
-      return;
-    }
-
-    console.log('[SEED] Starting default users insertion...');
+    console.log('[SEED] Checking if default users exist...');
+    
     const adminPass = await bcrypt.hash('123456', 10);
     const profPass = await bcrypt.hash('123456', 10);
     const clientPass = await bcrypt.hash('123456', 10);
 
     // 1. Admin
-    console.log('[SEED] Inserting Admin...');
-    await connection.query(
-      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 1]
-    );
+    const [adminCheck]: any = await connection.query('SELECT id FROM users WHERE email = ?', ['admin@tradeagro.com']);
+    if (adminCheck.length === 0) {
+      console.log('[SEED] Inserting Admin...');
+      await connection.query(
+        'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+        ['Admin TradeAgro', 'admin@tradeagro.com', adminPass, 'admin', 1]
+      );
+    }
 
     // 2. Profesional
-    console.log('[SEED] Inserting Profesional...');
-    const [profRes]: any = await connection.query(
-      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 1]
-    );
-    await connection.query(
-      'INSERT INTO profesionals (userId, specialty, phoneNumber) VALUES (?, ?, ?)',
-      [profRes.insertId, 'Ingeniero Agrónomo - Especialista en Riego', '5491155551234']
-    );
+    const [profCheck]: any = await connection.query('SELECT id FROM users WHERE email = ?', ['profesional@tradeagro.com']);
+    if (profCheck.length === 0) {
+      console.log('[SEED] Inserting Profesional...');
+      const [profRes]: any = await connection.query(
+        'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+        ['Juan Tecnico', 'profesional@tradeagro.com', profPass, 'profesional', 1]
+      );
+      await connection.query(
+        'INSERT INTO profesionals (userId, specialty, phoneNumber) VALUES (?, ?, ?)',
+        [profRes.insertId, 'Ingeniero Agrónomo - Especialista en Riego', '5491155551234']
+      );
+    }
 
     // 3. Cliente
-    console.log('[SEED] Inserting Cliente...');
-    const [clientRes]: any = await connection.query(
-      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 1]
-    );
-    await connection.query(
-      'INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber) VALUES (?, ?, ?, ?, ?)',
-      [clientRes.insertId, 'La Estancia S.A.', '20123456789', 'Responsable Inscripto', '5493519876543']
-    );
+    const [clientCheck]: any = await connection.query('SELECT id FROM users WHERE email = ?', ['cliente@tradeagro.com']);
+    if (clientCheck.length === 0) {
+      console.log('[SEED] Inserting Cliente...');
+      const [clientRes]: any = await connection.query(
+        'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+        ['Carlos Estanciero', 'cliente@tradeagro.com', clientPass, 'client', 1]
+      );
+      await connection.query(
+        'INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber) VALUES (?, ?, ?, ?, ?)',
+        [clientRes.insertId, 'La Estancia S.A.', '20123456789', 'Responsable Inscripto', '5493519876543']
+      );
+    }
 
     console.log('[SEED] SUCCESS: Default users and extensions seeded.');
   } catch (err: any) {
