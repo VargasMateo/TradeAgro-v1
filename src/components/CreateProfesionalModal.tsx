@@ -159,7 +159,7 @@ export default function CreateProfesionalModal({
     } catch (err: any) {
       console.error('Error saving profesional:', err);
       let errorMessage = err.message || 'Ocurrió un error inesperado al guardar.';
-      
+
       if (errorMessage.includes('Duplicate entry')) {
         if (errorMessage.includes('email')) {
           errorMessage = 'Ya existe un profesional registrado con este correo electrónico.';
@@ -184,7 +184,7 @@ export default function CreateProfesionalModal({
   return (
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all">
       <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-        
+
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 p-6">
           <h2 className="text-xl font-bold text-slate-900">
@@ -202,99 +202,99 @@ export default function CreateProfesionalModal({
         <div className="p-6 overflow-y-auto">
           {step === 'form' ? (
             <div className="grid grid-cols-1 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Nombre Completo <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="displayName"
-                value={formData.displayName}
-                onChange={handleInputChange}
-                placeholder="Ej: Juan Pérez"
-                className={cn(
-                  "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                  errors.displayName
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                    : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Nombre Completo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="displayName"
+                  value={formData.displayName}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Juan Pérez"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.displayName
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
+                />
+                {errors.displayName && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.displayName}
+                  </p>
                 )}
-              />
-              {errors.displayName && (
-                <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {errors.displayName}
-                </p>
-              )}
-            </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Especialidad <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="specialty"
-                value={formData.specialty}
-                onChange={handleInputChange}
-                placeholder="Ej: Ingeniero Agrónomo"
-                className={cn(
-                  "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                  errors.specialty
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                    : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Especialidad <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="specialty"
+                  value={formData.specialty}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Ingeniero Agrónomo"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.specialty
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
+                />
+                {errors.specialty && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.specialty}
+                  </p>
                 )}
-              />
-              {errors.specialty && (
-                <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {errors.specialty}
-                </p>
-              )}
-            </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="contacto@ejemplo.com"
-                className={cn(
-                  "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                  errors.email
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                    : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="contacto@ejemplo.com"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.email
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
+                />
+                {errors.email && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.email}
+                  </p>
                 )}
-              />
-              {errors.email && (
-                <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {errors.email}
-                </p>
-              )}
-            </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Teléfono (WhatsApp)</label>
-              <input
-                type="tel"
-                name="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={handleInputChange}
-                placeholder="Ej: 1155551234"
-                className={cn(
-                  "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
-                  errors.phoneNumber
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                    : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Teléfono (WhatsApp)</label>
+                <input
+                  type="tel"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  placeholder="Ej: 1155551234"
+                  className={cn(
+                    "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                    errors.phoneNumber
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  )}
+                />
+                {errors.phoneNumber && (
+                  <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors.phoneNumber}
+                  </p>
                 )}
-              />
-              {errors.phoneNumber && (
-                <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {errors.phoneNumber}
-                </p>
-              )}
-            </div>
+              </div>
             </div>
           ) : (
             /* SUCCESS STEP */
@@ -305,24 +305,24 @@ export default function CreateProfesionalModal({
               <h3 className="mb-2 text-2xl font-bold text-slate-900">
                 {editingProfesional ? '¡Actualización Exitosa!' : '¡Registro Exitoso!'}
               </h3>
-              <p className="mb-2 text-slate-500 max-w-[280px]">
-                {editingProfesional 
-                  ? 'Los datos del profesional han sido actualizados correctamente.' 
+              <p className="mb-4 text-slate-500">
+                {editingProfesional
+                  ? 'Los datos del profesional han sido actualizados correctamente.'
                   : 'El profesional ha sido guardado exitosamente en el sistema.'}
               </p>
               {!editingProfesional && invitedEmail && (
                 <div className={`mb-6 w-full flex flex-col gap-2`}>
                   <div className={`rounded-xl px-4 py-3 text-xs font-medium ${inviteEmailSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                     {inviteEmailSent
-                      ? <><span className="font-bold">📧 Email enviado</span> a <span className="font-semibold">{invitedEmail}</span> para que configure su contraseña.</>
+                      ? <><span className="font-bold">Email enviado</span> a <span className="font-semibold">{invitedEmail}</span> para que configure su contraseña.</>
                       : <><span className="font-bold">⚠️ Email no configurado.</span> Copie el siguiente enlace y envíeselo al profesional para que configure su cuenta:</>}
                   </div>
                   {!inviteEmailSent && setupLink && (
                     <div className="relative group animate-in slide-in-from-top-2 duration-300">
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value={setupLink} 
+                      <input
+                        type="text"
+                        readOnly
+                        value={setupLink}
                         className="w-full bg-slate-50 text-slate-500 font-mono text-[10px] sm:text-xs py-2 px-3 pr-10 border border-slate-200 rounded-lg outline-none cursor-pointer"
                         onClick={(e) => {
                           e.currentTarget.select();
