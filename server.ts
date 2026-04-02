@@ -1624,16 +1624,29 @@ app.get('/api/observations', async (req, res) => {
 /**
  * GET /api/profesionales — fetch active professionals
  */
-app.get('/api/profesionales', async (req, res) => {
-  console.log('[DEBUG] GET /api/profesionales');
+app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
+  console.log('[DEBUG] GET /api/profesionales for user:', req.user.email);
   try {
-    const [rows]: any = await pool.query(`
-      SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id
-      FROM profesionals p
-      JOIN users u ON p.userId = u.id
-      WHERE p.deletedAt IS NULL
-      ORDER BY u.createdAt DESC
-    `);
+    let rows;
+    if (req.user.role === 'client') {
+      [rows] = await pool.query(`
+        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id
+        FROM profesionals p
+        JOIN users u ON p.userId = u.id
+        JOIN work_orders w ON p.userId = w.profesionalId
+        WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
+        ORDER BY u.createdAt DESC
+      `, [req.user.id]);
+    } else {
+      [rows] = await pool.query(`
+        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id
+        FROM profesionals p
+        JOIN users u ON p.userId = u.id
+        WHERE p.deletedAt IS NULL
+        ORDER BY u.createdAt DESC
+      `);
+    }
+
     // Ensure phoneNumber is consistently named in the response
     const formatted = rows.map((r: any) => ({
       ...r,

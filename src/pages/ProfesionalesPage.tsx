@@ -23,7 +23,12 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const loadProfesionales = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/profesionales');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/profesionales', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {

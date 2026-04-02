@@ -62,7 +62,12 @@ export default function CreateWorkOrderModal() {
   };
   const fetchProfesionales = async () => {
     try {
-      const response = await fetch('/api/profesionales');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/profesionales', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -193,7 +198,11 @@ export default function CreateWorkOrderModal() {
               // Get profesional info to populate name search
               let pName = '';
               try {
-                const pRes = await fetch('/api/profesionales');
+                const pRes = await fetch('/api/profesionales', {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
                 const pData = await pRes.json();
                 const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
                 pName = foundP?.displayName || '';
