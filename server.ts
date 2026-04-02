@@ -1928,6 +1928,24 @@ app.post('/api/test/reset-observations', async (req, res) => {
 });
 
 /**
+ * RESET TOKENS (Dev only)
+ */
+app.post('/api/test/reset-tokens', async (req, res) => {
+  console.log('[DEBUG] POST /api/test/reset-tokens');
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE password_setup_tokens');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    res.json({ success: true, message: 'Tokens reset successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to reset tokens', details: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
  * GET /api/attachments (Dev only / Global)
  */
 app.get('/api/attachments', async (req, res) => {
@@ -1948,6 +1966,18 @@ app.get('/api/observations', async (req, res) => {
     res.json(rows);
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch observations', details: error.message });
+  }
+});
+
+/**
+ * GET /api/tokens (Dev only / Global)
+ */
+app.get('/api/tokens', async (req, res) => {
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM password_setup_tokens');
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch tokens', details: error.message });
   }
 });
 
