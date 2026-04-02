@@ -631,7 +631,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                       <div className="overflow-hidden">
                         <p className="truncate text-sm font-semibold text-slate-900" title={file.fileName}>{file.fileName}</p>
                         <p className="text-[10px] text-slate-400">
-                          {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.uploaderName || 'Sistema'}
+                          {file.fileName.includes('.') ? file.fileName.split('.').pop()?.toUpperCase() : 'ARCHIVO'} • {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.uploaderName || 'Sistema'}
                         </p>
                       </div>
                     </div>
