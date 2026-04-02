@@ -107,7 +107,7 @@ export default function CreateWorkOrderModal() {
   const [showCampaignSuggestions, setShowCampaignSuggestions] = useState(false);
 
   const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
-  const predefinedCampaigns = ['25/26', '24/25', '23/24'];
+  const predefinedCampaigns = ['24/25', '25/26', '26/27'];
 
   const [formData, setFormData] = useState({
     clientId: '',
