@@ -152,11 +152,21 @@ export default function CreateProfesionalModal({
       }
     } catch (err: any) {
       console.error('Error saving profesional:', err);
+      let errorMessage = err.message || 'Ocurrió un error inesperado al guardar.';
+      
+      if (errorMessage.includes('Duplicate entry')) {
+        if (errorMessage.includes('email')) {
+          errorMessage = 'Ya existe un profesional registrado con este correo electrónico.';
+        } else {
+          errorMessage = 'Ya existe un registro con estos datos.';
+        }
+      }
+
       setDialog({
         show: true,
         type: 'error',
         title: 'Error de Guardado',
-        message: err.message
+        message: errorMessage
       });
     } finally {
       setIsSaving(false);

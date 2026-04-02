@@ -211,11 +211,23 @@ export default function CreateClientModal({
       }
     } catch (err: any) {
       console.error('Error saving client:', err);
+      let errorMessage = err.message || 'Ocurrió un error inesperado al guardar.';
+      
+      if (errorMessage.includes('Duplicate entry')) {
+        if (errorMessage.includes('email')) {
+          errorMessage = 'Ya existe un cliente registrado con este correo electrónico.';
+        } else if (errorMessage.includes('cuit')) {
+          errorMessage = 'Ya existe un cliente registrado con este CUIT.';
+        } else {
+          errorMessage = 'Ya existe un registro con estos datos.';
+        }
+      }
+
       setDialog({
         show: true,
         type: 'error',
         title: 'Error de Guardado',
-        message: err.message
+        message: errorMessage
       });
     } finally {
       setIsSaving(false);
