@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useState } from "react";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
+import SetupPasswordPage from "./pages/SetupPasswordPage";
 import WorkOrdersPage from "./pages/WorkOrdersPage";
 import WorkOrderDetailsPage from "./pages/WorkOrderDetailsPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -38,6 +39,17 @@ export default function App() {
     window.history.replaceState(null, '', '/dashboard');
     setIsAuthenticated(false);
   };
+
+  // Public route: setup-password (must be accessible without auth)
+  if (window.location.pathname === '/setup-password') {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/setup-password" element={<SetupPasswordPage />} />
+        </Routes>
+      </Router>
+    );
+  }
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={(role) => {

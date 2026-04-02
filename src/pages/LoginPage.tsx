@@ -47,7 +47,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         window.dispatchEvent(new Event("profile-updated"));
         onLogin(data.user.role);
       } else {
-        setError(data.error || 'Error al iniciar sesión');
+        if (data.passwordNotSet) {
+          setError('📧 ' + data.error);
+        } else {
+          setError(data.error || 'Error al iniciar sesión');
+        }
       }
     } catch (err) {
       setError('Error de conexión con el servidor');

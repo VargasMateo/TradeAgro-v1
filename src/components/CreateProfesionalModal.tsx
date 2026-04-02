@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, CheckCircle2, AlertCircle, Database } from "lucide-react";
+import { X, Plus, Save, CheckCircle2, AlertCircle, Database, Copy } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Profesional } from "../types/database";
@@ -27,6 +27,9 @@ export default function CreateProfesionalModal({
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [createdId, setCreatedId] = useState<number | null>(null);
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
+  const [invitedEmail, setInvitedEmail] = useState('');
+  const [setupLink, setSetupLink] = useState('');
 
   const [errors, setErrors] = useState<{
     displayName?: string;
@@ -146,6 +149,9 @@ export default function CreateProfesionalModal({
 
       if (data.success) {
         if (data.id) setCreatedId(data.id);
+        if (data.emailSent !== undefined) setInviteEmailSent(data.emailSent);
+        if (data.email) setInvitedEmail(data.email);
+        if (data.setupLink) setSetupLink(data.setupLink);
         setStep('success');
       } else {
         throw new Error(data.details || data.error || 'Failed to save');
@@ -299,11 +305,41 @@ export default function CreateProfesionalModal({
               <h3 className="mb-2 text-2xl font-bold text-slate-900">
                 {editingProfesional ? '¡Actualización Exitosa!' : '¡Registro Exitoso!'}
               </h3>
-              <p className="mb-8 text-slate-500 max-w-[280px]">
+              <p className="mb-2 text-slate-500 max-w-[280px]">
                 {editingProfesional 
                   ? 'Los datos del profesional han sido actualizados correctamente.' 
                   : 'El profesional ha sido guardado exitosamente en el sistema.'}
               </p>
+              {!editingProfesional && invitedEmail && (
+                <div className={`mb-6 max-w-[340px] flex flex-col gap-2`}>
+                  <div className={`rounded-xl px-4 py-3 text-xs font-medium ${inviteEmailSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                    {inviteEmailSent
+                      ? <><span className="font-bold">📧 Email enviado</span> a <span className="font-semibold">{invitedEmail}</span> para que configure su contraseña.</>
+                      : <><span className="font-bold">⚠️ Email no configurado.</span> Copie el siguiente enlace y envíeselo al profesional para que configure su cuenta:</>}
+                  </div>
+                  {!inviteEmailSent && setupLink && (
+                    <div className="relative group animate-in slide-in-from-top-2 duration-300">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={setupLink} 
+                        className="w-full bg-slate-50 text-slate-500 font-mono text-[10px] sm:text-xs py-2 px-3 pr-10 border border-slate-200 rounded-lg outline-none cursor-pointer"
+                        onClick={(e) => {
+                          e.currentTarget.select();
+                          navigator.clipboard.writeText(setupLink);
+                        }}
+                      />
+                      <button
+                        onClick={() => navigator.clipboard.writeText(setupLink)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 bg-white rounded-md border border-slate-200 shadow-sm transition-colors"
+                        title="Copiar enlace"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex w-full gap-3">
                 <button
                   onClick={() => {

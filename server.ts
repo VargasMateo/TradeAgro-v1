@@ -295,6 +295,20 @@ async function initializeDatabase() {
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
+    // Password Setup Tokens Table
+    console.log('[INIT] Creating password_setup_tokens table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS password_setup_tokens (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId INT NOT NULL,
+        token VARCHAR(36) UNIQUE NOT NULL,
+        expiresAt DATETIME NOT NULL,
+        usedAt DATETIME NULL DEFAULT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     // Migration: Rename userId INT to profesionalId INT if userId exists
     // And remove jobCode if it exists
     try {
@@ -521,6 +535,261 @@ app.post('/api/test/reset-database', async (req, res) => {
   }
 });
 
+// ==========================================
+// EMAIL & PASSWORD SETUP UTILITIES
+// ==========================================
+
+const PASSWORD_NOT_SET_PLACEHOLDER = '__PASSWORD_NOT_SET__';
+
+// Configure Resend email client (lazy initialization)
+import { Resend } from 'resend';
+let resendClient: Resend | null = null;
+const getResend = () => {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+};
+
+const getAppUrl = () => {
+  return process.env.APP_URL || `http://localhost:${port}`;
+};
+
+async function sendPasswordSetupEmail(userEmail: string, displayName: string, token: string) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[EMAIL] RESEND_API_KEY not configured. Skipping email send.');
+    return false;
+  }
+
+  const appUrl = getAppUrl();
+  const setupLink = `${appUrl}/setup-password?token=${token}`;
+  const fromEmail = process.env.RESEND_FROM || 'TradeAgro <onboarding@resend.dev>';
+
+  try {
+    await getResend()!.emails.send({
+      from: fromEmail,
+      to: [userEmail],
+      subject: 'Bienvenido a TradeAgro — Configure su contraseña',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Sistema de Gestión Agropecuaria</p>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">¡Hola ${displayName}!</h2>
+            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+              Se ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contraseña haciendo clic en el botón de abajo.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${setupLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+                Configurar mi Contraseña
+              </a>
+            </div>
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+              Si el botón no funciona, copie y pegue este enlace en su navegador:
+            </p>
+            <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+              ${setupLink}
+            </p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
+              Este enlace expira en 48 horas.
+            </p>
+          </div>
+          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      `
+    });
+    console.log(`[EMAIL] Password setup email sent to ${userEmail}`);
+    return true;
+  } catch (error: any) {
+    console.error(`[EMAIL ERROR] Failed to send email to ${userEmail}:`, error.message);
+    return false;
+  }
+}
+
+async function createPasswordSetupToken(connection: any, userId: number): Promise<string> {
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+
+  // Invalidate any existing tokens for this user
+  await connection.query(
+    'UPDATE password_setup_tokens SET usedAt = NOW() WHERE userId = ? AND usedAt IS NULL',
+    [userId]
+  );
+
+  await connection.query(
+    'INSERT INTO password_setup_tokens (userId, token, expiresAt) VALUES (?, ?, ?)',
+    [userId, token, expiresAt]
+  );
+
+  return token;
+}
+
+// ==========================================
+// AUTH ENDPOINTS (Public - No JWT required)
+// ==========================================
+
+/**
+ * GET /api/auth/validate-token — Validate a password setup token
+ */
+app.get('/api/auth/validate-token', async (req, res) => {
+  const { token } = req.query;
+  console.log(`[AUTH] Validating password setup token`);
+
+  if (!token || typeof token !== 'string') {
+    return res.status(400).json({ valid: false, error: 'Token no proporcionado' });
+  }
+
+  try {
+    const [rows]: any = await pool.query(`
+      SELECT pst.*, u.displayName, u.email
+      FROM password_setup_tokens pst
+      JOIN users u ON pst.userId = u.id
+      WHERE pst.token = ?
+    `, [token]);
+
+    if (rows.length === 0) {
+      return res.json({ valid: false, error: 'Token inválido o no encontrado' });
+    }
+
+    const tokenRow = rows[0];
+
+    if (tokenRow.usedAt) {
+      return res.json({ valid: false, error: 'Este enlace ya fue utilizado. Si necesita configurar su contraseña, solicite un nuevo enlace.' });
+    }
+
+    if (new Date(tokenRow.expiresAt) < new Date()) {
+      return res.json({ valid: false, error: 'Este enlace ha expirado. Solicite un nuevo enlace de configuración.' });
+    }
+
+    res.json({
+      valid: true,
+      displayName: tokenRow.displayName,
+      email: tokenRow.email
+    });
+  } catch (error: any) {
+    console.error('[AUTH ERROR] validate-token:', error.message);
+    res.status(500).json({ valid: false, error: 'Error interno del servidor' });
+  }
+});
+
+/**
+ * POST /api/auth/setup-password — Set password using a valid token
+ */
+app.post('/api/auth/setup-password', async (req, res) => {
+  const { token, password } = req.body;
+  console.log(`[AUTH] Password setup attempt`);
+
+  if (!token || !password) {
+    return res.status(400).json({ success: false, error: 'Token y contraseña son requeridos' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    // Validate token
+    const [rows]: any = await connection.query(`
+      SELECT pst.*, u.displayName, u.email
+      FROM password_setup_tokens pst
+      JOIN users u ON pst.userId = u.id
+      WHERE pst.token = ?
+    `, [token]);
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'Token inválido' });
+    }
+
+    const tokenRow = rows[0];
+
+    if (tokenRow.usedAt) {
+      return res.status(400).json({ success: false, error: 'Este enlace ya fue utilizado' });
+    }
+
+    if (new Date(tokenRow.expiresAt) < new Date()) {
+      return res.status(400).json({ success: false, error: 'Este enlace ha expirado' });
+    }
+
+    await connection.beginTransaction();
+
+    // Hash and update password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await connection.query(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, tokenRow.userId]
+    );
+
+    // Mark token as used
+    await connection.query(
+      'UPDATE password_setup_tokens SET usedAt = NOW() WHERE id = ?',
+      [tokenRow.id]
+    );
+
+    await connection.commit();
+
+    console.log(`[AUTH] Password successfully set for user ${tokenRow.email}`);
+    res.json({
+      success: true,
+      message: 'Contraseña configurada exitosamente. Ya puede iniciar sesión.'
+    });
+  } catch (error: any) {
+    await connection.rollback();
+    console.error('[AUTH ERROR] setup-password:', error.message);
+    res.status(500).json({ success: false, error: 'Error al configurar la contraseña' });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * POST /api/auth/resend-invite — Resend the password setup email
+ */
+app.post('/api/auth/resend-invite', async (req, res) => {
+  const { userId } = req.body;
+  console.log(`[AUTH] Resend invite requested for userId: ${userId}`);
+
+  if (!userId) {
+    return res.status(400).json({ success: false, error: 'userId es requerido' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    const [userRows]: any = await connection.query(
+      'SELECT id, displayName, email FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (userRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+
+    const user = userRows[0];
+
+    // Generate new token (invalidates old ones)
+    const token = await createPasswordSetupToken(connection, user.id);
+
+    // Send email
+    const emailSent = await sendPasswordSetupEmail(user.email, user.displayName, token);
+
+    res.json({
+      success: true,
+      emailSent,
+      message: emailSent
+        ? `Email de invitación reenviado a ${user.email}`
+        : 'Token generado pero el email no pudo ser enviado. Verifique la configuración SMTP.'
+    });
+  } catch (error: any) {
+    console.error('[AUTH ERROR] resend-invite:', error.message);
+    res.status(500).json({ success: false, error: 'Error al reenviar invitación' });
+  } finally {
+    connection.release();
+  }
+});
+
 // Login endpoint
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
@@ -542,6 +811,16 @@ app.post('/api/login', async (req, res) => {
     }
 
     const user = rows[0];
+    // Check if password has not been set yet (invited user)
+    if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
+      console.log(`[AUTH] Failed: Password not set for ${email}`);
+      return res.status(401).json({
+        success: false,
+        error: 'Debe configurar su contraseña usando el enlace enviado a su correo electrónico.',
+        passwordNotSet: true
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log(`[AUTH] Failed: Invalid password for ${email}`);
@@ -750,27 +1029,62 @@ app.post('/api/clients', async (req, res) => {
       fields // Array of fields from the modal
     } = req.body;
 
+    const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
+
+    // 0. Check for existing soft-deleted user to reactivate
+    const [existingUsers]: any = await connection.query(
+      `SELECT u.id, u.role, c.deletedAt as clientDeletedAt
+       FROM users u
+       LEFT JOIN clients c ON u.id = c.userId
+       WHERE u.email = ?`,
+      [userEmail]
+    );
+
     await connection.beginTransaction();
 
-    // 1. Create User first
-    const hashedPass = await bcrypt.hash(password || '123456', 10);
-    const [userResult]: any = await connection.query(
-      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      [displayName, email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`, hashedPass, 'client', createdBy ?? 'Admin']
+    let newUserId;
+
+    if (existingUsers.length > 0) {
+      const existing = existingUsers[0];
+      if (existing.role === 'client' && existing.clientDeletedAt !== null) {
+        // Reactivate soft-deleted client
+        newUserId = existing.id;
+        console.log('[DEBUG] Reactivating soft-deleted client userId:', newUserId);
+        
+        await connection.query(
+          'UPDATE users SET displayName = ?, password = ? WHERE id = ?',
+          [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]
+        );
+        
+        // Clear previous fields to avoid duplicates since the frontend sends fresh ones
+        await connection.query('DELETE FROM fields WHERE clientId = ?', [newUserId]);
+      } else {
+        // Active user exists
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          error: 'Duplicate entry',
+          details: 'Duplicate entry \'' + userEmail + '\' for key \'users.email\''
+        });
+      }
+    } else {
+      // 1. Create completely new User
+      const [userResult]: any = await connection.query(
+        'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+        [displayName, userEmail, PASSWORD_NOT_SET_PLACEHOLDER, 'client', createdBy ?? 'Admin']
+      );
+      newUserId = userResult.insertId;
+    }
+
+    // 2. Create or Update Client extension record
+    console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
+    await connection.query(
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, NULL) 
+       ON DUPLICATE KEY UPDATE 
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber]
     );
-    const newUserId = userResult.insertId;
-
-    // 2. Create Client extension record
-    const clientData = {
-      userId: newUserId,
-      businessName: businessName,
-      cuit: cuit,
-      ivaCondition: ivaCondition || 'Responsable Inscripto',
-      phoneNumber: phoneNumber
-    };
-
-    console.log('[DEBUG] Inserting new client extension for userId:', newUserId);
-    await connection.query('INSERT INTO clients SET ?', [clientData]);
 
     // 3. Insert associated fields if any
     if (fields && Array.isArray(fields)) {
@@ -787,13 +1101,24 @@ app.post('/api/clients', async (req, res) => {
       }
     }
 
+    // 4. Generate password setup token and send invite email
+    const setupToken = await createPasswordSetupToken(connection, newUserId);
+    
     await connection.commit();
     console.log('[DEBUG] Transaction committed successfully');
+
+    // Send email after commit (non-blocking)
+    const emailSent = await sendPasswordSetupEmail(userEmail, displayName, setupToken);
 
     res.json({
       success: true,
       id: newUserId,
-      message: 'Client and fields created successfully',
+      emailSent,
+      email: userEmail,
+      setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
+      message: emailSent
+        ? 'Cliente creado exitosamente. Se envió un email de invitación.'
+        : 'Cliente creado exitosamente. No se pudo enviar el email (configure SMTP).',
       createdAt: new Date().toISOString()
     });
   } catch (error) {
@@ -1726,29 +2051,75 @@ app.post('/api/profesionales', async (req, res) => {
   try {
     const { displayName, email, password, phoneNumber, specialty, createdBy } = req.body;
 
+    // 0. Check for existing soft-deleted user to reactivate
+    const [existingUsers]: any = await connection.query(
+      `SELECT u.id, u.role, p.deletedAt as profDeletedAt
+       FROM users u
+       LEFT JOIN profesionals p ON u.id = p.userId
+       WHERE u.email = ?`,
+      [email]
+    );
+
     await connection.beginTransaction();
 
-    // 1. Create User first
-    const hashedPass = await bcrypt.hash(password || '123456', 10);
-    const [userResult]: any = await connection.query(
-      'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
-      [displayName, email, hashedPass, 'profesional', createdBy ?? 'Admin']
-    );
-    const newUserId = userResult.insertId;
+    let newUserId;
 
-    // 2. Create Profesional extension
-    const profData = {
-      userId: newUserId,
-      phoneNumber: phoneNumber || null,
-      specialty: specialty || null
-    };
-    await connection.query('INSERT INTO profesionals SET ?', [profData]);
+    if (existingUsers.length > 0) {
+      const existing = existingUsers[0];
+      if (existing.role === 'profesional' && existing.profDeletedAt !== null) {
+        // Reactivate soft-deleted profesional
+        newUserId = existing.id;
+        console.log('[DEBUG] Reactivating soft-deleted profesional userId:', newUserId);
+
+        await connection.query(
+          'UPDATE users SET displayName = ?, password = ? WHERE id = ?',
+          [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]
+        );
+      } else {
+        // Active user exists
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          error: 'Duplicate entry',
+          details: 'Duplicate entry \'' + email + '\' for key \'users.email\''
+        });
+      }
+    } else {
+      // 1. Create completely new User
+      const [userResult]: any = await connection.query(
+        'INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)',
+        [displayName, email, PASSWORD_NOT_SET_PLACEHOLDER, 'profesional', createdBy ?? 'Admin']
+      );
+      newUserId = userResult.insertId;
+    }
+
+    // 2. Create or Update Profesional extension
+    console.log('[DEBUG] UPSERTING profesional extension for userId:', newUserId);
+    await connection.query(
+      `INSERT INTO profesionals (userId, phoneNumber, specialty, deletedAt)
+       VALUES (?, ?, ?, NULL)
+       ON DUPLICATE KEY UPDATE
+       phoneNumber = VALUES(phoneNumber), specialty = VALUES(specialty), deletedAt = NULL`,
+      [newUserId, phoneNumber || null, specialty || null]
+    );
+
+    // 3. Generate password setup token and send invite email
+    const setupToken = await createPasswordSetupToken(connection, newUserId);
 
     await connection.commit();
+
+    // Send email after commit (non-blocking)
+    const emailSent = await sendPasswordSetupEmail(email, displayName, setupToken);
+
     res.json({
       success: true,
       id: newUserId,
-      message: 'Profesional created successfully',
+      emailSent,
+      email,
+      setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
+      message: emailSent
+        ? 'Profesional creado exitosamente. Se envió un email de invitación.'
+        : 'Profesional creado exitosamente. No se pudo enviar el email (configure SMTP).',
       createdAt: new Date().toISOString()
     });
   } catch (error: any) {
