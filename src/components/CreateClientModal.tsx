@@ -45,6 +45,7 @@ export default function CreateClientModal({
     email?: string;
     phone?: string;
     fields?: string;
+    fieldErrors?: Record<number, { lat?: string; lng?: string }>;
   }>({});
 
   const [isSaving, setIsSaving] = useState(false);
@@ -152,6 +153,24 @@ export default function CreateClientModal({
       const fieldErrors = formData.fields.some(f => !f.name.trim() || f.lots.length === 0 || f.lots.some(l => !l.trim()));
       if (fieldErrors) {
         newErrors.fields = 'Todos los campos y lotes deben tener un nombre';
+      }
+      const fieldErrorsMap: Record<number, { lat?: string; lng?: string }> = {};
+      formData.fields.forEach((f, idx) => {
+        let latErr, lngErr;
+        if (f.lat) {
+          const lat = parseFloat(f.lat as any);
+          if (isNaN(lat) || lat < -90 || lat > 90) latErr = 'Formato incorrecto. Ej: -31.4201';
+        }
+        if (f.lng) {
+          const lng = parseFloat(f.lng as any);
+          if (isNaN(lng) || lng < -180 || lng > 180) lngErr = 'Formato incorrecto. Ej: -64.1888';
+        }
+        if (latErr || lngErr) {
+          fieldErrorsMap[idx] = { lat: latErr, lng: lngErr };
+        }
+      });
+      if (Object.keys(fieldErrorsMap).length > 0) {
+        newErrors.fieldErrors = fieldErrorsMap;
       }
     }
 
@@ -484,9 +503,19 @@ export default function CreateClientModal({
                                 setFormData(prev => ({ ...prev, fields: newFields }));
                               }}
                               placeholder="-31.4201"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 no-spinner"
+                              className={cn(
+                                "w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 no-spinner",
+                                errors.fieldErrors?.[fIndex]?.lat
+                                  ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                                  : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                              )}
                               onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             />
+                            {errors.fieldErrors?.[fIndex]?.lat && (
+                              <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                {errors.fieldErrors[fIndex].lat}
+                              </p>
+                            )}
                           </div>
                           <div>
                             <label className="text-[10px] font-bold text-slate-500 ml-1 mb-1 block uppercase">Longitud</label>
@@ -499,9 +528,19 @@ export default function CreateClientModal({
                                 setFormData(prev => ({ ...prev, fields: newFields }));
                               }}
                               placeholder="-64.1888"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 no-spinner"
+                              className={cn(
+                                "w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 no-spinner",
+                                errors.fieldErrors?.[fIndex]?.lng
+                                  ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                                  : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                              )}
                               onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             />
+                            {errors.fieldErrors?.[fIndex]?.lng && (
+                              <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                {errors.fieldErrors[fIndex].lng}
+                              </p>
+                            )}
                           </div>
                         </div>
 
