@@ -103,6 +103,11 @@ export default function CreateWorkOrderModal() {
   const [showFieldSuggestions, setShowFieldSuggestions] = useState(false);
   const [showLotSuggestions, setShowLotSuggestions] = useState(false);
   const [showProfesionalSuggestions, setShowProfesionalSuggestions] = useState(false);
+  const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
+  const [showCampaignSuggestions, setShowCampaignSuggestions] = useState(false);
+
+  const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
+  const predefinedCampaigns = ['25/26', '24/25', '23/24'];
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -1017,28 +1022,30 @@ export default function CreateWorkOrderModal() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">
                       Servicio Principal <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <select
+                      <input
+                        type="text"
                         name="service"
+                        autoComplete="off"
                         value={formData.service}
-                        onChange={handleInputChange}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setShowServiceSuggestions(true);
+                        }}
+                        onFocus={() => setShowServiceSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowServiceSuggestions(false), 200)}
+                        placeholder="Seleccionar o escribir..."
                         className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
                           errors.service
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
-                      >
-                        <option value="">Seleccionar...</option>
-                        <option value="Cosecha">Cosecha</option>
-                        <option value="Siembra">Siembra</option>
-                        <option value="Fumigación">Fumigación</option>
-                        <option value="Fertilización">Fertilización</option>
-                      </select>
+                      />
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
                     {errors.service && (
@@ -1046,6 +1053,35 @@ export default function CreateWorkOrderModal() {
                         {errors.service}
                       </p>
                     )}
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showServiceSuggestions && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {predefinedServices
+                            .filter(s => s.toLowerCase().includes(formData.service.toLowerCase()))
+                            .map(s => (
+                              <button
+                                key={s}
+                                type="button"
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, service: s }));
+                                  setShowServiceSuggestions(false);
+                                  if (errors.service) {
+                                    setErrors(prev => { const n = { ...prev }; delete n.service; return n; });
+                                  }
+                                }}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          {formData.service.trim() !== '' && !predefinedServices.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
+                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
+                              Se usará: "{formData.service.trim()}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -1060,25 +1096,30 @@ export default function CreateWorkOrderModal() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">
                       Campaña <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <select
+                      <input
+                        type="text"
                         name="campaign"
+                        autoComplete="off"
                         value={formData.campaign}
-                        onChange={handleInputChange}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setShowCampaignSuggestions(true);
+                        }}
+                        onFocus={() => setShowCampaignSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowCampaignSuggestions(false), 200)}
+                        placeholder="Seleccionar o escribir..."
                         className={cn(
-                          "w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 cursor-pointer",
+                          "w-full rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
                           errors.campaign
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                             : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
                         )}
-                      >
-                        <option value="">Seleccionar...</option>
-                        <option value="25/26">25/26</option>
-                      </select>
+                      />
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
                     {errors.campaign && (
@@ -1086,6 +1127,35 @@ export default function CreateWorkOrderModal() {
                         {errors.campaign}
                       </p>
                     )}
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showCampaignSuggestions && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {predefinedCampaigns
+                            .filter(c => c.toLowerCase().includes(formData.campaign.toLowerCase()))
+                            .map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, campaign: c }));
+                                  setShowCampaignSuggestions(false);
+                                  if (errors.campaign) {
+                                    setErrors(prev => { const n = { ...prev }; delete n.campaign; return n; });
+                                  }
+                                }}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          {formData.campaign.trim() !== '' && !predefinedCampaigns.some(c => c.toLowerCase() === formData.campaign.trim().toLowerCase()) && (
+                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
+                              Se usará: "{formData.campaign.trim()}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
