@@ -390,11 +390,13 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               <h2 className="text-lg font-bold text-slate-900">Datos Generales</h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-50 px-4 py-3">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Cliente</p>
-                <p className="font-semibold text-slate-900">{job.client}</p>
-              </div>
+            <div className={cn("grid grid-cols-1 gap-4", userRole === 'admin' ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+              {userRole !== 'client' && (
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Cliente</p>
+                  <p className="font-semibold text-slate-900">{job.client}</p>
+                </div>
+              )}
               <div className="rounded-xl bg-slate-50 px-4 py-3">
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Ubicación</p>
                 <div className="flex items-center gap-1.5 font-semibold text-slate-900">
@@ -402,28 +404,30 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                   <span className="truncate capitalize">{job.location}</span>
                 </div>
               </div>
-              <div className="rounded-xl bg-slate-50 px-4 py-3">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Asignado a</p>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 truncate">
-                    <div className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                      {job.assignedTo.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+              {userRole !== 'profesional' && (
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Asignado a</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 truncate">
+                      <div className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
+                        {job.assignedTo.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <p className="font-semibold text-slate-900 truncate">{job.assignedTo}</p>
                     </div>
-                    <p className="font-semibold text-slate-900 truncate">{job.assignedTo}</p>
+                    {job.profesionalPhone && (
+                      <a
+                        href={`https://wa.me/${job.profesionalPhone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#128C7E] transition-colors"
+                        title="Contactar por WhatsApp"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                      </a>
+                    )}
                   </div>
-                  {job.profesionalPhone && (
-                    <a
-                      href={`https://wa.me/${job.profesionalPhone.replace(/\D/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#128C7E] transition-colors"
-                      title="Contactar por WhatsApp"
-                    >
-                      <MessageCircle className="h-3 w-3" />
-                    </a>
-                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
