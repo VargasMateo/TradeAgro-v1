@@ -137,7 +137,7 @@ export default function CreateWorkOrderModal() {
   const clientSuggestions = clients.filter((c: any) =>
     (c.name || '').toLowerCase().includes(formData.client.toLowerCase()) ||
     (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()))
-  );
+  ).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
   const selectedClientObj = clients.find((c: any) =>
     (formData.clientId && c.id === formData.clientId) ||
     (!formData.clientId && (
@@ -165,7 +165,7 @@ export default function CreateWorkOrderModal() {
   const profesionalSuggestions = profesionales.filter((p: any) =>
     (p.displayName || '').toLowerCase().includes(formData.profesional.toLowerCase()) ||
     (p.specialty || '').toLowerCase().includes(formData.profesional.toLowerCase())
-  );
+  ).sort((a: any, b: any) => (a.displayName || '').localeCompare(b.displayName || ''));
 
   // Reset state when modal opens
   useEffect(() => {
