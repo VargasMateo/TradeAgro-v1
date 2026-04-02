@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   createdAt: string;
   createdBy: number;
+  setupPending?: boolean;
 }
 
 export interface Client extends User {

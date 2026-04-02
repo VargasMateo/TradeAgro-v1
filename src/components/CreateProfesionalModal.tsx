@@ -311,7 +311,7 @@ export default function CreateProfesionalModal({
                   : 'El profesional ha sido guardado exitosamente en el sistema.'}
               </p>
               {!editingProfesional && invitedEmail && (
-                <div className={`mb-6 max-w-[340px] flex flex-col gap-2`}>
+                <div className={`mb-6 w-full flex flex-col gap-2`}>
                   <div className={`rounded-xl px-4 py-3 text-xs font-medium ${inviteEmailSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                     {inviteEmailSent
                       ? <><span className="font-bold">📧 Email enviado</span> a <span className="font-semibold">{invitedEmail}</span> para que configure su contraseña.</>

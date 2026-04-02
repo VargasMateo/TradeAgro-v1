@@ -15,5 +15,6 @@ export interface Client {
   email: string;
   phone?: string;
   fields?: ClientField[];
+  setupPending?: boolean;
   createdAt?: string;
 }

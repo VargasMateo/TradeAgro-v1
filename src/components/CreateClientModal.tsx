@@ -622,7 +622,7 @@ export default function CreateClientModal({
                   : `El cliente y sus ${formData.fields.length} campos han sido guardados exitosamente en el sistema.`}
               </p>
               {!editingClient && invitedEmail && (
-                <div className={`mb-6 max-w-[340px] flex flex-col gap-2`}>
+                <div className={`mb-6 w-full flex flex-col gap-2`}>
                   <div className={`rounded-xl px-4 py-3 text-xs font-medium ${inviteEmailSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                     {inviteEmailSent
                       ? <><span className="font-bold">📧 Email enviado</span> a <span className="font-semibold">{invitedEmail}</span> para que configure su contraseña.</>
@@ -651,7 +651,7 @@ export default function CreateClientModal({
                   )}
                 </div>
               )}
-              <div className="flex w-full justify-center">
+              <div className="flex w-full gap-3">
                 <button
                   onClick={() => {
                     const clientData: Client = {
@@ -667,7 +667,7 @@ export default function CreateClientModal({
                     onSave(clientData);
                     onClose();
                   }}
-                  className="w-full max-w-[200px] rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 >
                   ENTENDIDO
                 </button>

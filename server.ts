@@ -862,7 +862,7 @@ app.get('/api/clients', async (req, res) => {
   console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
     const [clientRows]: any = await pool.query(`
-      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id
+      SELECT c.*, u.displayName, u.email, u.password, u.createdAt, u.createdBy, c.userId as id
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
@@ -891,6 +891,7 @@ app.get('/api/clients', async (req, res) => {
 
     const clients = clientRows.map((row: any) => ({
       ...row,
+      setupPending: row.password === PASSWORD_NOT_SET_PLACEHOLDER,
       // Mapping for frontend compatibility
       name: row.displayName,
       phone: row.phoneNumber,
@@ -1992,7 +1993,7 @@ app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
     let rows;
     if (req.user.role === 'client') {
       [rows] = await pool.query(`
-        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id
+        SELECT DISTINCT p.*, u.displayName, u.email, u.password, u.createdAt, u.createdBy, p.userId as id
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
@@ -2001,7 +2002,7 @@ app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
       `, [req.user.id]);
     } else {
       [rows] = await pool.query(`
-        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id
+        SELECT p.*, u.displayName, u.email, u.password, u.createdAt, u.createdBy, p.userId as id
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
@@ -2012,6 +2013,7 @@ app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
     // Ensure phoneNumber is consistently named in the response
     const formatted = rows.map((r: any) => ({
       ...r,
+      setupPending: r.password === PASSWORD_NOT_SET_PLACEHOLDER,
       phoneNumber: r.phoneNumber
     }));
     res.json(formatted);
