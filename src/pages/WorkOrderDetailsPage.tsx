@@ -14,7 +14,8 @@ import {
   Plus,
   Map as MapIcon,
   Send,
-  X
+  X,
+  MessageCircle
 } from "lucide-react";
 import { ChangeEvent } from "react";
 import Map from "../components/Map";
@@ -193,8 +194,9 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
           assignedTo: foundWorkOrder.operator || "Asignación Pendiente",
           service: foundWorkOrder.service,
           secondaryService: foundWorkOrder.secondaryService || null,
-          serviceDescription: `Trabajo en campo: ${foundWorkOrder.campaign || 'Campaña Actual'}, Superficie: ${foundWorkOrder.hectares || 0} ha.`,
+          serviceDescription: `Lote: ${foundWorkOrder.lotName || 'N/A'}, Campaña: ${foundWorkOrder.campaign || 'Campaña Actual'}, Superficie: ${foundWorkOrder.hectares || 0} ha.`,
           servicePrice: Number(foundWorkOrder.amountUsd) || 0,
+          profesionalPhone: foundWorkOrder.profesionalPhone || null,
           observation: foundWorkOrder.description || "No hay observaciones iniciales registradas.",
           observationAuthor: "SISTEMA",
           observationDate: foundWorkOrder.createdAt ? new Date(foundWorkOrder.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
@@ -397,16 +399,29 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Ubicación</p>
                 <div className="flex items-center gap-1.5 font-semibold text-slate-900">
                   <MapPin className="h-3.5 w-3.5 text-[#2e7d32] shrink-0" />
-                  <span className="truncate">{job.location}</span>
+                  <span className="truncate capitalize">{job.location}</span>
                 </div>
               </div>
               <div className="rounded-xl bg-slate-50 px-4 py-3">
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Asignado a</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                    {job.assignedTo.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <div className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
+                      {job.assignedTo.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <p className="font-semibold text-slate-900 truncate">{job.assignedTo}</p>
                   </div>
-                  <p className="font-semibold text-slate-900 truncate">{job.assignedTo}</p>
+                  {job.profesionalPhone && (
+                    <a
+                      href={`https://wa.me/${job.profesionalPhone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#128C7E] transition-colors"
+                      title="Contactar por WhatsApp"
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -430,7 +445,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                     </>
                   )}
                 </div>
-                <span className="font-bold text-[#2e7d32] shrink-0 ml-4">${job.servicePrice.toFixed(2)}</span>
+                <span className="font-bold text-[#2e7d32] shrink-0 ml-4">U$S {job.servicePrice.toFixed(2)}</span>
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">
                 {job.serviceDescription}
@@ -625,17 +640,19 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               )}
             </div>
 
-            <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
-              <Plus className="h-4 w-4" />
-              {isUploading ? 'Subiendo...' : 'Agregar Archivo'}
-              <input
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileUpload}
-                disabled={isUploading}
-              />
-            </label>
+            {userRole !== 'client' && (
+              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
+                <Plus className="h-4 w-4" />
+                {isUploading ? 'Subiendo...' : 'Agregar Archivo'}
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                />
+              </label>
+            )}
           </div>
 
           {/* Field Map Card */}

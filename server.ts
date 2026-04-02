@@ -1116,10 +1116,12 @@ app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
   try {
     const query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
+             p_prof.phoneNumber as professionalPhone,
              f.lat, f.lng
       FROM work_orders t
       LEFT JOIN users u ON t.clientId = u.id
       LEFT JOIN users p_user ON t.profesionalId = p_user.id
+      LEFT JOIN profesionals p_prof ON t.profesionalId = p_prof.userId
       LEFT JOIN fields f ON t.fieldId = f.id
       WHERE (t.id = ? OR t.uuid = ?) AND t.deletedAt IS NULL
     `;
@@ -1162,6 +1164,7 @@ app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
       campaign: row.campaign,
       status: row.status,
       operator: row.professionalName || "Asignación Pendiente",
+      profesionalPhone: row.professionalPhone || null,
       lat: row.lat,
       lng: row.lng,
       iconName: getIconNameForService(row.service),
