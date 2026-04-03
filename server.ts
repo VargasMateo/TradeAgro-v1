@@ -78,7 +78,7 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
   // ... (rest of the code unchanged until /api/jobs)
   try {
     console.log('[SEED] Checking if default users exist...');
-    
+
     const adminPass = await bcrypt.hash('123456', 10);
     const profPass = await bcrypt.hash('123456', 10);
     const clientPass = await bcrypt.hash('123456', 10);
@@ -361,37 +361,6 @@ async function initializeDatabase() {
       if (idColumn.length > 0 && idColumn[0].Extra !== 'auto_increment') {
         console.log('[INIT] Migrating work_orders: forcing AUTO_INCREMENT on id');
         await connection.query('ALTER TABLE work_orders MODIFY id INT AUTO_INCREMENT');
-      }
-
-      // DATA MIGRATION: description -> work_order_observations
-      const [woColumns]: any = await connection.query('SHOW COLUMNS FROM work_orders LIKE "description"');
-      if (woColumns.length > 0) {
-        console.log('[INIT] Migrating work_orders: moving description to work_order_observations...');
-        const [ordersWithDesc]: any = await connection.query('SELECT id, description, createdBy FROM work_orders WHERE description IS NOT NULL AND description != ""');
-
-        for (const order of ordersWithDesc) {
-          // Try to find a valid userId for the createdBy name if it's numeric, or default to a system user
-          let creatorId = parseInt(order.createdBy);
-          if (isNaN(creatorId)) {
-            const [adminRow]: any = await connection.query('SELECT id FROM users WHERE role = "admin" LIMIT 1');
-            creatorId = adminRow.length > 0 ? adminRow[0].id : 1;
-          }
-
-          await connection.query(
-            'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
-            [order.id, creatorId, order.description]
-          );
-        }
-
-        console.log(`[INIT] Migrated ${ordersWithDesc.length} descriptions. Dropping column description.`);
-        try {
-          await connection.query('ALTER TABLE work_orders DROP COLUMN description');
-          console.log('[INIT] Column description dropped successfully.');
-        } catch (dropErr) {
-          console.error('[INIT ERROR] Failed to drop description column:', dropErr.message);
-        }
-      } else {
-        console.log('[INIT] Column description already removed from work_orders.');
       }
     } catch (err) {
       console.log('[INIT] Migration check for work_orders skipped or not needed:', err.message);
@@ -1053,12 +1022,12 @@ app.post('/api/clients', async (req, res) => {
         // Reactivate soft-deleted client
         newUserId = existing.id;
         console.log('[DEBUG] Reactivating soft-deleted client userId:', newUserId);
-        
+
         await connection.query(
           'UPDATE users SET displayName = ?, password = ? WHERE id = ?',
           [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]
         );
-        
+
         // Clear previous fields to avoid duplicates since the frontend sends fresh ones
         await connection.query('DELETE FROM fields WHERE clientId = ?', [newUserId]);
       } else {
@@ -1106,7 +1075,7 @@ app.post('/api/clients', async (req, res) => {
 
     // 4. Generate password setup token and send invite email
     const setupToken = await createPasswordSetupToken(connection, newUserId);
-    
+
     await connection.commit();
     console.log('[DEBUG] Transaction committed successfully');
 

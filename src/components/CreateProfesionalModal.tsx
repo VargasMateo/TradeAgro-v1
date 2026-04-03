@@ -323,7 +323,7 @@ export default function CreateProfesionalModal({
                         type="text"
                         readOnly
                         value={setupLink}
-                        className="w-full bg-slate-50 text-slate-500 font-mono text-[10px] sm:text-xs py-2 px-3 pr-10 border border-slate-200 rounded-lg outline-none cursor-pointer"
+                        className="w-full bg-slate-50 text-slate-500 font-mono text-[10px] sm:text-xs py-2 px-3 pr-10 border border-slate-200 rounded-lg outline-none"
                         onClick={(e) => {
                           e.currentTarget.select();
                           navigator.clipboard.writeText(setupLink);
@@ -331,7 +331,7 @@ export default function CreateProfesionalModal({
                       />
                       <button
                         onClick={() => navigator.clipboard.writeText(setupLink)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 bg-white rounded-md border border-slate-200 shadow-sm transition-colors"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 bg-white rounded-md border border-slate-200 shadow-sm transition-colors cursor-pointer"
                         title="Copiar enlace"
                       >
                         <Copy className="w-3.5 h-3.5" />

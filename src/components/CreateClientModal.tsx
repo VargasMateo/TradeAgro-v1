@@ -237,7 +237,7 @@ export default function CreateClientModal({
     } catch (err: any) {
       console.error('Error saving client:', err);
       let errorMessage = err.message || 'Ocurrió un error inesperado al guardar.';
-      
+
       if (errorMessage.includes('Duplicate entry')) {
         if (errorMessage.includes('email')) {
           errorMessage = 'Ya existe un cliente registrado con este correo electrónico.';
@@ -617,8 +617,8 @@ export default function CreateClientModal({
                 {editingClient ? '¡Actualización Exitosa!' : '¡Registro Exitoso!'}
               </h3>
               <p className="mb-2 text-slate-500 max-w-[320px]">
-                {editingClient 
-                  ? 'Los datos del cliente y sus campos han sido actualizados correctamente.' 
+                {editingClient
+                  ? 'Los datos del cliente y sus campos han sido actualizados correctamente.'
                   : `El cliente y sus ${formData.fields.length} campos han sido guardados exitosamente en el sistema.`}
               </p>
               {!editingClient && invitedEmail && (
@@ -630,10 +630,10 @@ export default function CreateClientModal({
                   </div>
                   {!inviteEmailSent && setupLink && (
                     <div className="relative group animate-in slide-in-from-top-2 duration-300">
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value={setupLink} 
+                      <input
+                        type="text"
+                        readOnly
+                        value={setupLink}
                         className="w-full bg-slate-50 text-slate-500 font-mono text-[10px] sm:text-xs py-2 px-3 pr-10 border border-slate-200 rounded-lg outline-none cursor-pointer"
                         onClick={(e) => {
                           e.currentTarget.select();
@@ -645,7 +645,7 @@ export default function CreateClientModal({
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 bg-white rounded-md border border-slate-200 shadow-sm transition-colors"
                         title="Copiar enlace"
                       >
-                        <Copy className="w-3.5 h-3.5" />
+                        <Copy className="w-3.5 h-3.5 cursor-pointer" />
                       </button>
                     </div>
                   )}
