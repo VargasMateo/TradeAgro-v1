@@ -580,6 +580,61 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
   }
 }
 
+async function sendForgotPasswordEmail(userEmail: string, displayName: string, token: string) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[EMAIL] RESEND_API_KEY not configured. Skipping email send.');
+    return false;
+  }
+
+  const appUrl = getAppUrl();
+  const resetLink = `${appUrl}/setup-password?token=${token}`;
+  const fromEmail = process.env.RESEND_FROM || 'TradeAgro <onboarding@resend.dev>';
+
+  try {
+    await getResend()!.emails.send({
+      from: fromEmail,
+      to: [userEmail],
+      subject: 'Restablecer su contraseña — TradeAgro',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Restablecimiento de Contraseña</p>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">¡Hola ${displayName}!</h2>
+            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+              Hemos recibido una solicitud para restablecer la contraseña de su cuenta en TradeAgro. Haga clic en el botón de abajo para elegir una nueva contraseña.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${resetLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+                Restablecer mi Contraseña
+              </a>
+            </div>
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+              Si no realizó esta solicitud, puede ignorar este correo. Su contraseña actual no cambiará hasta que acceda al enlace de arriba.
+            </p>
+            <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+              ${resetLink}
+            </p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
+              Este enlace expira en 48 horas.
+            </p>
+          </div>
+          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© 2026 TradeAgro. Sistema de Gestión Agropecuaria.</p>
+          </div>
+        </div>
+      `,
+    });
+    console.log(`[EMAIL] Forgot password email sent to ${userEmail}`);
+    return true;
+  } catch (error: any) {
+    console.error(`[EMAIL ERROR] Failed to send email to ${userEmail}:`, error.message);
+    return false;
+  }
+}
+
 async function createPasswordSetupToken(connection: any, userId: number): Promise<string> {
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
@@ -615,7 +670,7 @@ app.get('/api/auth/validate-token', async (req, res) => {
 
   try {
     const [rows]: any = await pool.query(`
-      SELECT pst.*, u.displayName, u.email
+      SELECT pst.*, u.displayName, u.email, u.password
       FROM password_setup_tokens pst
       JOIN users u ON pst.userId = u.id
       WHERE pst.token = ?
@@ -638,7 +693,8 @@ app.get('/api/auth/validate-token', async (req, res) => {
     res.json({
       valid: true,
       displayName: tokenRow.displayName,
-      email: tokenRow.email
+      email: tokenRow.email,
+      isNew: tokenRow.password === PASSWORD_NOT_SET_PLACEHOLDER
     });
   } catch (error: any) {
     console.error('[AUTH ERROR] validate-token:', error.message);
@@ -710,7 +766,58 @@ app.post('/api/auth/setup-password', async (req, res) => {
   } catch (error: any) {
     await connection.rollback();
     console.error('[AUTH ERROR] setup-password:', error.message);
-    res.status(500).json({ success: false, error: 'Error al configurar la contraseña' });
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * POST /api/auth/forgot-password — Request a password reset link
+ */
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  console.log(`[AUTH] Forgot password request for: ${email}`);
+
+  if (!email) {
+    return res.status(400).json({ success: false, error: 'Email es requerido' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    // 1. Find user
+    const [users]: any = await connection.query(
+      'SELECT id, displayName, email FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      // For security, do not reveal if user exists
+      console.log(`[AUTH] Forgot password: user not found (${email}), but returning success`);
+      return res.json({
+        success: true,
+        message: 'Si el correo está registrado, recibirá un enlace para restablecer su contraseña.'
+      });
+    }
+
+    const user = users[0];
+
+    // 2. Generate token
+    await connection.beginTransaction();
+    const token = await createPasswordSetupToken(connection, user.id);
+    await connection.commit();
+
+    // 3. Send email
+    await sendForgotPasswordEmail(user.email, user.displayName, token);
+
+    res.json({
+      success: true,
+      message: 'Si el correo está registrado, recibirá un enlace para restablecer su contraseña.'
+    });
+  } catch (error: any) {
+    await connection.rollback();
+    console.error('[AUTH ERROR] forgot-password:', error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     connection.release();
   }

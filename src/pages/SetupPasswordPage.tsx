@@ -6,6 +6,7 @@ export default function SetupPasswordPage() {
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<'loading' | 'valid' | 'invalid' | 'success'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isNew, setIsNew] = useState(true);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +36,7 @@ export default function SetupPasswordPage() {
         setStatus('valid');
         setDisplayName(data.displayName);
         setEmail(data.email);
+        setIsNew(data.isNew);
       } else {
         setStatus('invalid');
         setErrorMessage(data.error || 'Token inválido.');
@@ -154,9 +156,12 @@ export default function SetupPasswordPage() {
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                   <Lock className="h-7 w-7" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Configure su Contraseña</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-1">
+                  {isNew ? 'Configure su Contraseña' : 'Restablezca su Contraseña'}
+                </h2>
                 <p className="text-sm text-slate-500">
-                  Hola <span className="font-semibold text-slate-700">{displayName}</span>, cree una contraseña para su cuenta.
+                  Hola <span className="font-semibold text-slate-700">{displayName}</span>,{' '}
+                  {isNew ? 'cree una contraseña para su cuenta.' : 'elija una nueva contraseña para su cuenta.'}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">{email}</p>
               </div>
@@ -253,7 +258,7 @@ export default function SetupPasswordPage() {
                   ) : (
                     <>
                       <ShieldCheck className="h-5 w-5" />
-                      <span>Configurar Contraseña</span>
+                      <span>{isNew ? 'Configurar Contraseña' : 'Restablecer Contraseña'}</span>
                       <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                     </>
                   )}
@@ -268,9 +273,11 @@ export default function SetupPasswordPage() {
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50 text-emerald-600">
                 <CheckCircle2 className="h-10 w-10" />
               </div>
-              <h2 className="mb-2 text-xl font-bold text-slate-900">¡Contraseña Configurada!</h2>
+              <h2 className="mb-2 text-xl font-bold text-slate-900">
+                {isNew ? '¡Contraseña Configurada!' : '¡Contraseña Restablecida!'}
+              </h2>
               <p className="mb-8 text-sm text-slate-500 max-w-[300px] leading-relaxed">
-                Su contraseña ha sido configurada exitosamente. Ya puede iniciar sesión en TradeAgro.
+                Su contraseña ha sido {isNew ? 'configurada' : 'restablecida'} exitosamente. Ya puede iniciar sesión en TradeAgro.
               </p>
               <a
                 href="/"
