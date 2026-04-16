@@ -451,7 +451,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               </div>
             </div>
             <p className="text-sm text-slate-500">
-              Creado el {job.created} • Última actualización {job.updated}
+              Creado el {job.created}
             </p>
           </div>
 
