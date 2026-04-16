@@ -133,10 +133,6 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
         aria-label="Ver detalles"
       />
 
-      {/* Decorative arrow that appears on hover */}
-      <div className="absolute top-4 right-4 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-1">
-        <ArrowRight className="h-4 w-4 text-slate-300" />
-      </div>
     </div>
   );
 }
