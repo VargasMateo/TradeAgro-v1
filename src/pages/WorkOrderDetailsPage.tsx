@@ -429,6 +429,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                       { id: 'Pendiente', label: 'Pendiente', color: 'text-slate-600', icon: Clock },
                       { id: 'En Proceso', label: 'En Proceso', color: 'text-amber-600', icon: Info },
                       { id: 'Completado', label: 'Completado', color: 'text-emerald-600', icon: CheckCircle },
+                      { id: 'Cancelado', label: 'Cancelado', color: 'text-red-600', icon: AlertTriangle },
                     ].map((status) => (
                       <button
                         key={status.id}
