@@ -362,8 +362,27 @@ export default function CreateWorkOrderModal() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...newFiles]);
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const incomingFiles = Array.from(e.target.files) as File[];
+      
+      const overlimitFiles = incomingFiles.filter(f => f.size > maxSize);
+      const validFiles = incomingFiles.filter(f => f.size <= maxSize);
+
+      if (overlimitFiles.length > 0) {
+        setValidationDialog({
+          show: true,
+          title: 'Archivo demasiado grande',
+          message: `Uno o más archivos superan el límite de 10MB y no serán agregados: ${overlimitFiles.map(f => f.name).join(', ')}`,
+          type: 'error'
+        });
+      }
+
+      if (validFiles.length > 0) {
+        setSelectedFiles(prev => [...prev, ...validFiles]);
+      }
+      
+      // Reset input value to allow selecting same file again if needed
+      e.target.value = '';
     }
   };
 
