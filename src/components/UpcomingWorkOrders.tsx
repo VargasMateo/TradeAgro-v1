@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Clock, MapPin, ArrowRight } from "lucide-react";
+import { cn } from "../lib/utils";
 
 export default function UpcomingWorkOrders({
   data,
@@ -132,8 +133,13 @@ export default function UpcomingWorkOrders({
               className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${workOrder.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
-                  }`}>
+                <span className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm transition-colors",
+                  workOrder.status === 'Pendiente' && "bg-slate-50 text-slate-600 border-slate-100",
+                  workOrder.status === 'En Proceso' && "bg-amber-50 text-amber-600 border-amber-100",
+                  workOrder.status === 'Completado' && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                  workOrder.status === 'Cancelado' && "bg-red-50 text-red-600 border-red-100"
+                )}>
                   {workOrder.status}
                 </span>
                 <span className="text-xs font-semibold text-slate-400">{`#AG-${workOrder.id}`}</span>

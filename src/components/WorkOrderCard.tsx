@@ -64,10 +64,11 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
           </div>
         </div>
         <span className={cn(
-          "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm",
-          job.status === "En Proceso" && "bg-amber-100 text-amber-700",
-          job.status === "Pendiente" && "bg-slate-100 text-slate-600",
-          job.status === "Completado" && "bg-emerald-100 text-emerald-700"
+          "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border shadow-sm transition-colors",
+          job.status === "Pendiente" && "bg-slate-50 text-slate-600 border-slate-100",
+          job.status === "En Proceso" && "bg-amber-50 text-amber-600 border-amber-100",
+          job.status === "Completado" && "bg-emerald-50 text-emerald-600 border-emerald-100",
+          job.status === "Cancelado" && "bg-red-50 text-red-600 border-red-100"
         )}>
           {job.status}
         </span>
