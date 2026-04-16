@@ -1525,6 +1525,57 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Endpoint to update ONLY the status of a work order
+ */
+app.patch('/api/work-orders/:id/status', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const user = (req as any).user;
+
+  if (!status) {
+    return res.status(400).json({ success: false, error: 'Status is required' });
+  }
+
+  // Validate status
+  const validStatuses = ['Pendiente', 'En Proceso', 'Completado', 'Cancelado'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ success: false, error: 'Invalid status value' });
+  }
+
+  try {
+    // Resolve UUID/Numeric ID to internal numeric ID
+    const [woRows]: any = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    if (woRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+    const order = woRows[0];
+
+    // Authorization: Admin, or the assigned Professional
+    const isAuthorized = user.role === 'admin' || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para cambiar el estado de esta orden' });
+    }
+
+    await pool.query('UPDATE work_orders SET status = ? WHERE id = ?', [status, order.id]);
+
+    console.log(`[STATUS UPDATE] Order ${order.id} updated to ${status} by user ${user.id}`);
+
+    res.json({
+      success: true,
+      message: 'Estado actualizado correctamente',
+      status: status
+    });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] PATCH /api/work-orders/${id}/status:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update status',
+      message: error.message
+    });
+  }
+});
+
+/**
  * Soft delete a job (work order)
  */
 app.delete('/api/work-orders/:id', authenticateToken, async (req, res) => {
