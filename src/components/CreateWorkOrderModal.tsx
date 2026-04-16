@@ -38,6 +38,7 @@ export default function CreateWorkOrderModal() {
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
+  const [services, setServices] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<'profesional' | 'client' | 'admin' | null>(null);
 
   const fetchClients = async () => {
@@ -60,6 +61,22 @@ export default function CreateWorkOrderModal() {
       if (stored) setClients(JSON.parse(stored));
     }
   };
+
+  const fetchServices = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/services', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      setServices(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
+
   const fetchProfesionales = async () => {
     try {
       const token = localStorage.getItem('authToken');
@@ -83,6 +100,7 @@ export default function CreateWorkOrderModal() {
       setUserRole(role);
 
       fetchClients();
+      fetchServices();
       if (role === 'admin') {
         fetchProfesionales();
       }
@@ -104,9 +122,9 @@ export default function CreateWorkOrderModal() {
   const [showLotSuggestions, setShowLotSuggestions] = useState(false);
   const [showProfesionalSuggestions, setShowProfesionalSuggestions] = useState(false);
   const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
+  const [showSecondaryServiceSuggestions, setShowSecondaryServiceSuggestions] = useState(false);
   const [showCampaignSuggestions, setShowCampaignSuggestions] = useState(false);
 
-  const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
   const predefinedCampaigns = ['24/25', '25/26', '26/27'];
 
   const [formData, setFormData] = useState({
@@ -1056,7 +1074,7 @@ export default function CreateWorkOrderModal() {
                     <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
                       {showServiceSuggestions && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                          {predefinedServices
+                          {services
                             .filter(s => s.toLowerCase().includes(formData.service.toLowerCase()))
                             .map(s => (
                               <button
@@ -1074,9 +1092,9 @@ export default function CreateWorkOrderModal() {
                                 {s}
                               </button>
                             ))}
-                          {formData.service.trim() !== '' && !predefinedServices.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
-                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
-                              Se usará: "{formData.service.trim()}"
+                          {formData.service.trim() !== '' && !services.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
+                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
+                              Nuevo: "{formData.service.trim()}" (Se guardará)
                             </div>
                           )}
                         </div>
@@ -1084,16 +1102,51 @@ export default function CreateWorkOrderModal() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">Secundario</label>
-                    <input
-                      type="text"
-                      name="secondaryService"
-                      value={formData.secondaryService}
-                      onChange={handleInputChange}
-                      placeholder="Opcional"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="secondaryService"
+                        autoComplete="off"
+                        value={formData.secondaryService}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setShowSecondaryServiceSuggestions(true);
+                        }}
+                        onFocus={() => setShowSecondaryServiceSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSecondaryServiceSuggestions(false), 200)}
+                        placeholder="Opcional"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showSecondaryServiceSuggestions && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {services
+                            .filter(s => s.toLowerCase().includes(formData.secondaryService.toLowerCase()))
+                            .map(s => (
+                              <button
+                                key={s}
+                                type="button"
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, secondaryService: s }));
+                                  setShowSecondaryServiceSuggestions(false);
+                                }}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          {formData.secondaryService.trim() !== '' && !services.some(s => s.toLowerCase() === formData.secondaryService.trim().toLowerCase()) && (
+                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
+                              Nuevo: "{formData.secondaryService.trim()}" (Se guardará)
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5 relative">

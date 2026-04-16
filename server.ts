@@ -128,6 +128,24 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
   }
 };
 
+const seedDefaultServices = async (connection: mysql.Connection | mysql.Pool = pool) => {
+  try {
+    const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización', 'Dron'];
+    console.log('[SEED] Checking default services...');
+
+    for (const serviceName of predefinedServices) {
+      const [existing]: any = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
+      if (existing.length === 0) {
+        console.log(`[SEED] Inserting service: ${serviceName}`);
+        await connection.query('INSERT INTO services (name, isPredefined) VALUES (?, ?)', [serviceName, true]);
+      }
+    }
+    console.log('[SEED] SUCCESS: Default services seeded.');
+  } catch (err: any) {
+    console.error('[SEED ERROR] Services:', err.message);
+  }
+};
+
 async function initializeDatabase() {
   console.log('[INIT] Starting full database initialization sequence...');
   const connection = await pool.getConnection();
@@ -297,6 +315,17 @@ async function initializeDatabase() {
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
+    // Services Table
+    console.log('[INIT] Creating services table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS services (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        isPredefined BOOLEAN DEFAULT FALSE,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+
     // Password Setup Tokens Table
     console.log('[INIT] Creating password_setup_tokens table...');
     await connection.query(`
@@ -398,6 +427,7 @@ async function initializeDatabase() {
     console.log('[INIT] Schema ready. Calling seed...');
 
     await seedDefaultUsers(connection);
+    await seedDefaultServices(connection);
 
     console.log('[INIT] Database initialization completed successfully.');
   } catch (err: any) {
@@ -1330,6 +1360,10 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       createdBy
     } = req.body;
 
+    // Persist services if they are new
+    await ensureServiceExists(service);
+    if (secondaryService) await ensureServiceExists(secondaryService);
+
     // Clean numeric values
     const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
     const cleanHectares = typeof hectares === 'string' ? hectares.replace(/[^0-9.]/g, '') : hectares;
@@ -1430,6 +1464,10 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       fieldId,
       notes
     } = req.body;
+
+    // Persist services if they are new
+    await ensureServiceExists(service);
+    if (secondaryService) await ensureServiceExists(secondaryService);
 
     // Clean numeric values
     const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
@@ -1816,7 +1854,35 @@ app.delete('/api/attachments/:id', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/services — fetch all registered services
+ */
+app.get('/api/services', authenticateToken, async (req, res) => {
+  try {
+    const [rows]: any = await pool.query('SELECT name FROM services ORDER BY name ASC');
+    const serviceNames = rows.map((r: any) => r.name);
+    res.json(serviceNames);
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] GET /api/services:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch services' });
+  }
+});
+
 // Helper functions for backend mapping (similar to frontend)
+async function ensureServiceExists(serviceName: string | null | undefined) {
+  if (!serviceName || !serviceName.trim()) return;
+  const trimmed = serviceName.trim();
+  try {
+    const [existing]: any = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?)', [trimmed]);
+    if (existing.length === 0) {
+      console.log(`[SERVICES] Saving new service: ${trimmed}`);
+      await pool.query('INSERT INTO services (name) VALUES (?)', [trimmed]);
+    }
+  } catch (err: any) {
+    console.error('[SERVICES ERROR] Failed to ensure service exists:', err.message);
+  }
+}
+
 function getIconNameForService(service: string) {
   switch (service) {
     case 'Cosecha': return 'Wheat';
