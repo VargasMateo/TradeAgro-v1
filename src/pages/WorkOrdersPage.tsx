@@ -566,9 +566,6 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                     <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-400">
                       Estado
                     </th>
-                    <th className="px-8 py-5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Acciones
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -667,38 +664,6 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                           ></span>
                           {order.status}
                         </span>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {(userRole === 'profesional' || userRole === 'admin') && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSearchParams({ editJob: String(order.uuid || order.id) });
-                                }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
-                                title="Editar"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); /* handle delete */ }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
-                                title="Borrar"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${order.uuid || order.id}`); }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
-                            title="Ir"
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   ))}
