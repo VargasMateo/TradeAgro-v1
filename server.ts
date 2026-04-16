@@ -21,15 +21,6 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure uploads directory exists (safely for Vercel Serverless environment)
-const uploadDir = path.join(__dirname, 'uploads');
-try {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-} catch (error: any) {
-  console.warn('[WARNING] Skipping uploads directory creation (expected in Serverless environments):', error.message);
-}
 
 // Multer config - Now using memory storage to save to DB
 const storage = multer.memoryStorage();
