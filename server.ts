@@ -152,6 +152,17 @@ async function initializeDatabase() {
   try {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
+    // Services Table
+    console.log('[INIT] Creating services table (Early)...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS services (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        isPredefined BOOLEAN DEFAULT FALSE,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+
     // Base Users Table
     console.log('[INIT] Creating users table...');
     await connection.query(`
@@ -312,17 +323,6 @@ async function initializeDatabase() {
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (workOrderId) REFERENCES work_orders(id) ON DELETE CASCADE,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-    `);
-
-    // Services Table
-    console.log('[INIT] Creating services table...');
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS services (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL,
-        isPredefined BOOLEAN DEFAULT FALSE,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
@@ -514,7 +514,7 @@ app.post('/api/test/reset-database', async (req, res) => {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
     // Drop and recreate to ensure schema changes
-    const tables = ['work_order_observations', 'work_order_attachments', 'work_orders', 'fields', 'clients', 'profesionals', 'users'];
+    const tables = ['work_order_observations', 'work_order_attachments', 'work_orders', 'fields', 'clients', 'profesionals', 'users', 'services'];
     for (const table of tables) {
       await connection.query(`DROP TABLE IF EXISTS ${table}`);
     }
@@ -1556,6 +1556,7 @@ app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
   console.log(`[SECURE DEBUG] GET /api/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
 
   try {
+    const isNumeric = /^\d+$/.test(id);
     const query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
              p_prof.phoneNumber as professionalPhone, c.phoneNumber as clientPhone,
@@ -1566,10 +1567,10 @@ app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
       LEFT JOIN profesionals p_prof ON t.profesionalId = p_prof.userId
       LEFT JOIN clients c ON t.clientId = c.userId
       LEFT JOIN fields f ON t.fieldId = f.id
-      WHERE (t.id = ? OR t.uuid = ?) AND t.deletedAt IS NULL
+      WHERE (${isNumeric ? 't.id = ? OR ' : ''}t.uuid = ?) AND t.deletedAt IS NULL
     `;
 
-    const [rows]: any = await pool.query(query, [id, id]);
+    const [rows]: any = await pool.query(query, isNumeric ? [id, id] : [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
