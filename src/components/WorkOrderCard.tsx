@@ -102,22 +102,27 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
 
       {/* Footer Section: Client & Professional */}
       <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-        <div className="flex flex-col">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Cliente</p>
-          <p className="text-xs font-bold text-slate-700">{job.client}</p>
-        </div>
-
-        <div className="flex items-center gap-2 text-right">
-          <div className="flex flex-col items-end">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Operador</p>
-            <p className="text-xs font-bold text-slate-700">{job.operator}</p>
+        {(userRole === 'profesional' || userRole === 'admin') && (
+          <div className="flex flex-col">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Cliente</p>
+            <p className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{job.client}</p>
           </div>
-          <img
-            src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
-            alt={job.operator}
-            className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 shadow-sm"
-          />
-        </div>
+        )}
+
+        {(userRole === 'client' || userRole === 'admin') && (
+          <div className={cn("flex items-center gap-2 text-right", userRole === 'client' && "w-full justify-between")}>
+            <div className="flex flex-col items-end">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Profesional</p>
+              <p className="text-xs font-bold text-slate-700">{job.operator || "Pendiente"}</p>
+            </div>
+            <img
+              src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
+              alt={job.operator}
+              className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 shadow-sm"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        )}
       </div>
 
       {/* Action Overlay */}

@@ -262,7 +262,11 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       {/* Upcoming Jobs Section - Hidden if no work orders AND not loading */}
       {(isLoadingWorkOrders || hasAnyWorkOrders) && (
         <div className="order-4 lg:col-span-2">
-          <UpcomingWorkOrders data={workOrders} isLoading={isLoadingWorkOrders} />
+          <UpcomingWorkOrders 
+            data={workOrders} 
+            isLoading={isLoadingWorkOrders} 
+            userRole={userRole} 
+          />
         </div>
       )}
 
