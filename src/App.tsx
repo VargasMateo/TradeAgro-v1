@@ -87,14 +87,10 @@ export default function App() {
     // 3. Proactively check when user returns to the tab
     window.addEventListener('focus', checkToken);
 
-    // 4. Periodically check (every 30 seconds)
-    const intervalId = setInterval(checkToken, 30000);
-
     return () => {
       window.removeEventListener('force-logout', onForceLogout);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', checkToken);
-      clearInterval(intervalId);
     };
   }, [isAuthenticated]);
 
