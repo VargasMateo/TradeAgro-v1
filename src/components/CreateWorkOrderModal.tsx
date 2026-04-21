@@ -337,7 +337,7 @@ export default function CreateWorkOrderModal() {
     if (e.target.files) {
       const maxSize = 10 * 1024 * 1024; // 10MB
       const incomingFiles = Array.from(e.target.files) as File[];
-      
+
       const overlimitFiles = incomingFiles.filter(f => f.size > maxSize);
       const validFiles = incomingFiles.filter(f => f.size <= maxSize);
 
@@ -353,7 +353,7 @@ export default function CreateWorkOrderModal() {
       if (validFiles.length > 0) {
         setSelectedFiles(prev => [...prev, ...validFiles]);
       }
-      
+
       // Reset input value to allow selecting same file again if needed
       e.target.value = '';
     }
@@ -1272,14 +1272,14 @@ export default function CreateWorkOrderModal() {
 
             {/* SUCCESS STEP */}
             <div className={step === 'success' ? 'block' : 'hidden'}>
-              <div className="flex flex-col items-center justify-center py-8 text-center animate-in zoom-in-95 duration-300">
+              <div className="flex flex-col items-center justify-center pt-8 text-center animate-in zoom-in-95 duration-300">
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
                   <CheckCircle2 className="h-10 w-10 text-emerald-600" />
                 </div>
                 <h3 className="mb-2 text-2xl font-bold text-slate-900">
                   ¡Trabajo Guardado!
                 </h3>
-                <p className="mb-8 text-slate-500 max-w-[280px]">
+                <p className="mb-8 text-slate-500 max-w-[300px]">
                   El trabajo ha sido registrado exitosamente en el sistema.
                 </p>
                 <div className="flex w-full gap-3">
