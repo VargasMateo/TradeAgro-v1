@@ -156,7 +156,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => setView('forgot-password')}
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setView('forgot-password');
+                    }}
                     className="text-xs font-medium text-emerald-600 hover:text-emerald-700 cursor-pointer"
                   >
                     ¿Olvidaste tu contraseña?
@@ -261,6 +264,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     <button
                       type="button"
                       onClick={() => {
+                        setEmail(forgotEmail);
                         setView('login');
                         setForgotError(null);
                       }}
