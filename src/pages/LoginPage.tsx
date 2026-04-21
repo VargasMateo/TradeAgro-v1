@@ -285,7 +285,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                       setForgotSuccess(false);
                       setForgotEmail('');
                     }}
-                    className="w-full rounded-xl bg-slate-900 px-6 py-4 font-bold text-white transition-all hover:bg-slate-800 active:scale-[0.98] cursor-pointer"
+                    className="w-full rounded-xl bg-emerald-600 px-6 py-4 font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] cursor-pointer"
                   >
                     ENTENDIDO
                   </button>

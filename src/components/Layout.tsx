@@ -190,6 +190,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           <div className="border-t border-slate-100 p-6">
             <Link 
               to="/profile" 
+              onClick={() => setIsSidebarOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-2xl border p-3 transition-colors",
                 isActive("/profile") 
