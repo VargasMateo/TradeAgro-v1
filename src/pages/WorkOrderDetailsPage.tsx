@@ -184,52 +184,63 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     }
   };
 
-  useEffect(() => {
-    const fetchJobDetails = async () => {
-      setLoading(true);
-      try {
-        const response = await authenticatedFetch(`/api/work-orders/${id}`);
+  const fetchJobDetails = async () => {
+    setLoading(true);
+    try {
+      const response = await authenticatedFetch(`/api/work-orders/${id}`);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to load job details');
-        }
-
-        const foundWorkOrder = await response.json();
-
-        // Map database job to UI job format
-        setJob({
-          id: `#AG-${foundWorkOrder.id}`,
-          internalId: foundWorkOrder.id,
-          uuid: foundWorkOrder.uuid,
-          status: foundWorkOrder.status,
-          created: foundWorkOrder.date ? new Date(foundWorkOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
-          updated: "Hace un momento",
-          client: foundWorkOrder.client,
-          clientPhone: foundWorkOrder.clientPhone || null,
-          location: foundWorkOrder.location,
-          assignedTo: foundWorkOrder.operator || "Asignación Pendiente",
-          service: foundWorkOrder.service,
-          secondaryService: foundWorkOrder.secondaryService || null,
-          serviceDescription: `Lote: ${foundWorkOrder.lotName || 'N/A'}, Campaña: ${foundWorkOrder.campaign || 'Campaña Actual'}, Superficie: ${foundWorkOrder.hectares || 0} ha.`,
-          servicePrice: Number(foundWorkOrder.amountUsd) || 0,
-          profesionalPhone: foundWorkOrder.profesionalPhone || null,
-          observation: foundWorkOrder.description || "No hay observaciones iniciales registradas.",
-          observationAuthor: "SISTEMA",
-          observationDate: foundWorkOrder.createdAt ? new Date(foundWorkOrder.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
-          coordinates: (foundWorkOrder.lat !== null && foundWorkOrder.lng !== null) ? [Number(foundWorkOrder.lat), Number(foundWorkOrder.lng)] : null,
-        });
-
-      } catch (err: any) {
-        setJobError(err.message || 'Error al cargar detalles');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load job details');
       }
-    };
 
+      const foundWorkOrder = await response.json();
+
+      // Map database job to UI job format
+      setJob({
+        id: `#AG-${foundWorkOrder.id}`,
+        internalId: foundWorkOrder.id,
+        uuid: foundWorkOrder.uuid,
+        status: foundWorkOrder.status,
+        created: foundWorkOrder.date ? new Date(foundWorkOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
+        updated: "Hace un momento",
+        client: foundWorkOrder.client,
+        clientPhone: foundWorkOrder.clientPhone || null,
+        location: foundWorkOrder.location,
+        assignedTo: foundWorkOrder.operator || "Asignación Pendiente",
+        service: foundWorkOrder.service,
+        secondaryService: foundWorkOrder.secondaryService || null,
+        serviceDescription: `Lote: ${foundWorkOrder.lotName || 'N/A'}, Campaña: ${foundWorkOrder.campaign || 'Campaña Actual'}, Superficie: ${foundWorkOrder.hectares || 0} ha.`,
+        servicePrice: Number(foundWorkOrder.amountUsd) || 0,
+        profesionalPhone: foundWorkOrder.profesionalPhone || null,
+        observation: foundWorkOrder.description || "No hay observaciones iniciales registradas.",
+        observationAuthor: "SISTEMA",
+        observationDate: foundWorkOrder.createdAt ? new Date(foundWorkOrder.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
+        coordinates: (foundWorkOrder.lat !== null && foundWorkOrder.lng !== null) ? [Number(foundWorkOrder.lat), Number(foundWorkOrder.lng)] : null,
+      });
+
+    } catch (err: any) {
+      setJobError(err.message || 'Error al cargar detalles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchJobDetails();
     fetchAttachments();
   }, [id]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchJobDetails();
+      fetchAttachments();
+      fetchObservations();
+    };
+
+    window.addEventListener('job-created', handleRefresh);
+    return () => window.removeEventListener('job-created', handleRefresh);
+  }, [id]); // Depend on id to ensure we refresh the correct one (though it handles current page)
 
   const [copied, setCopied] = useState(false);
 

@@ -690,6 +690,91 @@ async function sendForgotPasswordEmail(userEmail: string, displayName: string, t
   }
 }
 
+async function sendOrderCompletedEmail(orderData: any) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn('[EMAIL] SMTP not configured. Skipping order completion email.');
+    return;
+  }
+
+  const appUrl = getAppUrl();
+  const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagro.com.ar>';
+
+  try {
+    const info = await transporter.sendMail({
+      from: fromEmail,
+      to: orderData.clientEmail,
+      subject: `Orden #${orderData.id} Completada — TradeAgro`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Notificación de Servicio</p>
+          </div>
+          <div style="padding: 32px 24px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <div style="display: inline-block; background: #f0fdf4; color: #166534; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 12px; border: 1px solid #bbf7d0;">
+                ✓ ORDEN FINALIZADA
+              </div>
+            </div>
+            <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">¡Tu orden ha sido completada!</h2>
+            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
+              Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con éxito.
+            </p>
+
+            <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px;">
+              <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">Detalles del Servicio</h3>
+              
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Orden:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Servicio:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campo / Lote:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
+                </tr>
+                ${orderData.hectares ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Superficie:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.hectares} ha.</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campaña:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.campaign}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 32px;">
+              <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+                Ver detalles en el panel
+              </a>
+            </div>
+
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; text-align: center;">
+              Si tienes alguna duda, por favor contacta con tu asesor asignado.
+            </p>
+          </div>
+          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} TradeAgro. Este es un mensaje automático, por favor no lo respondas.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    console.log(`[EMAIL] Order completion email sent to ${orderData.clientEmail}, messageId: ${info.messageId}`);
+  } catch (error: any) {
+    console.error(`[EMAIL ERROR] Failed to send order completion email to ${orderData.clientEmail}:`, error.message);
+  }
+}
+
 async function createPasswordSetupToken(connection: any, userId: number): Promise<string> {
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
@@ -1486,11 +1571,12 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
   console.log(`[DEBUG] PUT /api/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
   try {
     // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    const [woRows]: any = await pool.query('SELECT id, status FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const orderBeforeUpdate = woRows[0];
+    const internalJobId = orderBeforeUpdate.id;
 
     const {
       clientId,
@@ -1553,6 +1639,40 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Job not found' });
     }
 
+    // Si el estado CAMBIA a "Completado", enviar email al cliente
+    if (status === 'Completado' && orderBeforeUpdate.status !== 'Completado') {
+      try {
+        const query = `
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          FROM work_orders t
+          JOIN users u ON t.clientId = u.id
+          WHERE t.id = ?
+        `;
+        const [rows]: any = await pool.query(query, [internalJobId]);
+        
+        if (rows.length > 0) {
+          const row = rows[0];
+          const orderData = {
+            id: row.id,
+            uuid: row.uuid,
+            clientName: row.clientName,
+            clientEmail: row.clientEmail,
+            service: row.service || 'Servicio General',
+            location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
+            hectares: row.hectares,
+            campaign: row.campaign
+          };
+          
+          // Enviar email de forma asíncrona
+          sendOrderCompletedEmail(orderData).catch(err => {
+            console.error('[ORDER UPDATE] Error asynchronously sending completed email:', err);
+          });
+        }
+      } catch (emailDataError) {
+        console.error('[ORDER UPDATE] Error fetching data for completion email:', emailDataError);
+      }
+    }
+
     res.json({
       success: true,
       id: id
@@ -1603,6 +1723,40 @@ app.patch('/api/work-orders/:id/status', authenticateToken, async (req, res) => 
     await pool.query('UPDATE work_orders SET status = ? WHERE id = ?', [status, order.id]);
 
     console.log(`[STATUS UPDATE] Order ${order.id} updated to ${status} by user ${user.id}`);
+
+    // Si el estado es "Completado", enviar email al cliente
+    if (status === 'Completado') {
+      try {
+        const query = `
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          FROM work_orders t
+          JOIN users u ON t.clientId = u.id
+          WHERE t.id = ?
+        `;
+        const [rows]: any = await pool.query(query, [order.id]);
+        
+        if (rows.length > 0) {
+          const row = rows[0];
+          const orderData = {
+            id: row.id,
+            uuid: row.uuid,
+            clientName: row.clientName,
+            clientEmail: row.clientEmail,
+            service: row.service || 'Servicio General',
+            location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
+            hectares: row.hectares,
+            campaign: row.campaign
+          };
+          
+          // Enviar email de forma asíncrona (no bloqueante)
+          sendOrderCompletedEmail(orderData).catch(err => {
+            console.error('[STATUS UPDATE] Error asynchronously sending completed email:', err);
+          });
+        }
+      } catch (emailDataError) {
+        console.error('[STATUS UPDATE] Error fetching data for completion email:', emailDataError);
+      }
+    }
 
     res.json({
       success: true,
