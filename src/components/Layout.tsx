@@ -100,7 +100,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   if (userRole === 'profesional') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
-      { path: "/stations", label: "Estaciones", icon: Sun }
+      //{ path: "/stations", label: "Estaciones", icon: Sun }
     );
   } else if (userRole === 'client') {
     navItems.push(
@@ -110,7 +110,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/profesionales", label: "Profesionales", icon: UserCheck },
-      { path: "/stations", label: "Estaciones", icon: Sun },
+      //{ path: "/stations", label: "Estaciones", icon: Sun },
       { path: "/db-test", label: "DB Test", icon: Shield },
     );
   }
@@ -188,12 +188,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
           {/* User Profile */}
           <div className="border-t border-slate-100 p-6">
-            <Link 
-              to="/profile" 
+            <Link
+              to="/profile"
               onClick={() => setIsSidebarOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-2xl border p-3 transition-colors",
-                isActive("/profile") 
+                isActive("/profile")
                   ? "border-emerald-100 bg-emerald-50 shadow-sm"
                   : "border-slate-100 bg-slate-50/50 hover:bg-slate-100"
               )}
