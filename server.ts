@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -552,13 +553,25 @@ app.post('/api/test/reset-database', async (req, res) => {
 
 const PASSWORD_NOT_SET_PLACEHOLDER = '__PASSWORD_NOT_SET__';
 
-// Configure Resend email client (lazy initialization)
-import { Resend } from 'resend';
-let resendClient: Resend | null = null;
-const getResend = () => {
-  if (!process.env.RESEND_API_KEY) return null;
-  if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY);
-  return resendClient;
+// Configure SMTP transporter (lazy initialization)
+let smtpTransporter: nodemailer.Transporter | null = null;
+const getTransporter = () => {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return null;
+  }
+  
+  if (!smtpTransporter) {
+    smtpTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '465'),
+      secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+  return smtpTransporter;
 };
 
 const getAppUrl = () => {
@@ -566,19 +579,20 @@ const getAppUrl = () => {
 };
 
 async function sendPasswordSetupEmail(userEmail: string, displayName: string, token: string) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[EMAIL] RESEND_API_KEY not configured. Skipping email send.');
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn('[EMAIL] SMTP not configured. Skipping email send.');
     throw new Error('Servidor de correo no configurado');
   }
 
   const appUrl = getAppUrl();
   const setupLink = `${appUrl}/setup-password?token=${token}`;
-  const fromEmail = process.env.RESEND_FROM || 'TradeAgro <onboarding@resend.dev>';
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagro.com.ar>';
 
   try {
-    const { data, error } = await getResend()!.emails.send({
+    const info = await transporter.sendMail({
       from: fromEmail,
-      to: [userEmail],
+      to: userEmail,
       subject: 'Bienvenido a TradeAgro — Configure su contraseña',
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
@@ -613,12 +627,7 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
       `
     });
 
-    if (error) {
-      console.error(`[RESEND ERROR] Failed to send email to ${userEmail}:`, error);
-      throw new Error(`Error de envío: ${error.message}`);
-    }
-
-    console.log(`[EMAIL] Password setup email sent to ${userEmail}, id: ${data?.id}`);
+    console.log(`[EMAIL] Password setup email sent to ${userEmail}, messageId: ${info.messageId}`);
   } catch (error: any) {
     console.error(`[EMAIL CATCH] Failed to send email to ${userEmail}:`, error.message);
     throw error;
@@ -626,19 +635,20 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
 }
 
 async function sendForgotPasswordEmail(userEmail: string, displayName: string, token: string) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[EMAIL] RESEND_API_KEY not configured. Skipping email send.');
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn('[EMAIL] SMTP not configured. Skipping email send.');
     throw new Error('Servidor de correo no configurado');
   }
 
   const appUrl = getAppUrl();
   const resetLink = `${appUrl}/setup-password?token=${token}`;
-  const fromEmail = process.env.RESEND_FROM || 'TradeAgro <onboarding@resend.dev>';
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagro.com.ar>';
 
   try {
-    const { data, error } = await getResend()!.emails.send({
+    const info = await transporter.sendMail({
       from: fromEmail,
-      to: [userEmail],
+      to: userEmail,
       subject: 'Restablecer su contraseña — TradeAgro',
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
@@ -673,12 +683,7 @@ async function sendForgotPasswordEmail(userEmail: string, displayName: string, t
       `,
     });
 
-    if (error) {
-      console.error(`[RESEND ERROR] Failed to send email to ${userEmail}:`, error);
-      throw new Error(`Error de envío: ${error.message}`);
-    }
-
-    console.log(`[EMAIL] Forgot password email sent to ${userEmail}, id: ${data?.id}`);
+    console.log(`[EMAIL] Forgot password email sent to ${userEmail}, messageId: ${info.messageId}`);
   } catch (error: any) {
     console.error(`[EMAIL CATCH] Failed to send email to ${userEmail}:`, error.message);
     throw error;
