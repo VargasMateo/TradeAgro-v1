@@ -64,10 +64,11 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
           </div>
         </div>
         <span className={cn(
-          "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm",
-          job.status === "En Proceso" && "bg-amber-100 text-amber-700",
-          job.status === "Pendiente" && "bg-slate-100 text-slate-600",
-          job.status === "Completado" && "bg-emerald-100 text-emerald-700"
+          "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border shadow-sm transition-colors",
+          job.status === "Pendiente" && "bg-slate-50 text-slate-600 border-slate-100",
+          job.status === "En Proceso" && "bg-amber-50 text-amber-600 border-amber-100",
+          job.status === "Completado" && "bg-emerald-50 text-emerald-600 border-emerald-100",
+          job.status === "Cancelado" && "bg-red-50 text-red-600 border-red-100"
         )}>
           {job.status}
         </span>
@@ -102,22 +103,27 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
 
       {/* Footer Section: Client & Professional */}
       <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-        <div className="flex flex-col">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Cliente</p>
-          <p className="text-xs font-bold text-slate-700">{job.client}</p>
-        </div>
-
-        <div className="flex items-center gap-2 text-right">
-          <div className="flex flex-col items-end">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Operador</p>
-            <p className="text-xs font-bold text-slate-700">{job.operator}</p>
+        {(userRole === 'profesional' || userRole === 'admin') && (
+          <div className="flex flex-col">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Cliente</p>
+            <p className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{job.client}</p>
           </div>
-          <img
-            src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
-            alt={job.operator}
-            className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 shadow-sm"
-          />
-        </div>
+        )}
+
+        {(userRole === 'client' || userRole === 'admin') && (
+          <div className={cn("flex items-center gap-2 text-right", userRole === 'client' && "w-full justify-between")}>
+            <div className="flex flex-col items-end">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Profesional</p>
+              <p className="text-xs font-bold text-slate-700">{job.operator || "Pendiente"}</p>
+            </div>
+            <img
+              src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
+              alt={job.operator}
+              className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 shadow-sm"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        )}
       </div>
 
       {/* Action Overlay */}
@@ -127,10 +133,6 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
         aria-label="Ver detalles"
       />
 
-      {/* Decorative arrow that appears on hover */}
-      <div className="absolute top-4 right-4 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-1">
-        <ArrowRight className="h-4 w-4 text-slate-300" />
-      </div>
     </div>
   );
 }

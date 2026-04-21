@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database } from "lucide-react";
+import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
+import { authenticatedFetch } from "../lib/api";
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -62,6 +63,9 @@ export default function CreateClientModal({
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [createdId, setCreatedId] = useState<number | null>(null);
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
+  const [invitedEmail, setInvitedEmail] = useState('');
+  const [setupLink, setSetupLink] = useState('');
 
   useEffect(() => {
     if (editingClient) {
@@ -214,9 +218,8 @@ export default function CreateClientModal({
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients';
       const method = editingClient ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
@@ -224,6 +227,9 @@ export default function CreateClientModal({
 
       if (data.success) {
         if (data.id) setCreatedId(data.id);
+        if (data.emailSent !== undefined) setInviteEmailSent(data.emailSent);
+        if (data.email) setInvitedEmail(data.email);
+        if (data.setupLink) setSetupLink(data.setupLink);
         setStep('success');
       } else {
         throw new Error(data.details || data.error || 'Failed to save');
@@ -231,7 +237,7 @@ export default function CreateClientModal({
     } catch (err: any) {
       console.error('Error saving client:', err);
       let errorMessage = err.message || 'Ocurrió un error inesperado al guardar.';
-      
+
       if (errorMessage.includes('Duplicate entry')) {
         if (errorMessage.includes('email')) {
           errorMessage = 'Ya existe un cliente registrado con este correo electrónico.';
@@ -610,12 +616,42 @@ export default function CreateClientModal({
               <h3 className="mb-2 text-2xl font-bold text-slate-900">
                 {editingClient ? '¡Actualización Exitosa!' : '¡Registro Exitoso!'}
               </h3>
-              <p className="mb-8 text-slate-500 max-w-[320px]">
-                {editingClient 
-                  ? 'Los datos del cliente y sus campos han sido actualizados correctamente.' 
+              <p className="mb-2 text-slate-500 max-w-[320px]">
+                {editingClient
+                  ? 'Los datos del cliente y sus campos han sido actualizados correctamente.'
                   : `El cliente y sus ${formData.fields.length} campos han sido guardados exitosamente en el sistema.`}
               </p>
-              <div className="flex w-full justify-center">
+              {!editingClient && invitedEmail && (
+                <div className={`mb-6 w-full flex flex-col gap-2`}>
+                  <div className={`rounded-xl px-4 py-3 text-xs font-medium ${inviteEmailSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                    {inviteEmailSent
+                      ? <><span className="font-bold">📧 Email enviado</span> a <span className="font-semibold">{invitedEmail}</span> para que configure su contraseña.</>
+                      : <><span className="font-bold">⚠️ Email no configurado.</span> Copie el siguiente enlace y envíeselo al cliente para que configure su cuenta:</>}
+                  </div>
+                  {!inviteEmailSent && setupLink && (
+                    <div className="relative group animate-in slide-in-from-top-2 duration-300">
+                      <input
+                        type="text"
+                        readOnly
+                        value={setupLink}
+                        className="w-full bg-slate-50 text-slate-500 font-mono text-[10px] sm:text-xs py-2 px-3 pr-10 border border-slate-200 rounded-lg outline-none cursor-pointer"
+                        onClick={(e) => {
+                          e.currentTarget.select();
+                          navigator.clipboard.writeText(setupLink);
+                        }}
+                      />
+                      <button
+                        onClick={() => navigator.clipboard.writeText(setupLink)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 bg-white rounded-md border border-slate-200 shadow-sm transition-colors"
+                        title="Copiar enlace"
+                      >
+                        <Copy className="w-3.5 h-3.5 cursor-pointer" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex w-full gap-3">
                 <button
                   onClick={() => {
                     const clientData: Client = {
@@ -631,7 +667,7 @@ export default function CreateClientModal({
                     onSave(clientData);
                     onClose();
                   }}
-                  className="w-full max-w-[200px] rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 >
                   ENTENDIDO
                 </button>

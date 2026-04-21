@@ -15,11 +15,16 @@ import {
   Map as MapIcon,
   Send,
   X,
-  MessageCircle
+  MessageCircle,
+  ChevronDown,
+  Clock,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import { ChangeEvent } from "react";
 import Map from "../components/Map";
 import { cn } from "../lib/utils";
+import { authenticatedFetch } from "../lib/api";
 
 export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
@@ -27,6 +32,9 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const [attachments, setAttachments] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const profile = localStorage.getItem("userProfile");
@@ -39,11 +47,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const fetchObservations = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-      const response = await fetch(`/api/work-orders/${id}/observations`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch(`/api/work-orders/${id}/observations`);
       if (response.ok) {
         const data = await response.json();
         setObservations(data);
@@ -58,14 +62,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleAddObservation = async () => {
     if (!newObservation.trim()) return;
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-      const response = await fetch(`/api/work-orders/${id}/observations`, {
+      const response = await authenticatedFetch(`/api/work-orders/${id}/observations`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ text: newObservation })
       });
       if (response.ok) {
@@ -90,12 +88,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const fetchAttachments = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-
-      const response = await fetch(`/api/work-orders/${id}/attachments`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch(`/api/work-orders/${id}/attachments`);
       if (response.ok) {
         const data = await response.json();
         setAttachments(data);
@@ -104,6 +97,46 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
       console.error('Error fetching attachments:', err);
     }
   };
+
+  // Handle status update
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (newStatus === job.status) {
+      setIsStatusMenuOpen(false);
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const response = await authenticatedFetch(`/api/work-orders/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        setJob(prev => ({ ...prev, status: newStatus }));
+        setIsStatusMenuOpen(false);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Error al actualizar el estado');
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Error de conexión al actualizar el estado');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Close status menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(event.target as Node)) {
+        setIsStatusMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -116,9 +149,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         formData.append('files', file);
       });
 
-      const response = await fetch(`/api/work-orders/${id}/attachments`, {
+      const response = await authenticatedFetch(`/api/work-orders/${id}/attachments`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
         body: formData
       });
 
@@ -138,9 +170,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) return;
 
     try {
-      const response = await fetch(`/api/attachments/${attachmentId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      const response = await authenticatedFetch(`/api/attachments/${attachmentId}`, {
+        method: 'DELETE'
       });
 
       if (response.ok) {
@@ -157,22 +188,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     const fetchJobDetails = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-          navigate('/');
-          return;
-        }
-
-        const response = await fetch(`/api/work-orders/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.status === 401 || response.status === 403) {
-          navigate('/');
-          return;
-        }
+        const response = await authenticatedFetch(`/api/work-orders/${id}`);
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -338,12 +354,68 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
                 Orden {job.id}
               </h1>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600 border border-amber-100">
-                {job.status.toUpperCase()}
-              </span>
+              
+              <div className="relative" ref={statusMenuRef}>
+                <button
+                  disabled={updatingStatus || (userRole !== 'admin' && userRole !== 'profesional')}
+                  onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold transition-all duration-300 border shadow-sm",
+                    job.status === 'Pendiente' && "bg-slate-50 text-slate-600 border-slate-100",
+                    job.status === 'En Proceso' && "bg-amber-50 text-amber-600 border-amber-100",
+                    job.status === 'Completado' && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                    job.status === 'Cancelado' && "bg-red-50 text-red-600 border-red-100",
+                    (userRole === 'admin' || userRole === 'profesional') && !updatingStatus && "hover:scale-105 active:scale-95 cursor-pointer"
+                  )}
+                >
+                  {updatingStatus ? (
+                    <span className="flex items-center gap-1">
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
+                      Actualizando...
+                    </span>
+                  ) : (
+                    <>
+                      {job.status.toUpperCase()}
+                      {(userRole === 'admin' || userRole === 'profesional') && (
+                        <ChevronDown className={cn("h-3 w-3 transition-transform duration-300", isStatusMenuOpen && "rotate-180")} />
+                      )}
+                    </>
+                  )}
+                </button>
+
+                {/* Status Dropdown Menu */}
+                {isStatusMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-48 z-50 rounded-2xl border border-slate-100 bg-white p-2 shadow-xl animate-in fade-in slide-in-from-top-2">
+                    <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                      Cambiar Estado
+                    </div>
+                    {[
+                      { id: 'Pendiente', label: 'Pendiente', color: 'text-slate-600', icon: Clock },
+                      { id: 'En Proceso', label: 'En Proceso', color: 'text-amber-600', icon: Info },
+                      { id: 'Completado', label: 'Completado', color: 'text-emerald-600', icon: CheckCircle },
+                      { id: 'Cancelado', label: 'Cancelado', color: 'text-red-600', icon: AlertTriangle },
+                    ].map((status) => (
+                      <button
+                        key={status.id}
+                        onClick={() => handleStatusUpdate(status.id)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 cursor-pointer",
+                          job.status === status.id ? "bg-slate-50 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <status.icon className={cn("h-4 w-4", status.color)} />
+                          {status.label}
+                        </div>
+                        {job.status === status.id && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <p className="text-sm text-slate-500">
-              Creado el {job.created} • Última actualización {job.updated}
+              Creado el {job.created}
             </p>
           </div>
 

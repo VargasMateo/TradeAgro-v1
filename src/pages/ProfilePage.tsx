@@ -31,6 +31,8 @@ interface ProfilePageProps {
   onLogout?: () => void;
 }
 
+import { authenticatedFetch } from "../lib/api";
+
 export default function ProfilePage({ userRole = 'profesional', onLogout }: ProfilePageProps) {
   const getDefaultProfile = (): UserProfile => {
     const saved = localStorage.getItem("userProfile");
@@ -66,9 +68,8 @@ export default function ProfilePage({ userRole = 'profesional', onLogout }: Prof
 
       if (!userId) throw new Error('No user ID found for update');
 
-      const response = await fetch('/api/profile', {
+      const response = await authenticatedFetch('/api/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: userId,
           ...profile,

@@ -3,6 +3,7 @@ import { X, Save, Database, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
+import { authenticatedFetch } from "../lib/api";
 
 interface CreateLotModalProps {
   isOpen: boolean;
@@ -80,9 +81,8 @@ export default function CreateLotModal({
         }))
       };
 
-      const response = await fetch(`/api/clients/${client.id}`, {
+      const response = await authenticatedFetch(`/api/clients/${client.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 

@@ -6,6 +6,8 @@ import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import CreateProfesionalModal from "../components/CreateProfesionalModal";
 import { Profesional } from "../types/database";
 
+import { authenticatedFetch } from "../lib/api";
+
 export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [profesionales, setProfesionales] = useState<Profesional[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,12 +25,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const loadProfesionales = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/profesionales', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/profesionales');
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -85,7 +82,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const confirmDelete = async () => {
     if (profesionalToDelete) {
       try {
-        const response = await fetch(`/api/profesionales/${profesionalToDelete.id}`, {
+        const response = await authenticatedFetch(`/api/profesionales/${profesionalToDelete.id}`, {
           method: 'DELETE'
         });
         const data = await response.json();
@@ -219,9 +216,16 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors first-letter:uppercase">
-                    {prof.displayName}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors first-letter:uppercase text-nowrap truncate">
+                      {prof.displayName}
+                    </h3>
+                    {prof.setupPending && (
+                      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
+                        Pendiente
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm font-medium text-emerald-600 mt-1 first-letter:uppercase">
                     {prof.specialty || 'Profesional'}
                   </p>

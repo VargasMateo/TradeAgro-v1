@@ -3,6 +3,7 @@ import { X, Plus, Save, Trash2, Database, CheckCircle2, AlertCircle } from "luci
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
+import { authenticatedFetch } from "../lib/api";
 
 interface CreateFieldModalProps {
   isOpen: boolean;
@@ -95,9 +96,8 @@ export default function CreateFieldModal({
         }))
       };
 
-      const response = await fetch(`/api/clients/${client.id}`, {
+      const response = await authenticatedFetch(`/api/clients/${client.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 

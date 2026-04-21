@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Clock, MapPin, ArrowRight } from "lucide-react";
+import { cn } from "../lib/utils";
+import { authenticatedFetch } from "../lib/api";
 
-export default function UpcomingWorkOrders({ data, isLoading: propLoading }: { data?: any[], isLoading?: boolean }) {
+export default function UpcomingWorkOrders({
+  data,
+  isLoading: propLoading,
+  userRole = 'profesional'
+}: {
+  data?: any[],
+  isLoading?: boolean,
+  userRole?: 'profesional' | 'client' | 'admin'
+}) {
   const [localWorkOrders, setLocalWorkOrders] = useState<any[]>([]);
   const [localLoading, setLocalLoading] = useState(true);
 
@@ -29,17 +39,7 @@ export default function UpcomingWorkOrders({ data, isLoading: propLoading }: { d
     if (data) return; // Skip if data is provided via props
     setLocalLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setLocalLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/work-orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/work-orders');
       if (!response.ok) throw new Error('Failed to fetch jobs');
 
       const parsedWorkOrders = await response.json();
@@ -51,7 +51,8 @@ export default function UpcomingWorkOrders({ data, isLoading: propLoading }: { d
         .map((workOrder: any) => ({
           ...workOrder,
           date: workOrder.date ? new Date(workOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Pendiente de fecha",
-          location: `${workOrder.fieldName || 'Campo N/A'} - ${workOrder.lotName || 'Lote N/A'}`
+          location: `${workOrder.fieldName || 'Campo N/A'} - ${workOrder.lotName || 'Lote N/A'}`,
+          operator: workOrder.professionalName || "Asignación Pendiente"
         }));
 
       setLocalWorkOrders(activeWorkOrders);
@@ -123,15 +124,40 @@ export default function UpcomingWorkOrders({ data, isLoading: propLoading }: { d
               className="snap-center shrink-0 w-[280px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${workOrder.status === 'En Proceso' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
-                  }`}>
+                <span className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm transition-colors",
+                  workOrder.status === 'Pendiente' && "bg-slate-50 text-slate-600 border-slate-100",
+                  workOrder.status === 'En Proceso' && "bg-amber-50 text-amber-600 border-amber-100",
+                  workOrder.status === 'Completado' && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                  workOrder.status === 'Cancelado' && "bg-red-50 text-red-600 border-red-100"
+                )}>
                   {workOrder.status}
                 </span>
                 <span className="text-xs font-semibold text-slate-400">{`#AG-${workOrder.id}`}</span>
               </div>
 
               <h4 className="font-bold text-slate-900 mb-1 truncate">{workOrder.service || workOrder.title}</h4>
-              <p className="text-xs text-slate-500 mb-3 truncate">{workOrder.client}</p>
+
+              <div className="mb-3">
+                {userRole === 'admin' ? (
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-[10px] font-medium text-slate-400 truncate">
+                      <span className="font-bold">Cliente:</span> {workOrder.client}
+                    </p>
+                    <p className="text-[10px] font-medium text-slate-400 truncate">
+                      <span className="font-bold">Profesional:</span> {workOrder.operator || "Pendiente"}
+                    </p>
+                  </div>
+                ) : userRole === 'client' ? (
+                  <p className="text-xs text-slate-500 truncate font-semibold">
+                    <span className="text-slate-400 font-normal">Asignado:</span> {workOrder.operator || "Pendiente"}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500 truncate font-semibold">
+                    <span className="text-slate-400 font-normal">Cliente:</span> {workOrder.client}
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-2 pt-3 border-t border-slate-50">
                 <div className="flex items-center gap-2 text-xs text-slate-600">

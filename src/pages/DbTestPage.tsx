@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase, Calendar, RefreshCw, FileText, MessageSquare } from 'lucide-react';
+import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase, Calendar, RefreshCw, FileText, MessageSquare, Key } from 'lucide-react';
 import { Client, Field } from '../types/database';
 import { motion, AnimatePresence } from 'framer-motion';
+import { authenticatedFetch } from '../lib/api';
 
 export default function DbTestPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -14,9 +15,10 @@ export default function DbTestPage() {
 
   const [attachments, setAttachments] = useState<any[]>([]);
   const [observations, setObservations] = useState<any[]>([]);
+  const [tokens, setTokens] = useState<any[]>([]);
   const [isCreatingField, setIsCreatingField] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'ordenes' | 'profesionales' | 'usuarios' | 'anexos' | 'observaciones' | 'global' | null>(null);
+  const [resetTarget, setResetTarget] = useState<'clientes' | 'campos' | 'ordenes' | 'profesionales' | 'usuarios' | 'anexos' | 'observaciones' | 'tokens' | 'global' | null>(null);
 
   const [dialog, setDialog] = useState<{
     show: boolean;
@@ -32,10 +34,7 @@ export default function DbTestPage() {
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/clients', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/clients');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setClients(data);
@@ -48,10 +47,7 @@ export default function DbTestPage() {
 
   const fetchProfesionales = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/profesionales', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/profesionales');
       if (response.ok) {
         const data = await response.json();
         setProfesionales(data);
@@ -63,10 +59,7 @@ export default function DbTestPage() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/users');
       if (response.ok) {
         const data = await response.json();
         setAllUsers(data);
@@ -78,10 +71,7 @@ export default function DbTestPage() {
 
   const fetchFields = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/fields', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/fields');
       if (response.ok) {
         const data = await response.json();
         setFields(data);
@@ -93,12 +83,7 @@ export default function DbTestPage() {
 
   const fetchJobs = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/work-orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/work-orders');
       if (response.ok) {
         const data = await response.json();
         setWorkOrders(data);
@@ -110,10 +95,7 @@ export default function DbTestPage() {
 
   const fetchAttachments = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/attachments', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/attachments');
       if (response.ok) {
         setAttachments(await response.json());
       }
@@ -124,12 +106,20 @@ export default function DbTestPage() {
 
   const fetchObservations = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/observations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/observations');
       if (response.ok) {
         setObservations(await response.json());
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+    }
+  };
+
+  const fetchTokens = async () => {
+    try {
+      const response = await fetch('/api/tokens');
+      if (response.ok) {
+        setTokens(await response.json());
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -146,7 +136,8 @@ export default function DbTestPage() {
         fetchFields(),
         fetchJobs(),
         fetchAttachments(),
-        fetchObservations()
+        fetchObservations(),
+        fetchTokens()
       ]);
       setStatus('connected');
     };
@@ -164,9 +155,8 @@ export default function DbTestPage() {
         lotNames: ['Lote A1', 'Lote B2']
       };
 
-      const response = await fetch('/api/fields', {
+      const response = await authenticatedFetch('/api/fields', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mockField)
       });
 
@@ -198,11 +188,12 @@ export default function DbTestPage() {
           resetTarget === 'campos' ? 'fields' :
             resetTarget === 'ordenes' ? 'work-orders' :
               resetTarget === 'anexos' ? 'attachments' :
-                resetTarget === 'observaciones' ? 'observations' : 'profesionals'
+                resetTarget === 'observaciones' ? 'observations' :
+                  resetTarget === 'tokens' ? 'tokens' : 'profesionals'
           }`;
       }
 
-      const response = await fetch(endpoint, { method: 'POST' });
+      const response = await authenticatedFetch(endpoint, { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         setDialog({
@@ -218,7 +209,8 @@ export default function DbTestPage() {
           fetchFields(),
           fetchJobs(),
           fetchAttachments(),
-          fetchObservations()
+          fetchObservations(),
+          fetchTokens()
         ]);
       } else {
         throw new Error(data.error);
@@ -569,6 +561,53 @@ export default function DbTestPage() {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          </section>
+
+          {/* Section: Tókenes */}
+          <section className="flex flex-col bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <Key className="h-5 w-5 text-orange-600" />
+                <h2 className="font-black text-slate-900 uppercase tracking-widest">Tókenes</h2>
+                <span className="bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-1 rounded-lg">
+                  {tokens.length}
+                </span>
+              </div>
+              <button
+                onClick={() => setResetTarget('tokens')}
+                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-100 cursor-pointer"
+              >
+                RESETEAR
+              </button>
+            </div>
+
+            <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              {tokens.length === 0 ? (
+                <div className="py-20 text-center opacity-40">
+                  <Key className="h-10 w-10 mx-auto mb-2" />
+                  <p className="text-xs font-bold uppercase">Sin Tókenes</p>
+                </div>
+              ) : (
+                tokens.map(token => {
+                  const isValid = !token.usedAt && new Date(token.expiresAt) > new Date();
+                  return (
+                    <div key={token.id} className="p-5 rounded-3xl bg-orange-50/30 hover:bg-white border border-orange-100/50 shadow-sm transition-all group">
+                      <div className="flex items-start">
+                        <div className="flex-1 overflow-hidden">
+                          <h3 className="font-extrabold text-slate-800 text-[10px] leading-tight group-hover:text-orange-700 transition-colors uppercase font-mono break-all">{token.token}</h3>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${isValid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {token.usedAt ? 'Usado' : (isValid ? 'Válido' : 'Expirado')}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">User ID: {token.userId}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </section>

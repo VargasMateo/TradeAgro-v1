@@ -25,6 +25,7 @@ import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder } from "../types/database";
+import { authenticatedFetch } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
@@ -38,18 +39,12 @@ export default function CreateWorkOrderModal() {
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
+  const [services, setServices] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<'profesional' | 'client' | 'admin' | null>(null);
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-
-      const response = await fetch('/api/clients', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/clients');
       if (!response.ok) throw new Error('Failed to fetch clients');
       const data = await response.json();
       setClients(Array.isArray(data) ? data : []);
@@ -60,14 +55,20 @@ export default function CreateWorkOrderModal() {
       if (stored) setClients(JSON.parse(stored));
     }
   };
+
+  const fetchServices = async () => {
+    try {
+      const response = await authenticatedFetch('/api/services');
+      const data = await response.json();
+      setServices(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
+
   const fetchProfesionales = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/profesionales', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/profesionales');
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -83,6 +84,7 @@ export default function CreateWorkOrderModal() {
       setUserRole(role);
 
       fetchClients();
+      fetchServices();
       if (role === 'admin') {
         fetchProfesionales();
       }
@@ -104,9 +106,9 @@ export default function CreateWorkOrderModal() {
   const [showLotSuggestions, setShowLotSuggestions] = useState(false);
   const [showProfesionalSuggestions, setShowProfesionalSuggestions] = useState(false);
   const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
+  const [showSecondaryServiceSuggestions, setShowSecondaryServiceSuggestions] = useState(false);
   const [showCampaignSuggestions, setShowCampaignSuggestions] = useState(false);
 
-  const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
   const predefinedCampaigns = ['24/25', '25/26', '26/27'];
 
   const [formData, setFormData] = useState({
@@ -188,14 +190,7 @@ export default function CreateWorkOrderModal() {
       const role = user?.role || 'profesional';
 
       if (editJobId) {
-        const token = localStorage.getItem('authToken');
-        if (!token) return;
-
-        fetch('/api/work-orders', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+        authenticatedFetch('/api/work-orders')
           .then(res => res.json())
           .then(async (workOrders: WorkOrder[]) => {
             const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
@@ -203,11 +198,7 @@ export default function CreateWorkOrderModal() {
               // Get profesional info to populate name search
               let pName = '';
               try {
-                const pRes = await fetch('/api/profesionales', {
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                });
+                const pRes = await authenticatedFetch('/api/profesionales');
                 const pData = await pRes.json();
                 const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
                 pName = foundP?.displayName || '';
@@ -344,8 +335,27 @@ export default function CreateWorkOrderModal() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...newFiles]);
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const incomingFiles = Array.from(e.target.files) as File[];
+      
+      const overlimitFiles = incomingFiles.filter(f => f.size > maxSize);
+      const validFiles = incomingFiles.filter(f => f.size <= maxSize);
+
+      if (overlimitFiles.length > 0) {
+        setValidationDialog({
+          show: true,
+          title: 'Archivo demasiado grande',
+          message: `Uno o más archivos superan el límite de 10MB y no serán agregados: ${overlimitFiles.map(f => f.name).join(', ')}`,
+          type: 'error'
+        });
+      }
+
+      if (validFiles.length > 0) {
+        setSelectedFiles(prev => [...prev, ...validFiles]);
+      }
+      
+      // Reset input value to allow selecting same file again if needed
+      e.target.value = '';
     }
   };
 
@@ -446,12 +456,8 @@ export default function CreateWorkOrderModal() {
       const user = storedProfile ? JSON.parse(storedProfile) : null;
       const createdBy = user?.id || null;
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
         body: JSON.stringify({ ...formData, createdBy })
       });
 
@@ -470,11 +476,8 @@ export default function CreateWorkOrderModal() {
           formDataUpload.append('files', file);
         });
 
-        const uploadRes = await fetch(`/api/work-orders/${jobId}/attachments`, {
+        const uploadRes = await authenticatedFetch(`/api/work-orders/${jobId}/attachments`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          },
           body: formDataUpload
         });
 
@@ -1056,7 +1059,7 @@ export default function CreateWorkOrderModal() {
                     <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
                       {showServiceSuggestions && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                          {predefinedServices
+                          {services
                             .filter(s => s.toLowerCase().includes(formData.service.toLowerCase()))
                             .map(s => (
                               <button
@@ -1074,9 +1077,9 @@ export default function CreateWorkOrderModal() {
                                 {s}
                               </button>
                             ))}
-                          {formData.service.trim() !== '' && !predefinedServices.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
-                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
-                              Se usará: "{formData.service.trim()}"
+                          {formData.service.trim() !== '' && !services.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
+                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
+                              Nuevo: "{formData.service.trim()}" (Se guardará)
                             </div>
                           )}
                         </div>
@@ -1084,16 +1087,51 @@ export default function CreateWorkOrderModal() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative">
                     <label className="text-sm font-semibold text-slate-700">Secundario</label>
-                    <input
-                      type="text"
-                      name="secondaryService"
-                      value={formData.secondaryService}
-                      onChange={handleInputChange}
-                      placeholder="Opcional"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="secondaryService"
+                        autoComplete="off"
+                        value={formData.secondaryService}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setShowSecondaryServiceSuggestions(true);
+                        }}
+                        onFocus={() => setShowSecondaryServiceSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSecondaryServiceSuggestions(false), 200)}
+                        placeholder="Opcional"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                    <div className="absolute top-full left-0 w-full h-0 overflow-visible z-50">
+                      {showSecondaryServiceSuggestions && (
+                        <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                          {services
+                            .filter(s => s.toLowerCase().includes(formData.secondaryService.toLowerCase()))
+                            .map(s => (
+                              <button
+                                key={s}
+                                type="button"
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, secondaryService: s }));
+                                  setShowSecondaryServiceSuggestions(false);
+                                }}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          {formData.secondaryService.trim() !== '' && !services.some(s => s.toLowerCase() === formData.secondaryService.trim().toLowerCase()) && (
+                            <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
+                              Nuevo: "{formData.secondaryService.trim()}" (Se guardará)
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5 relative">
