@@ -1,23 +1,15 @@
 import { ReactNode, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Bell,
-  Search,
-  Tractor,
   Home,
-  Briefcase,
-  FileText,
   Menu,
-  Sun,
   Users,
   UserCheck,
-  Calendar,
   Shield,
   ClipboardList
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
-import NotificationsDropdown from "./NotificationsDropdown";
 import CreateWorkOrderModal from "./CreateWorkOrderModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
 import GlobalCreateProfesionalModal from "./GlobalCreateProfesionalModal";
