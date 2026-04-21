@@ -3,6 +3,7 @@ import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
+import { authenticatedFetch } from "../lib/api";
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -217,9 +218,8 @@ export default function CreateClientModal({
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients';
       const method = editingClient ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 

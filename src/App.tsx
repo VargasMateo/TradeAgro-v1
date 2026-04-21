@@ -4,7 +4,7 @@
  */
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import SetupPasswordPage from "./pages/SetupPasswordPage";
@@ -36,9 +36,14 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userProfile");
-    window.history.replaceState(null, '', '/dashboard');
     setIsAuthenticated(false);
   };
+
+  useEffect(() => {
+    const onForceLogout = () => handleLogout();
+    window.addEventListener('force-logout', onForceLogout);
+    return () => window.removeEventListener('force-logout', onForceLogout);
+  }, []);
 
   // Public route: setup-password (must be accessible without auth)
   if (window.location.pathname === '/setup-password') {

@@ -24,6 +24,7 @@ import {
 import { ChangeEvent } from "react";
 import Map from "../components/Map";
 import { cn } from "../lib/utils";
+import { authenticatedFetch } from "../lib/api";
 
 export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
@@ -46,11 +47,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const fetchObservations = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-      const response = await fetch(`/api/work-orders/${id}/observations`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch(`/api/work-orders/${id}/observations`);
       if (response.ok) {
         const data = await response.json();
         setObservations(data);
@@ -65,14 +62,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleAddObservation = async () => {
     if (!newObservation.trim()) return;
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-      const response = await fetch(`/api/work-orders/${id}/observations`, {
+      const response = await authenticatedFetch(`/api/work-orders/${id}/observations`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ text: newObservation })
       });
       if (response.ok) {
@@ -97,12 +88,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const fetchAttachments = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-
-      const response = await fetch(`/api/work-orders/${id}/attachments`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch(`/api/work-orders/${id}/attachments`);
       if (response.ok) {
         const data = await response.json();
         setAttachments(data);
@@ -121,13 +107,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
     setUpdatingStatus(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/work-orders/${id}/status`, {
+      const response = await authenticatedFetch(`/api/work-orders/${id}/status`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ status: newStatus })
       });
 
@@ -168,9 +149,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         formData.append('files', file);
       });
 
-      const response = await fetch(`/api/work-orders/${id}/attachments`, {
+      const response = await authenticatedFetch(`/api/work-orders/${id}/attachments`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
         body: formData
       });
 
@@ -190,9 +170,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) return;
 
     try {
-      const response = await fetch(`/api/attachments/${attachmentId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      const response = await authenticatedFetch(`/api/attachments/${attachmentId}`, {
+        method: 'DELETE'
       });
 
       if (response.ok) {
@@ -209,22 +188,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     const fetchJobDetails = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-          navigate('/');
-          return;
-        }
-
-        const response = await fetch(`/api/work-orders/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.status === 401 || response.status === 403) {
-          navigate('/');
-          return;
-        }
+        const response = await authenticatedFetch(`/api/work-orders/${id}`);
 
         if (!response.ok) {
           const errorData = await response.json();

@@ -17,6 +17,8 @@ import MagneticEffect from "../components/MagneticEffect";
 
 
 
+import { authenticatedFetch } from "../lib/api";
+
 export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [clients, setClients] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
@@ -28,7 +30,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchClients = async () => {
       try {
         setIsLoadingClients(true);
-        const response = await fetch('/api/clients');
+        const response = await authenticatedFetch('/api/clients');
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
         }
@@ -45,12 +47,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchWorkOrders = async () => {
       setIsLoadingWorkOrders(true);
       try {
-        const token = localStorage.getItem('authToken');
-        if (!token) return;
-
-        const response = await fetch('/api/work-orders', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await authenticatedFetch('/api/work-orders');
         if (!response.ok) throw new Error('Failed to fetch work orders');
         const data = await response.json();
         setWorkOrders(Array.isArray(data) ? data : []);

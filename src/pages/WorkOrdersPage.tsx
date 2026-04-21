@@ -32,6 +32,8 @@ const iconMap: any = {
 
 const tabs = ["Todos", "Pendientes", "En Proceso", "Completados"];
 
+import { authenticatedFetch } from "../lib/api";
+
 export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [activeTab, setActiveTab] = useState("Todos");
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
@@ -57,22 +59,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
   const fetchJobs = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        navigate('/'); // Redirect to login if no token
-        return;
-      }
-
-      const response = await fetch('/api/work-orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.status === 401 || response.status === 403) {
-        navigate('/'); // Token expired or invalid
-        return;
-      }
+      const response = await authenticatedFetch('/api/work-orders');
 
       if (!response.ok) throw new Error('Failed to fetch work orders');
       const data = await response.json();

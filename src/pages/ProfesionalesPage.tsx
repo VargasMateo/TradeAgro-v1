@@ -6,6 +6,8 @@ import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import CreateProfesionalModal from "../components/CreateProfesionalModal";
 import { Profesional } from "../types/database";
 
+import { authenticatedFetch } from "../lib/api";
+
 export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [profesionales, setProfesionales] = useState<Profesional[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,12 +25,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const loadProfesionales = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/profesionales', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/profesionales');
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -85,7 +82,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const confirmDelete = async () => {
     if (profesionalToDelete) {
       try {
-        const response = await fetch(`/api/profesionales/${profesionalToDelete.id}`, {
+        const response = await authenticatedFetch(`/api/profesionales/${profesionalToDelete.id}`, {
           method: 'DELETE'
         });
         const data = await response.json();

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Clock, MapPin, ArrowRight } from "lucide-react";
 import { cn } from "../lib/utils";
+import { authenticatedFetch } from "../lib/api";
 
 export default function UpcomingWorkOrders({
   data,
@@ -38,17 +39,7 @@ export default function UpcomingWorkOrders({
     if (data) return; // Skip if data is provided via props
     setLocalLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setLocalLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/work-orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/work-orders');
       if (!response.ok) throw new Error('Failed to fetch jobs');
 
       const parsedWorkOrders = await response.json();

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Database, AlertCircle, CheckCircle2, User, PlusCircle, X, MapPin, Layers, Briefcase, Calendar, RefreshCw, FileText, MessageSquare, Key } from 'lucide-react';
 import { Client, Field } from '../types/database';
 import { motion, AnimatePresence } from 'framer-motion';
+import { authenticatedFetch } from '../lib/api';
 
 export default function DbTestPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -33,10 +34,7 @@ export default function DbTestPage() {
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/clients', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/clients');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setClients(data);
@@ -49,10 +47,7 @@ export default function DbTestPage() {
 
   const fetchProfesionales = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/profesionales', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/profesionales');
       if (response.ok) {
         const data = await response.json();
         setProfesionales(data);
@@ -64,10 +59,7 @@ export default function DbTestPage() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/users');
       if (response.ok) {
         const data = await response.json();
         setAllUsers(data);
@@ -79,10 +71,7 @@ export default function DbTestPage() {
 
   const fetchFields = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/fields', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/fields');
       if (response.ok) {
         const data = await response.json();
         setFields(data);
@@ -94,12 +83,7 @@ export default function DbTestPage() {
 
   const fetchJobs = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/work-orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/work-orders');
       if (response.ok) {
         const data = await response.json();
         setWorkOrders(data);
@@ -111,10 +95,7 @@ export default function DbTestPage() {
 
   const fetchAttachments = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/attachments', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/attachments');
       if (response.ok) {
         setAttachments(await response.json());
       }
@@ -125,10 +106,7 @@ export default function DbTestPage() {
 
   const fetchObservations = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/observations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/api/observations');
       if (response.ok) {
         setObservations(await response.json());
       }
@@ -177,9 +155,8 @@ export default function DbTestPage() {
         lotNames: ['Lote A1', 'Lote B2']
       };
 
-      const response = await fetch('/api/fields', {
+      const response = await authenticatedFetch('/api/fields', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mockField)
       });
 
@@ -216,7 +193,7 @@ export default function DbTestPage() {
           }`;
       }
 
-      const response = await fetch(endpoint, { method: 'POST' });
+      const response = await authenticatedFetch(endpoint, { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         setDialog({

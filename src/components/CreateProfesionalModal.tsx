@@ -3,6 +3,7 @@ import { X, Plus, Save, CheckCircle2, AlertCircle, Database, Copy } from "lucide
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Profesional } from "../types/database";
+import { authenticatedFetch } from "../lib/api";
 
 interface CreateProfesionalModalProps {
   isOpen: boolean;
@@ -139,9 +140,8 @@ export default function CreateProfesionalModal({
       const url = editingProfesional ? `/api/profesionales/${editingProfesional.id}` : '/api/profesionales';
       const method = editingProfesional ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 

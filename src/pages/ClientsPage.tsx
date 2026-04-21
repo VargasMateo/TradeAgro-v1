@@ -7,6 +7,8 @@ import CreateClientModal from "../components/CreateClientModal";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { Client, ClientField } from "../types/client";
 
+import { authenticatedFetch } from "../lib/api";
+
 export default function ClientsPage() {
   const location = useLocation();
   const [clients, setClients] = useState<Client[]>([]);
@@ -35,7 +37,7 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/clients');
+      const response = await authenticatedFetch('/api/clients');
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
       }
@@ -107,8 +109,8 @@ export default function ClientsPage() {
     if (!clientToDelete) return;
 
     try {
-      const response = await fetch(`/api/clients/${clientToDelete.id}`, {
-        method: 'DELETE',
+      const response = await authenticatedFetch(`/api/clients/${clientToDelete.id}`, {
+        method: 'DELETE'
       });
       const data = await response.json();
 

@@ -25,6 +25,7 @@ import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder } from "../types/database";
+import { authenticatedFetch } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
@@ -43,14 +44,7 @@ export default function CreateWorkOrderModal() {
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-
-      const response = await fetch('/api/clients', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/clients');
       if (!response.ok) throw new Error('Failed to fetch clients');
       const data = await response.json();
       setClients(Array.isArray(data) ? data : []);
@@ -64,12 +58,7 @@ export default function CreateWorkOrderModal() {
 
   const fetchServices = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/services', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/services');
       const data = await response.json();
       setServices(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -79,12 +68,7 @@ export default function CreateWorkOrderModal() {
 
   const fetchProfesionales = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/profesionales', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/profesionales');
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -206,14 +190,7 @@ export default function CreateWorkOrderModal() {
       const role = user?.role || 'profesional';
 
       if (editJobId) {
-        const token = localStorage.getItem('authToken');
-        if (!token) return;
-
-        fetch('/api/work-orders', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+        authenticatedFetch('/api/work-orders')
           .then(res => res.json())
           .then(async (workOrders: WorkOrder[]) => {
             const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
@@ -221,11 +198,7 @@ export default function CreateWorkOrderModal() {
               // Get profesional info to populate name search
               let pName = '';
               try {
-                const pRes = await fetch('/api/profesionales', {
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                });
+                const pRes = await authenticatedFetch('/api/profesionales');
                 const pData = await pRes.json();
                 const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
                 pName = foundP?.displayName || '';
@@ -483,12 +456,8 @@ export default function CreateWorkOrderModal() {
       const user = storedProfile ? JSON.parse(storedProfile) : null;
       const createdBy = user?.id || null;
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
         body: JSON.stringify({ ...formData, createdBy })
       });
 
@@ -507,11 +476,8 @@ export default function CreateWorkOrderModal() {
           formDataUpload.append('files', file);
         });
 
-        const uploadRes = await fetch(`/api/work-orders/${jobId}/attachments`, {
+        const uploadRes = await authenticatedFetch(`/api/work-orders/${jobId}/attachments`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          },
           body: formDataUpload
         });
 

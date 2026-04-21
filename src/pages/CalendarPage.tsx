@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { 
-  format, 
-  addWeeks, 
-  subWeeks, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameDay, 
+import {
+  format,
+  addWeeks,
+  subWeeks,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
   isToday,
   addDays,
   startOfToday
@@ -15,6 +15,7 @@ import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, ChevronDown } from "lucide-react";
 import { cn, getColorForClient } from "../lib/utils";
 import { Link, useNavigate } from "react-router-dom";
+import { authenticatedFetch } from "../lib/api";
 
 export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const navigate = useNavigate();
@@ -23,10 +24,11 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
   const [clients, setClients] = useState<any[]>([]);
   const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
 
-  const loadJobs = () => {
-    const storedJobs = localStorage.getItem("jobs");
-    if (storedJobs) {
-      const parsed = JSON.parse(storedJobs);
+  const loadJobs = async () => {
+    try {
+      const response = await authenticatedFetch('/api/work-orders');
+      if (!response.ok) throw new Error('Failed to fetch jobs');
+      const parsed = await response.json();
       // Asignamos fechas a los órdenes para la demostración si no tienen
       const jobsWithDates = parsed.map((job: any, index: number) => {
         if (!job.date) {
@@ -37,29 +39,36 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
         return job;
       });
       setJobs(jobsWithDates);
+    } catch (error) {
+      console.error('Error fetching jobs for calendar:', error);
     }
   };
 
   useEffect(() => {
     loadJobs();
-    
-    const loadClients = () => {
-      const storedClients = localStorage.getItem('clients');
-      if (storedClients) {
-        setClients(JSON.parse(storedClients));
+
+    const loadClientsData = async () => {
+      try {
+        const response = await authenticatedFetch('/api/clients');
+        if (response.ok) {
+          const data = await response.json();
+          setClients(data);
+        }
+      } catch (error) {
+        console.error('Error fetching clients for calendar:', error);
       }
     };
-    loadClients();
+    loadClientsData();
 
     const handleJobCreated = () => {
       loadJobs();
     };
 
     window.addEventListener('job-created', handleJobCreated);
-    window.addEventListener('clients-updated', loadClients);
+    window.addEventListener('clients-updated', loadClientsData);
     return () => {
       window.removeEventListener('job-created', handleJobCreated);
-      window.removeEventListener('clients-updated', loadClients);
+      window.removeEventListener('clients-updated', loadClientsData);
     };
   }, []);
 
@@ -78,7 +87,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
   // Agrupar órdenes por Cliente + Campo(Location)
   const groupedClients = useMemo(() => {
     const grouped: Record<string, { clientName: string; fields: Record<string, { location: string; jobs: any[] }>; allJobs: any[] }> = {};
-    
+
     // Primero, agregar los clientes y sus campos
     clients.forEach(client => {
       grouped[client.name] = { clientName: client.name, fields: {}, allJobs: [] };
@@ -94,15 +103,15 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
     jobs.forEach(job => {
       const clientName = job.client || "Cliente Desconocido";
       const location = job.location || "Sin asignar";
-      
+
       if (!grouped[clientName]) {
         grouped[clientName] = { clientName, fields: {}, allJobs: [] };
       }
-      
+
       if (!grouped[clientName].fields[location]) {
         grouped[clientName].fields[location] = { location, jobs: [] };
       }
-      
+
       grouped[clientName].fields[location].jobs.push(job);
       grouped[clientName].allJobs.push(job);
     });
@@ -158,8 +167,8 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
               </span>
             </div>
             {daysInWeek.map((day, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={cn(
                   "p-1 md:p-3 text-center border-r border-slate-200 last:border-r-0 flex flex-col items-center justify-center",
                   isToday(day) ? "bg-emerald-50/30" : ""
@@ -185,12 +194,12 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
               const fieldKeys = Object.keys(clientGroup.fields);
               const hasMultipleFields = fieldKeys.length > 1;
               const isExpanded = expandedClients[clientGroup.clientName];
-              
+
               return (
                 <Fragment key={clientIndex}>
                   <div className="grid grid-cols-[80px_repeat(7,1fr)] md:grid-cols-[220px_repeat(7,1fr)] group border-b border-slate-100 last:border-b-0">
                     {/* Row Header (Client) */}
-                    <div 
+                    <div
                       className={cn(
                         "p-1 md:p-4 border-r border-slate-200 bg-white flex flex-col justify-center items-center md:items-start transition-colors group-hover:bg-slate-50 sticky left-0 z-20 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]",
                         hasMultipleFields ? "cursor-pointer" : ""
@@ -199,8 +208,8 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                     >
                       <div className="flex flex-col md:flex-row items-center gap-1.5 md:gap-3 w-full">
                         <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-gradient-to-br from-emerald-50 to-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 shrink-0 shadow-sm">
-                          <img 
-                            src={`https://ui-avatars.com/api/?name=${clientGroup.clientName}&background=${getColorForClient(clientGroup.clientName)}&color=fff&bold=true`} 
+                          <img
+                            src={`https://ui-avatars.com/api/?name=${clientGroup.clientName}&background=${getColorForClient(clientGroup.clientName)}&color=fff&bold=true`}
                             alt={clientGroup.clientName}
                             className="h-full w-full object-cover"
                           />
@@ -229,8 +238,8 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                       });
 
                       return (
-                        <div 
-                          key={dayIndex} 
+                        <div
+                          key={dayIndex}
                           onClick={() => {
                             if (userRole === 'profesional' || userRole === 'admin') {
                               const dateStr = format(day, "yyyy-MM-dd");
@@ -249,7 +258,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                           )}
                           <div className="flex flex-col gap-1.5">
                             {dayJobs.map((job, jobIndex) => (
-                              <div 
+                              <div
                                 key={jobIndex}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -263,8 +272,8 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                                   <div className="flex items-center gap-1 mt-1">
                                     <span className={cn(
                                       "h-1.5 w-1.5 rounded-full shrink-0",
-                                      job.status === "Completado" ? "bg-emerald-500" : 
-                                      job.status === "En Proceso" ? "bg-amber-500" : "bg-slate-400"
+                                      job.status === "Completado" ? "bg-emerald-500" :
+                                        job.status === "En Proceso" ? "bg-amber-500" : "bg-slate-400"
                                     )} />
                                     <span className="truncate text-[8px] md:text-[10px] text-slate-500 font-medium">
                                       {job.status}
@@ -300,8 +309,8 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                           });
 
                           return (
-                            <div 
-                              key={dayIndex} 
+                            <div
+                              key={dayIndex}
                               onClick={() => {
                                 if (userRole === 'profesional' || userRole === 'admin') {
                                   const dateStr = format(day, "yyyy-MM-dd");
@@ -321,7 +330,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                               )}
                               <div className="flex flex-col gap-1.5">
                                 {dayJobs.map((job, jobIndex) => (
-                                  <div 
+                                  <div
                                     key={jobIndex}
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -345,7 +354,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                 </Fragment>
               );
             })}
-            
+
             {groupedClients.length === 0 && (
               <div className="p-8 text-center text-slate-500">
                 No hay clientes o campos registrados.
