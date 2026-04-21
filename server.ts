@@ -568,7 +568,7 @@ const getAppUrl = () => {
 async function sendPasswordSetupEmail(userEmail: string, displayName: string, token: string) {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[EMAIL] RESEND_API_KEY not configured. Skipping email send.');
-    return false;
+    throw new Error('Servidor de correo no configurado');
   }
 
   const appUrl = getAppUrl();
@@ -576,7 +576,7 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
   const fromEmail = process.env.RESEND_FROM || 'TradeAgro <onboarding@resend.dev>';
 
   try {
-    await getResend()!.emails.send({
+    const { data, error } = await getResend()!.emails.send({
       from: fromEmail,
       to: [userEmail],
       subject: 'Bienvenido a TradeAgro — Configure su contraseña',
@@ -612,18 +612,23 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
         </div>
       `
     });
-    console.log(`[EMAIL] Password setup email sent to ${userEmail}`);
-    return true;
+
+    if (error) {
+      console.error(`[RESEND ERROR] Failed to send email to ${userEmail}:`, error);
+      throw new Error(`Error de envío: ${error.message}`);
+    }
+
+    console.log(`[EMAIL] Password setup email sent to ${userEmail}, id: ${data?.id}`);
   } catch (error: any) {
-    console.error(`[EMAIL ERROR] Failed to send email to ${userEmail}:`, error.message);
-    return false;
+    console.error(`[EMAIL CATCH] Failed to send email to ${userEmail}:`, error.message);
+    throw error;
   }
 }
 
 async function sendForgotPasswordEmail(userEmail: string, displayName: string, token: string) {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[EMAIL] RESEND_API_KEY not configured. Skipping email send.');
-    return false;
+    throw new Error('Servidor de correo no configurado');
   }
 
   const appUrl = getAppUrl();
@@ -631,7 +636,7 @@ async function sendForgotPasswordEmail(userEmail: string, displayName: string, t
   const fromEmail = process.env.RESEND_FROM || 'TradeAgro <onboarding@resend.dev>';
 
   try {
-    await getResend()!.emails.send({
+    const { data, error } = await getResend()!.emails.send({
       from: fromEmail,
       to: [userEmail],
       subject: 'Restablecer su contraseña — TradeAgro',
@@ -667,11 +672,16 @@ async function sendForgotPasswordEmail(userEmail: string, displayName: string, t
         </div>
       `,
     });
-    console.log(`[EMAIL] Forgot password email sent to ${userEmail}`);
-    return true;
+
+    if (error) {
+      console.error(`[RESEND ERROR] Failed to send email to ${userEmail}:`, error);
+      throw new Error(`Error de envío: ${error.message}`);
+    }
+
+    console.log(`[EMAIL] Forgot password email sent to ${userEmail}, id: ${data?.id}`);
   } catch (error: any) {
-    console.error(`[EMAIL ERROR] Failed to send email to ${userEmail}:`, error.message);
-    return false;
+    console.error(`[EMAIL CATCH] Failed to send email to ${userEmail}:`, error.message);
+    throw error;
   }
 }
 
@@ -848,12 +858,19 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     await connection.commit();
 
     // 3. Send email
-    await sendForgotPasswordEmail(user.email, user.displayName, token);
-
-    res.json({
-      success: true,
-      message: 'Si el correo está registrado, recibirá un enlace para restablecer su contraseña.'
-    });
+    try {
+      await sendForgotPasswordEmail(user.email, user.displayName, token);
+      res.json({
+        success: true,
+        message: 'Si el correo está registrado, recibirá un enlace para restablecer su contraseña.'
+      });
+    } catch (emailError: any) {
+      console.error('[AUTH ERROR] email delivery failed:', emailError.message);
+      res.status(500).json({ 
+        success: false, 
+        error: `No se pudo enviar el correo: ${emailError.message}. Verifique la configuración del servidor.` 
+      });
+    }
   } catch (error: any) {
     await connection.rollback();
     console.error('[AUTH ERROR] forgot-password:', error.message);
@@ -891,15 +908,19 @@ app.post('/api/auth/resend-invite', async (req, res) => {
     const token = await createPasswordSetupToken(connection, user.id);
 
     // Send email
-    const emailSent = await sendPasswordSetupEmail(user.email, user.displayName, token);
-
-    res.json({
-      success: true,
-      emailSent,
-      message: emailSent
-        ? `Email de invitación reenviado a ${user.email}`
-        : 'Token generado pero el email no pudo ser enviado. Verifique la configuración SMTP.'
-    });
+    try {
+      await sendPasswordSetupEmail(user.email, user.displayName, token);
+      res.json({
+        success: true,
+        message: `Email de invitación reenviado a ${user.email}`
+      });
+    } catch (emailError: any) {
+      console.error('[AUTH ERROR] resend-invite email failed:', emailError.message);
+      res.status(500).json({ 
+        success: false, 
+        error: `No se pudo enviar el correo: ${emailError.message}` 
+      });
+    }
   } catch (error: any) {
     console.error('[AUTH ERROR] resend-invite:', error.message);
     res.status(500).json({ success: false, error: 'Error al reenviar invitación' });
@@ -1227,7 +1248,15 @@ app.post('/api/clients', async (req, res) => {
     console.log('[DEBUG] Transaction committed successfully');
 
     // Send email after commit (non-blocking)
-    const emailSent = await sendPasswordSetupEmail(userEmail, displayName, setupToken);
+    let emailSent = false;
+    let emailErrorMessage = '';
+    try {
+      await sendPasswordSetupEmail(userEmail, displayName, setupToken);
+      emailSent = true;
+    } catch (emailError: any) {
+      console.error('[AUTH ERROR] client creation email failed:', emailError.message);
+      emailErrorMessage = emailError.message;
+    }
 
     res.json({
       success: true,
@@ -1237,7 +1266,7 @@ app.post('/api/clients', async (req, res) => {
       setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
       message: emailSent
         ? 'Cliente creado exitosamente. Se envió un email de invitación.'
-        : 'Cliente creado exitosamente. No se pudo enviar el email (configure SMTP).',
+        : `Cliente creado exitosamente, pero hubo un problema con el email: ${emailErrorMessage}`,
       createdAt: new Date().toISOString()
     });
   } catch (error) {
@@ -2341,23 +2370,30 @@ app.post('/api/profesionales', async (req, res) => {
       [newUserId, phoneNumber || null, specialty || null]
     );
 
-    // 3. Generate password setup token and send invite email
+    // 3. Generate password setup token
     const setupToken = await createPasswordSetupToken(connection, newUserId);
 
     await connection.commit();
 
-    // Send email after commit (non-blocking)
-    const emailSent = await sendPasswordSetupEmail(email, displayName, setupToken);
+    // 4. Send email (non-blocking)
+    let emailSent = false;
+    let emailErrorMessage = '';
+    try {
+      await sendPasswordSetupEmail(email, displayName, setupToken);
+      emailSent = true;
+    } catch (emailError: any) {
+      console.error('[AUTH ERROR] profesional creation email failed:', emailError.message);
+      emailErrorMessage = emailError.message;
+    }
 
     res.json({
       success: true,
       id: newUserId,
       emailSent,
-      email,
-      setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
       message: emailSent
         ? 'Profesional creado exitosamente. Se envió un email de invitación.'
-        : 'Profesional creado exitosamente. No se pudo enviar el email (configure SMTP).',
+        : `Profesional creado exitosamente, pero hubo un problema con el email: ${emailErrorMessage}`,
+      setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
       createdAt: new Date().toISOString()
     });
   } catch (error: any) {
