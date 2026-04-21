@@ -36,14 +36,67 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userProfile");
+    // Reset the URL to root to avoid landing on a deep-linked page after next login
+    window.history.replaceState(null, '', '/');
     setIsAuthenticated(false);
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkToken = () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        handleLogout();
+        return;
+      }
+
+      try {
+        // Validate JWT expiration proactively
+        const payloadBase64 = token.split('.')[1];
+        if (payloadBase64) {
+          const b64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+          const decodedJson = atob(b64);
+          const decoded = JSON.parse(decodedJson);
+          const exp = decoded.exp;
+          const now = Date.now() / 1000;
+          if (exp && exp < now) {
+            handleLogout();
+          }
+        }
+      } catch (e) {
+        // Invalid token structure
+        handleLogout();
+      }
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'authToken') {
+        checkToken();
+      }
+    };
+
     const onForceLogout = () => handleLogout();
+
+    // 1. Listen for global forced logouts (from authenticatedFetch)
     window.addEventListener('force-logout', onForceLogout);
-    return () => window.removeEventListener('force-logout', onForceLogout);
-  }, []);
+
+    // 2. Listen for storage changes across tabs
+    window.addEventListener('storage', handleStorageChange);
+
+    // 3. Proactively check when user returns to the tab
+    window.addEventListener('focus', checkToken);
+
+    // 4. Periodically check (every 30 seconds)
+    const intervalId = setInterval(checkToken, 30000);
+
+    return () => {
+      window.removeEventListener('force-logout', onForceLogout);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', checkToken);
+      clearInterval(intervalId);
+    };
+  }, [isAuthenticated]);
 
   // Public route: setup-password (must be accessible without auth)
   if (window.location.pathname === '/setup-password') {

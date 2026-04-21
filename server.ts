@@ -56,10 +56,29 @@ const authenticateToken = (req: any, res: any, next: any) => {
     return res.status(401).json({ success: false, error: 'Acceso denegado. Token no proporcionado.' });
   }
 
-  jwt.verify(token, JWT_SECRET!, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET!, async (err: any, user: any) => {
     if (err) {
       return res.status(403).json({ success: false, error: 'Token inválido o expirado.' });
     }
+
+    try {
+      // Validate in the database if the user has been deleted (soft-delete check)
+      // This immediately revokes access for deleted users on their next API request
+      if (user.role === 'client') {
+        const [rows]: any = await pool.query('SELECT deletedAt FROM clients WHERE userId = ?', [user.id]);
+        if (rows.length === 0 || rows[0].deletedAt !== null) {
+          return res.status(403).json({ success: false, error: 'Cuenta eliminada o inactiva.' });
+        }
+      } else if (user.role === 'profesional') {
+        const [rows]: any = await pool.query('SELECT deletedAt FROM profesionals WHERE userId = ?', [user.id]);
+        if (rows.length === 0 || rows[0].deletedAt !== null) {
+          return res.status(403).json({ success: false, error: 'Cuenta eliminada o inactiva.' });
+        }
+      }
+    } catch (dbErr) {
+      console.error('[AUTH ERROR] Checking deleted status:', dbErr);
+    }
+
     req.user = user;
     next();
   });
@@ -930,7 +949,7 @@ app.post('/api/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET!,
-      { expiresIn: '24h' }
+      { expiresIn: '365d' }
     );
 
     // Filter out password and null fields to match polymorphic interface
