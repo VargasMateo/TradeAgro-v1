@@ -1,5 +1,0 @@
-RewriteEngine On
-RewriteBase /
-
-# Forzar que /backend vaya directo a la carpeta física
-RewriteRule ^backend/(.*)$ backend/$1 [L]
