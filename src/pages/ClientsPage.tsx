@@ -37,7 +37,7 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     try {
       setIsLoading(true);
-      const response = await authenticatedFetch('/api/clients');
+      const response = await authenticatedFetch('/backend/clients');
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
       }
@@ -109,7 +109,7 @@ export default function ClientsPage() {
     if (!clientToDelete) return;
 
     try {
-      const response = await authenticatedFetch(`/api/clients/${clientToDelete.id}`, {
+      const response = await authenticatedFetch(`/backend/clients/${clientToDelete.id}`, {
         method: 'DELETE'
       });
       const data = await response.json();

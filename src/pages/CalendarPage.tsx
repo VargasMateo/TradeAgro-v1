@@ -26,7 +26,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
 
   const loadJobs = async () => {
     try {
-      const response = await authenticatedFetch('/api/work-orders');
+      const response = await authenticatedFetch('/backend/work-orders');
       if (!response.ok) throw new Error('Failed to fetch jobs');
       const parsed = await response.json();
       // Asignamos fechas a los órdenes para la demostración si no tienen
@@ -49,7 +49,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
 
     const loadClientsData = async () => {
       try {
-        const response = await authenticatedFetch('/api/clients');
+        const response = await authenticatedFetch('/backend/clients');
         if (response.ok) {
           const data = await response.json();
           setClients(data);

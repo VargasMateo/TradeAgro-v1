@@ -137,7 +137,7 @@ export default function CreateProfesionalModal({
         createdBy: currentUserId
       };
 
-      const url = editingProfesional ? `/api/profesionales/${editingProfesional.id}` : '/api/profesionales';
+      const url = editingProfesional ? `/backend/profesionales/${editingProfesional.id}` : '/backend/profesionales';
       const method = editingProfesional ? 'PUT' : 'POST';
 
       const response = await authenticatedFetch(url, {

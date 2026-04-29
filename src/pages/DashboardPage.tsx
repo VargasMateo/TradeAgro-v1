@@ -30,7 +30,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchClients = async () => {
       try {
         setIsLoadingClients(true);
-        const response = await authenticatedFetch('/api/clients');
+        const response = await authenticatedFetch('/backend/clients');
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
         }
@@ -47,7 +47,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchWorkOrders = async () => {
       setIsLoadingWorkOrders(true);
       try {
-        const response = await authenticatedFetch('/api/work-orders');
+        const response = await authenticatedFetch('/backend/work-orders');
         if (!response.ok) throw new Error('Failed to fetch work orders');
         const data = await response.json();
         setWorkOrders(Array.isArray(data) ? data : []);

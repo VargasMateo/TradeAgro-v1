@@ -30,7 +30,7 @@ export default function SetupPasswordPage() {
 
   const validateToken = async (t: string) => {
     try {
-      const res = await fetch(`/api/auth/validate-token?token=${encodeURIComponent(t)}`);
+      const res = await fetch(`/backend/auth/validate-token?token=${encodeURIComponent(t)}`);
       const data = await res.json();
       if (data.valid) {
         setStatus('valid');
@@ -79,7 +79,7 @@ export default function SetupPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/auth/setup-password', {
+      const res = await fetch('/backend/auth/setup-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password })

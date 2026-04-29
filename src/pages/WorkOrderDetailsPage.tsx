@@ -47,7 +47,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const fetchObservations = async () => {
     try {
-      const response = await authenticatedFetch(`/api/work-orders/${id}/observations`);
+      const response = await authenticatedFetch(`/backend/work-orders/${id}/observations`);
       if (response.ok) {
         const data = await response.json();
         setObservations(data);
@@ -62,7 +62,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleAddObservation = async () => {
     if (!newObservation.trim()) return;
     try {
-      const response = await authenticatedFetch(`/api/work-orders/${id}/observations`, {
+      const response = await authenticatedFetch(`/backend/work-orders/${id}/observations`, {
         method: 'POST',
         body: JSON.stringify({ text: newObservation })
       });
@@ -88,7 +88,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const fetchAttachments = async () => {
     try {
-      const response = await authenticatedFetch(`/api/work-orders/${id}/attachments`);
+      const response = await authenticatedFetch(`/backend/work-orders/${id}/attachments`);
       if (response.ok) {
         const data = await response.json();
         setAttachments(data);
@@ -107,7 +107,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
     setUpdatingStatus(true);
     try {
-      const response = await authenticatedFetch(`/api/work-orders/${id}/status`, {
+      const response = await authenticatedFetch(`/backend/work-orders/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: newStatus })
       });
@@ -149,7 +149,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         formData.append('files', file);
       });
 
-      const response = await authenticatedFetch(`/api/work-orders/${id}/attachments`, {
+      const response = await authenticatedFetch(`/backend/work-orders/${id}/attachments`, {
         method: 'POST',
         body: formData
       });
@@ -170,7 +170,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) return;
 
     try {
-      const response = await authenticatedFetch(`/api/attachments/${attachmentId}`, {
+      const response = await authenticatedFetch(`/backend/attachments/${attachmentId}`, {
         method: 'DELETE'
       });
 
@@ -187,7 +187,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const fetchJobDetails = async () => {
     setLoading(true);
     try {
-      const response = await authenticatedFetch(`/api/work-orders/${id}`);
+      const response = await authenticatedFetch(`/backend/work-orders/${id}`);
 
       if (!response.ok) {
         const errorData = await response.json();

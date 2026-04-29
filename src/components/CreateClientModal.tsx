@@ -215,7 +215,7 @@ export default function CreateClientModal({
         }))
       };
 
-      const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients';
+      const url = editingClient ? `/backend/clients/${editingClient.id}` : '/backend/clients';
       const method = editingClient ? 'PUT' : 'POST';
 
       const response = await authenticatedFetch(url, {

@@ -39,7 +39,7 @@ export default function UpcomingWorkOrders({
     if (data) return; // Skip if data is provided via props
     setLocalLoading(true);
     try {
-      const response = await authenticatedFetch('/api/work-orders');
+      const response = await authenticatedFetch('/backend/work-orders');
       if (!response.ok) throw new Error('Failed to fetch jobs');
 
       const parsedWorkOrders = await response.json();

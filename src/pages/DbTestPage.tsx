@@ -34,7 +34,7 @@ export default function DbTestPage() {
 
   const fetchClients = async () => {
     try {
-      const response = await authenticatedFetch('/api/clients');
+      const response = await authenticatedFetch('/backend/clients');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setClients(data);
@@ -47,7 +47,7 @@ export default function DbTestPage() {
 
   const fetchProfesionales = async () => {
     try {
-      const response = await authenticatedFetch('/api/profesionales');
+      const response = await authenticatedFetch('/backend/profesionales');
       if (response.ok) {
         const data = await response.json();
         setProfesionales(data);
@@ -59,7 +59,7 @@ export default function DbTestPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await authenticatedFetch('/api/users');
+      const response = await authenticatedFetch('/backend/users');
       if (response.ok) {
         const data = await response.json();
         setAllUsers(data);
@@ -71,7 +71,7 @@ export default function DbTestPage() {
 
   const fetchFields = async () => {
     try {
-      const response = await authenticatedFetch('/api/fields');
+      const response = await authenticatedFetch('/backend/fields');
       if (response.ok) {
         const data = await response.json();
         setFields(data);
@@ -83,7 +83,7 @@ export default function DbTestPage() {
 
   const fetchJobs = async () => {
     try {
-      const response = await authenticatedFetch('/api/work-orders');
+      const response = await authenticatedFetch('/backend/work-orders');
       if (response.ok) {
         const data = await response.json();
         setWorkOrders(data);
@@ -95,7 +95,7 @@ export default function DbTestPage() {
 
   const fetchAttachments = async () => {
     try {
-      const response = await authenticatedFetch('/api/attachments');
+      const response = await authenticatedFetch('/backend/attachments');
       if (response.ok) {
         setAttachments(await response.json());
       }
@@ -106,7 +106,7 @@ export default function DbTestPage() {
 
   const fetchObservations = async () => {
     try {
-      const response = await authenticatedFetch('/api/observations');
+      const response = await authenticatedFetch('/backend/observations');
       if (response.ok) {
         setObservations(await response.json());
       }
@@ -117,7 +117,7 @@ export default function DbTestPage() {
 
   const fetchTokens = async () => {
     try {
-      const response = await fetch('/api/tokens');
+      const response = await fetch('/backend/tokens');
       if (response.ok) {
         setTokens(await response.json());
       }
@@ -155,7 +155,7 @@ export default function DbTestPage() {
         lotNames: ['Lote A1', 'Lote B2']
       };
 
-      const response = await authenticatedFetch('/api/fields', {
+      const response = await authenticatedFetch('/backend/fields', {
         method: 'POST',
         body: JSON.stringify(mockField)
       });
@@ -180,11 +180,11 @@ export default function DbTestPage() {
     try {
       let endpoint = '';
       if (resetTarget === 'global') {
-        endpoint = '/api/test/reset-database';
+        endpoint = '/backend/test/reset-database';
       } else if (resetTarget === 'usuarios') {
-        endpoint = '/api/test/reset-users';
+        endpoint = '/backend/test/reset-users';
       } else {
-        endpoint = `/api/test/reset-${resetTarget === 'clientes' ? 'clients' :
+        endpoint = `/backend/test/reset-${resetTarget === 'clientes' ? 'clients' :
           resetTarget === 'campos' ? 'fields' :
             resetTarget === 'ordenes' ? 'work-orders' :
               resetTarget === 'anexos' ? 'attachments' :
