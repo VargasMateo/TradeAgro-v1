@@ -18,14 +18,12 @@ dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 5001;
 app.use((0, cors_1.default)({
-    origin: process.env.VERCEL
-        ? ['https://trade-agro-v1.vercel.app', 'https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar']
-        : true,
+    origin: ['https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar'],
 }));
 app.use(express_1.default.json());
-// Block all /api/test/* routes in production
-app.use('/api/test', (req, res, next) => {
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+// Block all /backend/test/* routes in production
+app.use('/backend/test', (req, res, next) => {
+    if (process.env.NODE_ENV === 'production') {
         return res.status(404).json({ error: 'Not found' });
     }
     next();
@@ -100,7 +98,7 @@ const authenticateToken = (req, res, next) => {
     });
 };
 const seedDefaultUsers = async (connection = pool) => {
-    // ... (rest of the code unchanged until /api/jobs)
+    // ... (rest of the code unchanged until /backend/jobs)
     try {
         console.log('[SEED] Checking if default users exist...');
         const adminPass = await bcryptjs_1.default.hash('123456', 10);
@@ -432,8 +430,8 @@ initializeDatabase();
 /**
  * UPDATE LOGGED-IN USER PROFILE
  */
-app.put('/api/profile', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] PUT /api/profile - User self-update initiated');
+app.put('/backend/profile', authenticateToken, async (req, res) => {
+    console.log('[DEBUG] PUT /backend/profile - User self-update initiated');
     const connection = await pool.getConnection();
     try {
         const { id, displayName, email, role, phoneNumber: profPhoneNumber, specialty, // Prof fields
@@ -479,8 +477,8 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
 /**
  * RESET ENTIRE DATABASE (Dev only)
  */
-app.post('/api/test/reset-database', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-database - FULL RESET requested');
+app.post('/backend/test/reset-database', async (req, res) => {
+    console.log('[DEBUG] POST /backend/test/reset-database - FULL RESET requested');
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -732,7 +730,7 @@ async function createPasswordSetupToken(connection, userId) {
 // AUTH ENDPOINTS (Public - No JWT required)
 // ==========================================
 /**
- * GET /api/auth/validate-token — Validate a password setup token
+ * GET /backend/auth/validate-token — Validate a password setup token
  */
 apiRouter.get('/auth/validate-token', async (req, res) => {
     const { token } = req.query;
@@ -770,7 +768,7 @@ apiRouter.get('/auth/validate-token', async (req, res) => {
     }
 });
 /**
- * POST /api/auth/setup-password — Set password using a valid token
+ * POST /backend/auth/setup-password — Set password using a valid token
  */
 apiRouter.post('/auth/setup-password', async (req, res) => {
     const { token, password } = req.body;
@@ -823,7 +821,7 @@ apiRouter.post('/auth/setup-password', async (req, res) => {
     }
 });
 /**
- * POST /api/auth/forgot-password — Request a password reset link
+ * POST /backend/auth/forgot-password — Request a password reset link
  */
 apiRouter.post('/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
@@ -874,7 +872,7 @@ apiRouter.post('/auth/forgot-password', async (req, res) => {
     }
 });
 /**
- * POST /api/auth/resend-invite — Resend the password setup email
+ * POST /backend/auth/resend-invite — Resend the password setup email
  */
 apiRouter.post('/auth/resend-invite', authenticateToken, async (req, res) => {
     const { userId } = req.body;
@@ -970,7 +968,7 @@ apiRouter.get('/health', (req, res) => {
 });
 // Endpoint to fetch clients from clients
 apiRouter.get('/clients', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] GET /api/clients - Fetching active clients');
+    console.log('[DEBUG] GET /backend/clients - Fetching active clients');
     try {
         const [clientRows] = await pool.query(`
       SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id,
@@ -1009,7 +1007,7 @@ apiRouter.get('/clients', authenticateToken, async (req, res) => {
         res.json(clients);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/clients:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/clients:', error.message);
         res.status(500).json({ error: 'Failed to fetch clients', details: error.message });
     }
 });
@@ -1018,7 +1016,7 @@ apiRouter.get('/clients', authenticateToken, async (req, res) => {
  */
 // Update client and fields unified endpoint
 apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
-    console.log(`[DEBUG] PUT /api/clients/${req.params.id} - Unified update initiated`);
+    console.log(`[DEBUG] PUT /backend/clients/${req.params.id} - Unified update initiated`);
     const connection = await pool.getConnection();
     try {
         const userId = req.params.id; // Correct semantic: the id is the userId
@@ -1068,7 +1066,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
     }
     catch (error) {
         await connection.rollback();
-        console.error('[DATABASE TRANSACTION ERROR] PUT /api/clients/:id:', error.message);
+        console.error('[DATABASE TRANSACTION ERROR] PUT /backend/clients/:id:', error.message);
         res.status(500).json({
             success: false,
             error: 'Failed to update client and fields',
@@ -1081,7 +1079,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
 });
 apiRouter.delete('/clients/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
+    console.log(`[DEBUG] DELETE /backend/clients/${id} - Soft delete requested`);
     try {
         // Soft delete in clients table
         const [result] = await pool.query('UPDATE clients SET deletedAt = NOW() WHERE userId = ?', [id]);
@@ -1091,7 +1089,7 @@ apiRouter.delete('/clients/:id', authenticateToken, async (req, res) => {
         res.json({ success: true, message: 'Client soft-deleted successfully' });
     }
     catch (error) {
-        console.error('[DATABASE ERROR] DELETE /api/clients:', error.message);
+        console.error('[DATABASE ERROR] DELETE /backend/clients:', error.message);
         res.status(500).json({ error: 'Failed to delete client', details: error.message });
     }
 });
@@ -1099,7 +1097,7 @@ apiRouter.delete('/clients/:id', authenticateToken, async (req, res) => {
  * Unified endpoint to create a client and their fields in a single transaction
  */
 apiRouter.post('/clients', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] POST /api/clients - Unified creation initiated');
+    console.log('[DEBUG] POST /backend/clients - Unified creation initiated');
     const connection = await pool.getConnection();
     try {
         const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, createdBy, password, // Optional, can default
@@ -1187,7 +1185,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
     }
     catch (error) {
         await connection.rollback();
-        console.error('[DATABASE TRANSACTION ERROR] POST /api/clients:', error.message);
+        console.error('[DATABASE TRANSACTION ERROR] POST /backend/clients:', error.message);
         res.status(500).json({
             success: false,
             error: 'Failed to create client and fields',
@@ -1202,7 +1200,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
  * Endpoint to fetch fields (campos)
  */
 apiRouter.get('/fields', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] GET /api/fields');
+    console.log('[DEBUG] GET /backend/fields');
     try {
         const [rows] = await pool.query('SELECT * FROM fields');
         const fields = rows.map((row) => ({
@@ -1212,7 +1210,7 @@ apiRouter.get('/fields', authenticateToken, async (req, res) => {
         res.json(fields);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/fields:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/fields:', error.message);
         if (error.code === 'ER_NO_SUCH_TABLE')
             return res.json([]);
         res.status(500).json({ error: 'Failed to fetch fields', details: error.message });
@@ -1223,7 +1221,7 @@ apiRouter.get('/fields', authenticateToken, async (req, res) => {
  */
 apiRouter.get('/work-orders', authenticateToken, async (req, res) => {
     const { id, role } = req.user;
-    console.log(`[DEBUG_AUTH] GET /api/work-orders - UserID: ${id}, Role: ${role}`);
+    console.log(`[DEBUG_AUTH] GET /backend/work-orders - UserID: ${id}, Role: ${role}`);
     try {
         let query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
@@ -1250,7 +1248,7 @@ apiRouter.get('/work-orders', authenticateToken, async (req, res) => {
             console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
         }
         query += ` ORDER BY t.createdAt DESC`;
-        console.log(`[DEBUG] GET /api/work-orders - User: ${id}, Role: ${role}`);
+        console.log(`[DEBUG] GET /backend/work-orders - User: ${id}, Role: ${role}`);
         const [rows] = await pool.query(query, params);
         // Map database rows to frontend Job format
         const jobs = rows.map((row) => ({
@@ -1282,7 +1280,7 @@ apiRouter.get('/work-orders', authenticateToken, async (req, res) => {
         res.json(jobs);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/work-orders:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/work-orders:', error.message);
         if (error.code === 'ER_NO_SUCH_TABLE')
             return res.json([]);
         res.status(500).json({ error: 'Failed to fetch jobs', details: error.message });
@@ -1333,7 +1331,7 @@ async function sendNewOrderEmail(orderData) {
  * Endpoint to create a job (trabajo)
  */
 apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] POST /api/work-orders - Creating new job:', JSON.stringify(req.body));
+    console.log('[DEBUG] POST /backend/work-orders - Creating new job:', JSON.stringify(req.body));
     try {
         const { clientId, profesionalId, date, title, field, lot, hectares, service, secondaryService, campaign, amount, notes, fieldId, createdBy } = req.body;
         // Persist services if they are new
@@ -1351,7 +1349,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
                 finalClientId = userRows[0].id;
             }
         }
-        console.log('[DEBUG] POST /api/work-orders - RECIBIDO BODY:', JSON.stringify(req.body));
+        console.log('[DEBUG] POST /backend/work-orders - RECIBIDO BODY:', JSON.stringify(req.body));
         const dbData = {
             clientId: finalClientId || null,
             profesionalId: profesionalId || null,
@@ -1416,7 +1414,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
         }
     }
     catch (error) {
-        console.error('[DATABASE ERROR] POST /api/work-orders:', error);
+        console.error('[DATABASE ERROR] POST /backend/work-orders:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to create job',
@@ -1430,7 +1428,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
  */
 apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    console.log(`[DEBUG] PUT /api/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
+    console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
     try {
         // Resolve UUID/Numeric ID to internal numeric ID
         const [woRows] = await pool.query('SELECT id, status FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
@@ -1513,7 +1511,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
         });
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] PUT /api/work-orders/${id}:`, error);
+        console.error(`[DATABASE ERROR] PUT /backend/work-orders/${id}:`, error);
         res.status(500).json({
             success: false,
             error: 'Failed to update job',
@@ -1590,7 +1588,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
         });
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] PATCH /api/work-orders/${id}/status:`, error);
+        console.error(`[DATABASE ERROR] PATCH /backend/work-orders/${id}/status:`, error);
         res.status(500).json({
             success: false,
             error: 'Failed to update status',
@@ -1603,7 +1601,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
  */
 apiRouter.delete('/work-orders/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    console.log(`[DEBUG] DELETE /api/work-orders/${id} - Soft delete requested`);
+    console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Soft delete requested`);
     try {
         const [result] = await pool.query('UPDATE work_orders SET deletedAt = NOW() WHERE id = ?', [id]);
         if (result.affectedRows === 0) {
@@ -1612,7 +1610,7 @@ apiRouter.delete('/work-orders/:id', authenticateToken, async (req, res) => {
         res.json({ success: true, message: 'Job soft-deleted successfully' });
     }
     catch (error) {
-        console.error('[DATABASE ERROR] DELETE /api/work-orders:', error.message);
+        console.error('[DATABASE ERROR] DELETE /backend/work-orders:', error.message);
         res.status(500).json({ error: 'Failed to delete job', details: error.message });
     }
 });
@@ -1622,7 +1620,7 @@ apiRouter.delete('/work-orders/:id', authenticateToken, async (req, res) => {
 apiRouter.get('/work-orders/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const user = req.user;
-    console.log(`[SECURE DEBUG] GET /api/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
+    console.log(`[SECURE DEBUG] GET /backend/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
     try {
         const isNumeric = /^\d+$/.test(id);
         const query = `
@@ -1681,7 +1679,7 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req, res) => {
         res.json(job);
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] GET /api/work-orders/${id}:`, error.message);
+        console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}:`, error.message);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
@@ -1709,7 +1707,7 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
         const values = req.files.map(file => [
             internalJobId,
             file.originalname,
-            `/api/attachments/content/`, // Placeholder
+            `/backend/attachments/content/`, // Placeholder
             file.mimetype,
             file.size,
             file.buffer, // Save the actual file data
@@ -1721,7 +1719,7 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
         res.json({ success: true, message: 'Files uploaded successfully' });
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] POST /api/work-orders/${id}/attachments:`, error.message);
+        console.error(`[DATABASE ERROR] POST /backend/work-orders/${id}/attachments:`, error.message);
         res.status(500).json({ success: false, error: 'Failed to save attachments' });
     }
 });
@@ -1741,12 +1739,12 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res
         // Add the dynamic URL for each attachment
         const attachments = rows.map((row) => ({
             ...row,
-            fileUrl: `/api/attachments/${row.id}/content`
+            fileUrl: `/backend/attachments/${row.id}/content`
         }));
         res.json(attachments);
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] GET /api/work-orders/${id}/attachments:`, error.message);
+        console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/attachments:`, error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
     }
 });
@@ -1771,7 +1769,7 @@ apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req, re
         res.json(rows);
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] GET /api/work-orders/${id}/observations:`, error.message);
+        console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/observations:`, error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch observations' });
     }
 });
@@ -1802,7 +1800,7 @@ apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req, r
         res.json({ success: true, observation: rows[0] });
     }
     catch (error) {
-        console.error(`[DATABASE ERROR] POST /api/work-orders/${id}/observations:`, error.message);
+        console.error(`[DATABASE ERROR] POST /backend/work-orders/${id}/observations:`, error.message);
         res.status(500).json({ success: false, error: 'Failed to create observation' });
     }
 });
@@ -1811,7 +1809,7 @@ apiRouter.get('/attachments/:id/content', authenticateToken, async (req, res) =>
     const { id } = req.params;
     const { download } = req.query;
     const user = req.user;
-    console.log(`[SECURE DEBUG] GET /api/attachments/${id}/content - UserID: ${user.id}, Role: ${user.role}, download=${download}`);
+    console.log(`[SECURE DEBUG] GET /backend/attachments/${id}/content - UserID: ${user.id}, Role: ${user.role}, download=${download}`);
     try {
         // Join with work_orders to check permissions in a single query
         const [rows] = await pool.query(`
@@ -1840,7 +1838,7 @@ apiRouter.get('/attachments/:id/content', authenticateToken, async (req, res) =>
         res.send(fileData);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/attachments/:id/content:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/attachments/:id/content:', error.message);
         res.status(500).json({ error: 'Failed to retrieve file content' });
     }
 });
@@ -1866,12 +1864,12 @@ apiRouter.delete('/attachments/:id', authenticateToken, async (req, res) => {
         res.json({ success: true, message: 'Attachment deleted successfully' });
     }
     catch (error) {
-        console.error('[DATABASE ERROR] DELETE /api/attachments:', error.message);
+        console.error('[DATABASE ERROR] DELETE /backend/attachments:', error.message);
         res.status(500).json({ success: false, error: 'Failed to delete attachment', details: error.message });
     }
 });
 /**
- * GET /api/services — fetch all registered services
+ * GET /backend/services — fetch all registered services
  */
 apiRouter.get('/services', authenticateToken, async (req, res) => {
     try {
@@ -1880,7 +1878,7 @@ apiRouter.get('/services', authenticateToken, async (req, res) => {
         res.json(serviceNames);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/services:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/services:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch services' });
     }
 });
@@ -1951,7 +1949,7 @@ runMigrations().then(() => {
  * CREATE A NEW FIELD
  */
 apiRouter.post('/fields', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] POST /api/fields - Creating new field:', JSON.stringify(req.body));
+    console.log('[DEBUG] POST /backend/fields - Creating new field:', JSON.stringify(req.body));
     try {
         const { clientId, name, lat, lng, lotNames } = req.body;
         const dbData = {
@@ -1965,7 +1963,7 @@ apiRouter.post('/fields', authenticateToken, async (req, res) => {
         res.json({ success: true, id: result.insertId });
     }
     catch (error) {
-        console.error('[DATABASE ERROR] POST /api/fields:', error.message);
+        console.error('[DATABASE ERROR] POST /backend/fields:', error.message);
         res.status(500).json({ error: 'Failed to create field', details: error.message });
     }
 });
@@ -1973,7 +1971,7 @@ apiRouter.post('/fields', authenticateToken, async (req, res) => {
  * RESET CLIENTS (Dev only)
  */
 apiRouter.post('/test/reset-clients', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-clients');
+    console.log('[DEBUG] POST /backend/test/reset-clients');
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -1996,7 +1994,7 @@ apiRouter.post('/test/reset-clients', async (req, res) => {
     }
 });
 apiRouter.post('/test/reset-profesionals', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-profesionals');
+    console.log('[DEBUG] POST /backend/test/reset-profesionals');
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -2019,7 +2017,7 @@ apiRouter.post('/test/reset-profesionals', async (req, res) => {
  * RESET FIELDS (Dev only)
  */
 apiRouter.post('/test/reset-fields', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-fields');
+    console.log('[DEBUG] POST /backend/test/reset-fields');
     const connection = await pool.getConnection();
     try {
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -2038,7 +2036,7 @@ apiRouter.post('/test/reset-fields', async (req, res) => {
  * RESET JOBS (Dev only)
  */
 apiRouter.post('/test/reset-work-orders', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-work-orders');
+    console.log('[DEBUG] POST /backend/test/reset-work-orders');
     const connection = await pool.getConnection();
     try {
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -2057,7 +2055,7 @@ apiRouter.post('/test/reset-work-orders', async (req, res) => {
  * RESET ATTACHMENTS (Dev only)
  */
 apiRouter.post('/test/reset-attachments', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-attachments');
+    console.log('[DEBUG] POST /backend/test/reset-attachments');
     const connection = await pool.getConnection();
     try {
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -2076,7 +2074,7 @@ apiRouter.post('/test/reset-attachments', async (req, res) => {
  * RESET OBSERVATIONS (Dev only)
  */
 apiRouter.post('/test/reset-observations', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-observations');
+    console.log('[DEBUG] POST /backend/test/reset-observations');
     const connection = await pool.getConnection();
     try {
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -2095,7 +2093,7 @@ apiRouter.post('/test/reset-observations', async (req, res) => {
  * RESET TOKENS (Dev only)
  */
 apiRouter.post('/test/reset-tokens', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-tokens');
+    console.log('[DEBUG] POST /backend/test/reset-tokens');
     const connection = await pool.getConnection();
     try {
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -2111,7 +2109,7 @@ apiRouter.post('/test/reset-tokens', async (req, res) => {
     }
 });
 /**
- * GET /api/attachments (Dev only / Global)
+ * GET /backend/attachments (Dev only / Global)
  */
 apiRouter.get('/attachments', authenticateToken, async (req, res) => {
     try {
@@ -2123,7 +2121,7 @@ apiRouter.get('/attachments', authenticateToken, async (req, res) => {
     }
 });
 /**
- * GET /api/observations (Dev only / Global)
+ * GET /backend/observations (Dev only / Global)
  */
 apiRouter.get('/observations', authenticateToken, async (req, res) => {
     try {
@@ -2135,7 +2133,7 @@ apiRouter.get('/observations', authenticateToken, async (req, res) => {
     }
 });
 /**
- * GET /api/tokens (Dev only / Global)
+ * GET /backend/tokens (Dev only / Global)
  */
 apiRouter.get('/tokens', authenticateToken, async (req, res) => {
     try {
@@ -2147,10 +2145,10 @@ apiRouter.get('/tokens', authenticateToken, async (req, res) => {
     }
 });
 /**
- * GET /api/profesionales — fetch active professionals
+ * GET /backend/profesionales — fetch active professionals
  */
 apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] GET /api/profesionales for user:', req.user.email);
+    console.log('[DEBUG] GET /backend/profesionales for user:', req.user.email);
     try {
         let rows;
         if (req.user.role === 'client') {
@@ -2183,16 +2181,16 @@ apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
         res.json(formatted);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/profesionales:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/profesionales:', error.message);
         res.status(500).json({ error: 'Failed to fetch profesionales', details: error.message });
     }
 });
 /**
- * PUT /api/profesionales/:id — update an existing professional
+ * PUT /backend/profesionales/:id — update an existing professional
  */
 apiRouter.put('/profesionales/:id', authenticateToken, async (req, res) => {
     const { id } = req.params; // userId
-    console.log(`[DEBUG] PUT /api/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
+    console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
     const connection = await pool.getConnection();
     try {
         const { displayName, email, phoneNumber, specialty } = req.body;
@@ -2207,7 +2205,7 @@ apiRouter.put('/profesionales/:id', authenticateToken, async (req, res) => {
     }
     catch (error) {
         await connection.rollback();
-        console.error('[DATABASE ERROR] PUT /api/profesionales:', error.message);
+        console.error('[DATABASE ERROR] PUT /backend/profesionales:', error.message);
         res.status(500).json({ success: false, error: 'Failed to update profesional', details: error.message });
     }
     finally {
@@ -2215,11 +2213,11 @@ apiRouter.put('/profesionales/:id', authenticateToken, async (req, res) => {
     }
 });
 /**
- * DELETE /api/profesionales/:id — soft delete a professional
+ * DELETE /backend/profesionales/:id — soft delete a professional
  */
 apiRouter.delete('/profesionales/:id', authenticateToken, async (req, res) => {
     const { id } = req.params; // userId
-    console.log(`[DEBUG] DELETE /api/profesionales/${id} - Soft deleting profesional`);
+    console.log(`[DEBUG] DELETE /backend/profesionales/${id} - Soft deleting profesional`);
     try {
         const [result] = await pool.query('UPDATE profesionals SET deletedAt = NOW() WHERE userId = ?', [id]);
         if (result.affectedRows === 0) {
@@ -2228,15 +2226,15 @@ apiRouter.delete('/profesionales/:id', authenticateToken, async (req, res) => {
         res.json({ success: true, message: 'Profesional deleted successfully' });
     }
     catch (error) {
-        console.error('[DATABASE ERROR] DELETE /api/profesionales:', error.message);
+        console.error('[DATABASE ERROR] DELETE /backend/profesionales:', error.message);
         res.status(500).json({ success: false, error: 'Failed to delete profesional', details: error.message });
     }
 });
 /**
- * POST /api/profesionales — create a new professional
+ * POST /backend/profesionales — create a new professional
  */
 apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] POST /api/profesionales - Creating new profesional:', JSON.stringify(req.body));
+    console.log('[DEBUG] POST /backend/profesionales - Creating new profesional:', JSON.stringify(req.body));
     const connection = await pool.getConnection();
     try {
         const { displayName, email, password, phoneNumber, specialty, createdBy } = req.body;
@@ -2303,7 +2301,7 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
     }
     catch (error) {
         await connection.rollback();
-        console.error('[DATABASE ERROR] POST /api/profesionales:', error.message);
+        console.error('[DATABASE ERROR] POST /backend/profesionales:', error.message);
         res.status(500).json({
             success: false,
             error: 'Failed to create profesional',
@@ -2315,10 +2313,10 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
     }
 });
 /**
- * GET /api/users — fetch all users from the system
+ * GET /backend/users — fetch all users from the system
  */
 apiRouter.get('/users', authenticateToken, async (req, res) => {
-    console.log('[DEBUG] GET /api/users');
+    console.log('[DEBUG] GET /backend/users');
     try {
         const [rows] = await pool.query(`
       SELECT id, displayName, email, role, createdAt, createdBy
@@ -2328,15 +2326,15 @@ apiRouter.get('/users', authenticateToken, async (req, res) => {
         res.json(rows);
     }
     catch (error) {
-        console.error('[DATABASE ERROR] GET /api/users:', error.message);
+        console.error('[DATABASE ERROR] GET /backend/users:', error.message);
         res.status(500).json({ error: 'Failed to fetch users', details: error.message });
     }
 });
 /**
  * RESET ALL DATA (Dev only) - Warning: This clears everything as all tables depend on users
  */
-app.post('/api/test/reset-data', async (req, res) => {
-    console.log('[DEBUG] POST /api/test/reset-data');
+app.post('/backend/test/reset-data', async (req, res) => {
+    console.log('[DEBUG] POST /backend/test/reset-data');
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -2361,10 +2359,8 @@ app.post('/api/test/reset-data', async (req, res) => {
     }
 });
 // Mount the API router
-// We mount it at multiple points to be compatible with different cPanel/Local/Vercel setups
-app.use('/api', apiRouter);
+// Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
-app.use('/', apiRouter);
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });
