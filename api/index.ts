@@ -3,7 +3,7 @@ let handler: any;
 export default async function (req: any, res: any) {
   if (!handler) {
     try {
-      const serverModule = await import('../server.js');
+      const serverModule = await import('../server');
       handler = serverModule.default;
     } catch (error: any) {
       console.error("Initialization error:", error);

@@ -18,7 +18,7 @@ const port = process.env.PORT || 5001;
 
 app.use(cors({
   origin: process.env.VERCEL
-    ? ['https://trade-agro-v1.vercel.app']
+    ? ['https://trade-agro-v1.vercel.app', 'https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar']
     : true,
 }));
 app.use(express.json());
@@ -31,16 +31,29 @@ app.use('/api/test', (req: any, res: any, next: any) => {
   next();
 });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Path setup for CommonJS/ESM compatibility
+let __filename: string;
+let __dirname: string;
+
+try {
+  // @ts-ignore
+  __filename = fileURLToPath(import.meta.url);
+  __dirname = path.dirname(__filename);
+} catch (e) {
+  // Fallback for CommonJS
+  __filename = __filename || '';
+  __dirname = __dirname || '';
+}
 
 
-// Multer config - Now using memory storage to save to DB
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
+
+// Define a router for all API routes
+const apiRouter = express.Router();
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -812,7 +825,7 @@ async function createPasswordSetupToken(connection: any, userId: number): Promis
 /**
  * GET /api/auth/validate-token — Validate a password setup token
  */
-app.get('/api/auth/validate-token', async (req, res) => {
+apiRouter.get('/auth/validate-token', async (req, res) => {
   const { token } = req.query;
   console.log(`[AUTH] Validating password setup token`);
 
@@ -857,7 +870,7 @@ app.get('/api/auth/validate-token', async (req, res) => {
 /**
  * POST /api/auth/setup-password — Set password using a valid token
  */
-app.post('/api/auth/setup-password', async (req, res) => {
+apiRouter.post('/auth/setup-password', async (req, res) => {
   const { token, password } = req.body;
   console.log(`[AUTH] Password setup attempt`);
 
@@ -927,7 +940,7 @@ app.post('/api/auth/setup-password', async (req, res) => {
 /**
  * POST /api/auth/forgot-password — Request a password reset link
  */
-app.post('/api/auth/forgot-password', async (req, res) => {
+apiRouter.post('/auth/forgot-password', async (req, res) => {
   const { email } = req.body;
   console.log(`[AUTH] Forgot password request for: ${email}`);
 
@@ -985,7 +998,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 /**
  * POST /api/auth/resend-invite — Resend the password setup email
  */
-app.post('/api/auth/resend-invite', authenticateToken, async (req: any, res: any) => {
+apiRouter.post('/auth/resend-invite', authenticateToken, async (req: any, res: any) => {
   const { userId } = req.body;
   console.log(`[AUTH] Resend invite requested for userId: ${userId}`);
 
@@ -1032,7 +1045,7 @@ app.post('/api/auth/resend-invite', authenticateToken, async (req: any, res: any
 });
 
 // Login endpoint
-app.post('/api/login', async (req, res) => {
+apiRouter.post('/login', async (req, res) => {
   const { email, password } = req.body;
   console.log(`[AUTH] Login attempt: ${email}`);
 
@@ -1092,12 +1105,12 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Test endpoint
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
 // Endpoint to fetch clients from clients
-app.get('/api/clients', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
     const [clientRows]: any = await pool.query(`
@@ -1150,7 +1163,7 @@ app.get('/api/clients', authenticateToken, async (req: any, res: any) => {
  * Soft delete a client
  */
 // Update client and fields unified endpoint
-app.put('/api/clients/:id', authenticateToken, async (req: any, res: any) => {
+apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
   console.log(`[DEBUG] PUT /api/clients/${req.params.id} - Unified update initiated`);
   const connection = await pool.getConnection();
 
@@ -1231,7 +1244,7 @@ app.put('/api/clients/:id', authenticateToken, async (req: any, res: any) => {
   }
 });
 
-app.delete('/api/clients/:id', authenticateToken, async (req: any, res: any) => {
+apiRouter.delete('/clients/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
   try {
@@ -1255,7 +1268,7 @@ app.delete('/api/clients/:id', authenticateToken, async (req: any, res: any) => 
 /** 
  * Unified endpoint to create a client and their fields in a single transaction
  */
-app.post('/api/clients', authenticateToken, async (req: any, res: any) => {
+apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] POST /api/clients - Unified creation initiated');
   const connection = await pool.getConnection();
 
@@ -1388,7 +1401,7 @@ app.post('/api/clients', authenticateToken, async (req: any, res: any) => {
 /**
  * Endpoint to fetch fields (campos)
  */
-app.get('/api/fields', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/fields', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/fields');
   try {
     const [rows]: any = await pool.query('SELECT * FROM fields');
@@ -1407,7 +1420,7 @@ app.get('/api/fields', authenticateToken, async (req: any, res: any) => {
 /**
  * Endpoint to fetch jobs (trabajos) with client info
  */
-app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
+apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
   const { id, role } = req.user;
   console.log(`[DEBUG_AUTH] GET /api/work-orders - UserID: ${id}, Role: ${role}`);
 
@@ -1524,7 +1537,7 @@ async function sendNewOrderEmail(orderData: any) {
 /**
  * Endpoint to create a job (trabajo)
  */
-app.post('/api/work-orders', authenticateToken, async (req, res) => {
+apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
   console.log('[DEBUG] POST /api/work-orders - Creating new job:', JSON.stringify(req.body));
   try {
     const {
@@ -1651,7 +1664,7 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
 /**
  * Endpoint to update an existing job (trabajo)
  */
-app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
+apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] PUT /api/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
   try {
@@ -1776,7 +1789,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
 /**
  * Endpoint to update ONLY the status of a work order
  */
-app.patch('/api/work-orders/:id/status', authenticateToken, async (req, res) => {
+apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const user = (req as any).user;
@@ -1861,7 +1874,7 @@ app.patch('/api/work-orders/:id/status', authenticateToken, async (req, res) => 
 /**
  * Soft delete a job (work order)
  */
-app.delete('/api/work-orders/:id', authenticateToken, async (req, res) => {
+apiRouter.delete('/work-orders/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /api/work-orders/${id} - Soft delete requested`);
   try {
@@ -1884,7 +1897,7 @@ app.delete('/api/work-orders/:id', authenticateToken, async (req, res) => {
 /**
  * Endpoint to fetch a single work order by ID or UUID (Secured)
  */
-app.get('/api/work-orders/:id', authenticateToken, async (req: any, res) => {
+apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const user = req.user;
   console.log(`[SECURE DEBUG] GET /api/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
@@ -1967,7 +1980,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 /**
  * Upload attachments to a job
  */
-app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('files'), async (req: any, res) => {
+apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('files'), async (req: any, res) => {
   const { id } = req.params;
   const files = req.files as Express.Multer.File[];
   const uploadedBy = req.user.id;
@@ -2012,7 +2025,7 @@ app.post('/api/work-orders/:id/attachments', authenticateToken, upload.array('fi
 /**
  * Fetch attachments for a job
  */
-app.get('/api/work-orders/:id/attachments', authenticateToken, async (req, res) => {
+apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     // Resolve UUID/Numeric ID to internal numeric ID
@@ -2043,7 +2056,7 @@ app.get('/api/work-orders/:id/attachments', authenticateToken, async (req, res) 
 /**
  * Fetch observations for a job
  */
-app.get('/api/work-orders/:id/observations', authenticateToken, async (req, res) => {
+apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     // Resolve UUID/Numeric ID to internal numeric ID
@@ -2072,7 +2085,7 @@ app.get('/api/work-orders/:id/observations', authenticateToken, async (req, res)
 /**
  * Create a new observation for a job
  */
-app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any, res) => {
+apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const userId = req.user.id;
   const { text } = req.body;
@@ -2112,7 +2125,7 @@ app.post('/api/work-orders/:id/observations', authenticateToken, async (req: any
 });
 
 // New Endpoint: Serve File Content from DB (Secured)
-app.get('/api/attachments/:id/content', authenticateToken, async (req: any, res) => {
+apiRouter.get('/attachments/:id/content', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const { download } = req.query;
   const user = req.user;
@@ -2160,7 +2173,7 @@ app.get('/api/attachments/:id/content', authenticateToken, async (req: any, res)
 /**
  * Delete an attachment
  */
-app.delete('/api/attachments/:id', authenticateToken, async (req, res) => {
+apiRouter.delete('/attachments/:id', authenticateToken, async (req, res) => {
   const attachmentId = req.params.id;
   const user = (req as any).user;
 
@@ -2192,7 +2205,7 @@ app.delete('/api/attachments/:id', authenticateToken, async (req, res) => {
 /**
  * GET /api/services — fetch all registered services
  */
-app.get('/api/services', authenticateToken, async (req, res) => {
+apiRouter.get('/services', authenticateToken, async (req, res) => {
   try {
     const [rows]: any = await pool.query('SELECT name FROM services ORDER BY name ASC');
     const serviceNames = rows.map((r: any) => r.name);
@@ -2270,7 +2283,7 @@ runMigrations().then(() => {
 /**
  * CREATE A NEW FIELD
  */
-app.post('/api/fields', authenticateToken, async (req, res) => {
+apiRouter.post('/fields', authenticateToken, async (req, res) => {
   console.log('[DEBUG] POST /api/fields - Creating new field:', JSON.stringify(req.body));
   try {
     const { clientId, name, lat, lng, lotNames } = req.body;
@@ -2294,7 +2307,7 @@ app.post('/api/fields', authenticateToken, async (req, res) => {
 /**
  * RESET CLIENTS (Dev only)
  */
-app.post('/api/test/reset-clients', async (req, res) => {
+apiRouter.post('/test/reset-clients', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-clients');
   const connection = await pool.getConnection();
   try {
@@ -2316,7 +2329,7 @@ app.post('/api/test/reset-clients', async (req, res) => {
   }
 });
 
-app.post('/api/test/reset-profesionals', async (req, res) => {
+apiRouter.post('/test/reset-profesionals', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-profesionals');
   const connection = await pool.getConnection();
   try {
@@ -2338,7 +2351,7 @@ app.post('/api/test/reset-profesionals', async (req, res) => {
 /**
  * RESET FIELDS (Dev only)
  */
-app.post('/api/test/reset-fields', async (req, res) => {
+apiRouter.post('/test/reset-fields', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-fields');
   const connection = await pool.getConnection();
   try {
@@ -2356,7 +2369,7 @@ app.post('/api/test/reset-fields', async (req, res) => {
 /**
  * RESET JOBS (Dev only)
  */
-app.post('/api/test/reset-work-orders', async (req, res) => {
+apiRouter.post('/test/reset-work-orders', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-work-orders');
   const connection = await pool.getConnection();
   try {
@@ -2374,7 +2387,7 @@ app.post('/api/test/reset-work-orders', async (req, res) => {
 /**
  * RESET ATTACHMENTS (Dev only)
  */
-app.post('/api/test/reset-attachments', async (req, res) => {
+apiRouter.post('/test/reset-attachments', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-attachments');
   const connection = await pool.getConnection();
   try {
@@ -2392,7 +2405,7 @@ app.post('/api/test/reset-attachments', async (req, res) => {
 /**
  * RESET OBSERVATIONS (Dev only)
  */
-app.post('/api/test/reset-observations', async (req, res) => {
+apiRouter.post('/test/reset-observations', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-observations');
   const connection = await pool.getConnection();
   try {
@@ -2410,7 +2423,7 @@ app.post('/api/test/reset-observations', async (req, res) => {
 /**
  * RESET TOKENS (Dev only)
  */
-app.post('/api/test/reset-tokens', async (req, res) => {
+apiRouter.post('/test/reset-tokens', async (req, res) => {
   console.log('[DEBUG] POST /api/test/reset-tokens');
   const connection = await pool.getConnection();
   try {
@@ -2428,7 +2441,7 @@ app.post('/api/test/reset-tokens', async (req, res) => {
 /**
  * GET /api/attachments (Dev only / Global)
  */
-app.get('/api/attachments', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/attachments', authenticateToken, async (req: any, res: any) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM work_order_attachments');
     res.json(rows);
@@ -2440,7 +2453,7 @@ app.get('/api/attachments', authenticateToken, async (req: any, res: any) => {
 /**
  * GET /api/observations (Dev only / Global)
  */
-app.get('/api/observations', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/observations', authenticateToken, async (req: any, res: any) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM work_order_observations');
     res.json(rows);
@@ -2452,7 +2465,7 @@ app.get('/api/observations', authenticateToken, async (req: any, res: any) => {
 /**
  * GET /api/tokens (Dev only / Global)
  */
-app.get('/api/tokens', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/tokens', authenticateToken, async (req: any, res: any) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM password_setup_tokens');
     res.json(rows);
@@ -2464,7 +2477,7 @@ app.get('/api/tokens', authenticateToken, async (req: any, res: any) => {
 /**
  * GET /api/profesionales — fetch active professionals
  */
-app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/profesionales for user:', req.user.email);
   try {
     let rows;
@@ -2505,7 +2518,7 @@ app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
 /**
  * PUT /api/profesionales/:id — update an existing professional
  */
-app.put('/api/profesionales/:id', authenticateToken, async (req: any, res: any) => {
+apiRouter.put('/profesionales/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params; // userId
   console.log(`[DEBUG] PUT /api/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
   const connection = await pool.getConnection();
@@ -2538,7 +2551,7 @@ app.put('/api/profesionales/:id', authenticateToken, async (req: any, res: any) 
 /**
  * DELETE /api/profesionales/:id — soft delete a professional
  */
-app.delete('/api/profesionales/:id', authenticateToken, async (req: any, res: any) => {
+apiRouter.delete('/profesionales/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params; // userId
   console.log(`[DEBUG] DELETE /api/profesionales/${id} - Soft deleting profesional`);
   try {
@@ -2558,7 +2571,7 @@ app.delete('/api/profesionales/:id', authenticateToken, async (req: any, res: an
 /**
  * POST /api/profesionales — create a new professional
  */
-app.post('/api/profesionales', authenticateToken, async (req: any, res: any) => {
+apiRouter.post('/profesionales', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] POST /api/profesionales - Creating new profesional:', JSON.stringify(req.body));
   const connection = await pool.getConnection();
   try {
@@ -2657,7 +2670,7 @@ app.post('/api/profesionales', authenticateToken, async (req: any, res: any) => 
 /**
  * GET /api/users — fetch all users from the system
  */
-app.get('/api/users', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/users', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/users');
   try {
     const [rows]: any = await pool.query(`
@@ -2699,10 +2712,14 @@ app.post('/api/test/reset-data', async (req, res) => {
   }
 });
 
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  app.listen(port, () => {
-    console.log(`Backend server running at http://localhost:${port}`);
-  });
-}
+// Mount the API router
+// We mount it at multiple points to be compatible with different cPanel/Local/Vercel setups
+app.use('/api', apiRouter);
+app.use('/backend', apiRouter);
+app.use('/', apiRouter);
+
+app.listen(port, () => {
+  console.log(`Backend server running at http://localhost:${port}`);
+});
 
 export default app;
