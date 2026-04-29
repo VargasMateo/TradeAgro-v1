@@ -571,7 +571,7 @@ const getTransporter = () => {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return null;
   }
-  
+
   if (!smtpTransporter) {
     smtpTransporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -599,7 +599,7 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
 
   const appUrl = getAppUrl();
   const setupLink = `${appUrl}/setup-password?token=${token}`;
-  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagro.com.ar>';
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
   try {
     const info = await transporter.sendMail({
@@ -655,7 +655,7 @@ async function sendForgotPasswordEmail(userEmail: string, displayName: string, t
 
   const appUrl = getAppUrl();
   const resetLink = `${appUrl}/setup-password?token=${token}`;
-  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagro.com.ar>';
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
   try {
     const info = await transporter.sendMail({
@@ -711,7 +711,7 @@ async function sendOrderCompletedEmail(orderData: any) {
 
   const appUrl = getAppUrl();
   const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
-  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagro.com.ar>';
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
   try {
     const info = await transporter.sendMail({
@@ -968,9 +968,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       });
     } catch (emailError: any) {
       console.error('[AUTH ERROR] email delivery failed:', emailError.message);
-      res.status(500).json({ 
-        success: false, 
-        error: `No se pudo enviar el correo: ${emailError.message}. Verifique la configuración del servidor.` 
+      res.status(500).json({
+        success: false,
+        error: `No se pudo enviar el correo: ${emailError.message}. Verifique la configuración del servidor.`
       });
     }
   } catch (error: any) {
@@ -1018,9 +1018,9 @@ app.post('/api/auth/resend-invite', authenticateToken, async (req: any, res: any
       });
     } catch (emailError: any) {
       console.error('[AUTH ERROR] resend-invite email failed:', emailError.message);
-      res.status(500).json({ 
-        success: false, 
-        error: `No se pudo enviar el correo: ${emailError.message}` 
+      res.status(500).json({
+        success: false,
+        error: `No se pudo enviar el correo: ${emailError.message}`
       });
     }
   } catch (error: any) {
@@ -1479,6 +1479,48 @@ app.get('/api/work-orders', authenticateToken, async (req: any, res) => {
   }
 });
 
+async function sendNewOrderEmail(orderData: any) {
+  const transporter = getTransporter();
+  if (!transporter) return;
+
+  const appUrl = getAppUrl();
+  const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
+  const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
+
+  try {
+    // Notify Client
+    if (orderData.clientEmail) {
+      await transporter.sendMail({
+        from: fromEmail,
+        to: orderData.clientEmail,
+        subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+            <div style="background: #2e7d32; padding: 24px; text-align: center; color: white;">
+              <h1 style="margin: 0;">TradeAgro</h1>
+              <p style="margin: 4px 0 0; opacity: 0.8;">Confirmación de Orden</p>
+            </div>
+            <div style="padding: 24px;">
+              <h2 style="color: #1e293b;">Hola ${orderData.clientName},</h2>
+              <p style="color: #64748b; line-height: 1.6;">Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.</p>
+              <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 24px 0;">
+                <p style="margin: 0 0 8px;"><strong>Servicio:</strong> ${orderData.service}</p>
+                <p style="margin: 0;"><strong>Profesional a cargo:</strong> ${orderData.profesionalName || 'Pendiente de asignación'}</p>
+              </div>
+              <p style="color: #94a3b8; font-size: 13px;">Recibirás otra notificación cuando el trabajo sea completado.</p>
+              <div style="text-align: center; margin-top: 24px;">
+                <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ver Detalles de la Orden</a>
+              </div>
+            </div>
+          </div>
+        `
+      });
+    }
+  } catch (err: any) {
+    console.error('[EMAIL ERROR] sendNewOrderEmail failed:', err.message);
+  }
+}
+
 /**
  * Endpoint to create a job (trabajo)
  */
@@ -1565,6 +1607,36 @@ app.post('/api/work-orders', authenticateToken, async (req, res) => {
       success: true,
       id: result.insertId
     });
+
+    // Send notification emails asycnchronously
+    try {
+      const [orderRows]: any = await pool.query(`
+        SELECT t.*, 
+               u_client.displayName as clientName, u_client.email as clientEmail,
+               u_prof.displayName as profesionalName, u_prof.email as profesionalEmail
+        FROM work_orders t
+        LEFT JOIN users u_client ON t.clientId = u_client.id
+        LEFT JOIN users u_prof ON t.profesionalId = u_prof.id
+        WHERE t.id = ?
+      `, [result.insertId]);
+
+      if (orderRows.length > 0) {
+        const row = orderRows[0];
+        sendNewOrderEmail({
+          id: row.id,
+          uuid: row.uuid,
+          clientName: row.clientName,
+          clientEmail: row.clientEmail,
+          profesionalName: row.profesionalName,
+          profesionalEmail: row.profesionalEmail,
+          service: row.service,
+          location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
+          hectares: row.hectares
+        }).catch(err => console.error('[ORDER EMAIL] Error sending new order email:', err));
+      }
+    } catch (emailError) {
+      console.error('[ORDER EMAIL] Error fetching data for new order email:', emailError);
+    }
   } catch (error) {
     console.error('[DATABASE ERROR] POST /api/work-orders:', error);
     res.status(500).json({
@@ -1662,7 +1734,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
           WHERE t.id = ?
         `;
         const [rows]: any = await pool.query(query, [internalJobId]);
-        
+
         if (rows.length > 0) {
           const row = rows[0];
           const orderData = {
@@ -1675,7 +1747,7 @@ app.put('/api/work-orders/:id', authenticateToken, async (req, res) => {
             hectares: row.hectares,
             campaign: row.campaign
           };
-          
+
           // Enviar email de forma asíncrona
           sendOrderCompletedEmail(orderData).catch(err => {
             console.error('[ORDER UPDATE] Error asynchronously sending completed email:', err);
@@ -1747,7 +1819,7 @@ app.patch('/api/work-orders/:id/status', authenticateToken, async (req, res) => 
           WHERE t.id = ?
         `;
         const [rows]: any = await pool.query(query, [order.id]);
-        
+
         if (rows.length > 0) {
           const row = rows[0];
           const orderData = {
@@ -1760,7 +1832,7 @@ app.patch('/api/work-orders/:id/status', authenticateToken, async (req, res) => 
             hectares: row.hectares,
             campaign: row.campaign
           };
-          
+
           // Enviar email de forma asíncrona (no bloqueante)
           sendOrderCompletedEmail(orderData).catch(err => {
             console.error('[STATUS UPDATE] Error asynchronously sending completed email:', err);
