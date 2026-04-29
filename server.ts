@@ -16,8 +16,20 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5001;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.VERCEL
+    ? ['https://trade-agro-v1.vercel.app']
+    : true,
+}));
 app.use(express.json());
+
+// Block all /api/test/* routes in production
+app.use('/api/test', (req: any, res: any, next: any) => {
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  next();
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -454,7 +466,7 @@ initializeDatabase();
 /**
  * UPDATE LOGGED-IN USER PROFILE
  */
-app.put('/api/profile', async (req, res) => {
+app.put('/api/profile', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] PUT /api/profile - User self-update initiated');
   const connection = await pool.getConnection();
   try {
@@ -973,7 +985,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 /**
  * POST /api/auth/resend-invite — Resend the password setup email
  */
-app.post('/api/auth/resend-invite', async (req, res) => {
+app.post('/api/auth/resend-invite', authenticateToken, async (req: any, res: any) => {
   const { userId } = req.body;
   console.log(`[AUTH] Resend invite requested for userId: ${userId}`);
 
@@ -1085,15 +1097,16 @@ app.get('/api/health', (req, res) => {
 });
 
 // Endpoint to fetch clients from clients
-app.get('/api/clients', async (req, res) => {
+app.get('/api/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/clients - Fetching active clients');
   try {
     const [clientRows]: any = await pool.query(`
-      SELECT c.*, u.displayName, u.email, u.password, u.createdAt, u.createdBy, c.userId as id
+      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id,
+             (u.password = ?) as setupPending
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
-    `);
+    `, [PASSWORD_NOT_SET_PLACEHOLDER]);
     const [fieldRows]: any = await pool.query('SELECT * FROM fields');
 
     // Process fields into a map for easy lookup
@@ -1118,7 +1131,7 @@ app.get('/api/clients', async (req, res) => {
 
     const clients = clientRows.map((row: any) => ({
       ...row,
-      setupPending: row.password === PASSWORD_NOT_SET_PLACEHOLDER,
+      setupPending: !!row.setupPending,
       // Mapping for frontend compatibility
       name: row.displayName,
       phone: row.phoneNumber,
@@ -1137,7 +1150,7 @@ app.get('/api/clients', async (req, res) => {
  * Soft delete a client
  */
 // Update client and fields unified endpoint
-app.put('/api/clients/:id', async (req, res) => {
+app.put('/api/clients/:id', authenticateToken, async (req: any, res: any) => {
   console.log(`[DEBUG] PUT /api/clients/${req.params.id} - Unified update initiated`);
   const connection = await pool.getConnection();
 
@@ -1218,7 +1231,7 @@ app.put('/api/clients/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/clients/:id', async (req, res) => {
+app.delete('/api/clients/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /api/clients/${id} - Soft delete requested`);
   try {
@@ -1242,7 +1255,7 @@ app.delete('/api/clients/:id', async (req, res) => {
 /** 
  * Unified endpoint to create a client and their fields in a single transaction
  */
-app.post('/api/clients', async (req, res) => {
+app.post('/api/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] POST /api/clients - Unified creation initiated');
   const connection = await pool.getConnection();
 
@@ -1353,7 +1366,7 @@ app.post('/api/clients', async (req, res) => {
       id: newUserId,
       emailSent,
       email: userEmail,
-      setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
+      // setupLink removed for production security
       message: emailSent
         ? 'Cliente creado exitosamente. Se envió un email de invitación.'
         : `Cliente creado exitosamente, pero hubo un problema con el email: ${emailErrorMessage}`,
@@ -1375,7 +1388,7 @@ app.post('/api/clients', async (req, res) => {
 /**
  * Endpoint to fetch fields (campos)
  */
-app.get('/api/fields', async (req, res) => {
+app.get('/api/fields', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/fields');
   try {
     const [rows]: any = await pool.query('SELECT * FROM fields');
@@ -2343,7 +2356,7 @@ app.post('/api/test/reset-tokens', async (req, res) => {
 /**
  * GET /api/attachments (Dev only / Global)
  */
-app.get('/api/attachments', async (req, res) => {
+app.get('/api/attachments', authenticateToken, async (req: any, res: any) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM work_order_attachments');
     res.json(rows);
@@ -2355,7 +2368,7 @@ app.get('/api/attachments', async (req, res) => {
 /**
  * GET /api/observations (Dev only / Global)
  */
-app.get('/api/observations', async (req, res) => {
+app.get('/api/observations', authenticateToken, async (req: any, res: any) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM work_order_observations');
     res.json(rows);
@@ -2367,7 +2380,7 @@ app.get('/api/observations', async (req, res) => {
 /**
  * GET /api/tokens (Dev only / Global)
  */
-app.get('/api/tokens', async (req, res) => {
+app.get('/api/tokens', authenticateToken, async (req: any, res: any) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM password_setup_tokens');
     res.json(rows);
@@ -2385,27 +2398,29 @@ app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
     let rows;
     if (req.user.role === 'client') {
       [rows] = await pool.query(`
-        SELECT DISTINCT p.*, u.displayName, u.email, u.password, u.createdAt, u.createdBy, p.userId as id
+        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id,
+               (u.password = ?) as setupPending
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
         WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
         ORDER BY u.createdAt DESC
-      `, [req.user.id]);
+      `, [PASSWORD_NOT_SET_PLACEHOLDER, req.user.id]);
     } else {
       [rows] = await pool.query(`
-        SELECT p.*, u.displayName, u.email, u.password, u.createdAt, u.createdBy, p.userId as id
+        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id,
+               (u.password = ?) as setupPending
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
         ORDER BY u.createdAt DESC
-      `);
+      `, [PASSWORD_NOT_SET_PLACEHOLDER]);
     }
 
     // Ensure phoneNumber is consistently named in the response
     const formatted = rows.map((r: any) => ({
       ...r,
-      setupPending: r.password === PASSWORD_NOT_SET_PLACEHOLDER,
+      setupPending: !!r.setupPending,
       phoneNumber: r.phoneNumber
     }));
     res.json(formatted);
@@ -2418,7 +2433,7 @@ app.get('/api/profesionales', authenticateToken, async (req: any, res: any) => {
 /**
  * PUT /api/profesionales/:id — update an existing professional
  */
-app.put('/api/profesionales/:id', async (req, res) => {
+app.put('/api/profesionales/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params; // userId
   console.log(`[DEBUG] PUT /api/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
   const connection = await pool.getConnection();
@@ -2451,7 +2466,7 @@ app.put('/api/profesionales/:id', async (req, res) => {
 /**
  * DELETE /api/profesionales/:id — soft delete a professional
  */
-app.delete('/api/profesionales/:id', async (req, res) => {
+app.delete('/api/profesionales/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params; // userId
   console.log(`[DEBUG] DELETE /api/profesionales/${id} - Soft deleting profesional`);
   try {
@@ -2471,7 +2486,7 @@ app.delete('/api/profesionales/:id', async (req, res) => {
 /**
  * POST /api/profesionales — create a new professional
  */
-app.post('/api/profesionales', async (req, res) => {
+app.post('/api/profesionales', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] POST /api/profesionales - Creating new profesional:', JSON.stringify(req.body));
   const connection = await pool.getConnection();
   try {
@@ -2552,7 +2567,7 @@ app.post('/api/profesionales', async (req, res) => {
       message: emailSent
         ? 'Profesional creado exitosamente. Se envió un email de invitación.'
         : `Profesional creado exitosamente, pero hubo un problema con el email: ${emailErrorMessage}`,
-      setupLink: `${getAppUrl()}/setup-password?token=${setupToken}`,
+      // setupLink removed for production security
       createdAt: new Date().toISOString()
     });
   } catch (error: any) {
@@ -2570,7 +2585,7 @@ app.post('/api/profesionales', async (req, res) => {
 /**
  * GET /api/users — fetch all users from the system
  */
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /api/users');
   try {
     const [rows]: any = await pool.query(`

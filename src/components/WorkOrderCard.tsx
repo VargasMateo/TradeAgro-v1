@@ -38,7 +38,7 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
     )}>
       {/* Upper Section: Type & Status */}
       <div className="mb-4 flex items-start justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className={cn(
             "flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm transition-transform group-hover:scale-110 duration-300",
             job.color === "emerald" && "bg-emerald-50 text-emerald-600",
@@ -64,7 +64,7 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
           </div>
         </div>
         <span className={cn(
-          "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border shadow-sm transition-colors",
+          "inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border shadow-sm transition-colors",
           job.status === "Pendiente" && "bg-slate-50 text-slate-600 border-slate-100",
           job.status === "En Proceso" && "bg-amber-50 text-amber-600 border-amber-100",
           job.status === "Completado" && "bg-emerald-50 text-emerald-600 border-emerald-100",
