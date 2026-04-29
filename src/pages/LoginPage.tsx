@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-
 import logo from '../assets/logo.png';
 
 interface LoginPageProps {
