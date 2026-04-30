@@ -11,7 +11,6 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
-const url_1 = require("url");
 const crypto_1 = require("crypto");
 const nodemailer_1 = __importDefault(require("nodemailer"));
 dotenv_1.default.config();
@@ -28,19 +27,6 @@ app.use('/backend/test', (req, res, next) => {
     }
     next();
 });
-// Path setup for CommonJS/ESM compatibility
-let __filename;
-let __dirname;
-try {
-    // @ts-ignore
-    __filename = (0, url_1.fileURLToPath)(import.meta.url);
-    __dirname = path_1.default.dirname(__filename);
-}
-catch (e) {
-    // Fallback for CommonJS
-    __filename = __filename || '';
-    __dirname = __dirname || '';
-}
 const storage = multer_1.default.memoryStorage();
 const upload = (0, multer_1.default)({
     storage,
@@ -2358,15 +2344,9 @@ app.post('/backend/test/reset-data', async (req, res) => {
         connection.release();
     }
 });
-// Log all incoming requests to help debug production routing issues
-app.use((req, res, next) => {
-    console.log(`[REQUEST] ${req.method} ${req.url}`);
-    next();
-});
-// Mount the API router at multiple points for maximum compatibility with cPanel/Passenger
+// Mount the API router
+// Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
-app.use('/api', apiRouter);
-app.use('/', apiRouter);
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });
