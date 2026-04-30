@@ -2358,9 +2358,15 @@ app.post('/backend/test/reset-data', async (req, res) => {
         connection.release();
     }
 });
-// Mount the API router
-// Using /backend as the stable endpoint for production and local development
+// Log all incoming requests to help debug production routing issues
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
+    next();
+});
+// Mount the API router at multiple points for maximum compatibility with cPanel/Passenger
 app.use('/backend', apiRouter);
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });

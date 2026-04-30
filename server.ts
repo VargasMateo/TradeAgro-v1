@@ -28,21 +28,6 @@ app.use('/backend/test', (req: any, res: any, next: any) => {
   next();
 });
 
-// Path setup for CommonJS/ESM compatibility
-let __filename: string;
-let __dirname: string;
-
-try {
-  // @ts-ignore
-  __filename = fileURLToPath(import.meta.url);
-  __dirname = path.dirname(__filename);
-} catch (e) {
-  // Fallback for CommonJS
-  __filename = __filename || '';
-  __dirname = __dirname || '';
-}
-
-
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -2709,16 +2694,9 @@ app.post('/backend/test/reset-data', async (req, res) => {
   }
 });
 
-// Log all incoming requests to help debug production routing issues
-app.use((req, res, next) => {
-  console.log(`[REQUEST] ${req.method} ${req.url}`);
-  next();
-});
-
-// Mount the API router at multiple points for maximum compatibility with cPanel/Passenger
+// Mount the API router
+// Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
-app.use('/api', apiRouter);
-app.use('/', apiRouter);
 
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);
