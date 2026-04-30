@@ -25,7 +25,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const loadProfesionales = async () => {
     setIsLoading(true);
     try {
-      const response = await authenticatedFetch('/api/profesionales');
+      const response = await authenticatedFetch('/backend/profesionales');
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -82,7 +82,7 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const confirmDelete = async () => {
     if (profesionalToDelete) {
       try {
-        const response = await authenticatedFetch(`/api/profesionales/${profesionalToDelete.id}`, {
+        const response = await authenticatedFetch(`/backend/profesionales/${profesionalToDelete.id}`, {
           method: 'DELETE'
         });
         const data = await response.json();

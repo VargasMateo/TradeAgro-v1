@@ -96,7 +96,7 @@ export default function CreateFieldModal({
         }))
       };
 
-      const response = await authenticatedFetch(`/api/clients/${client.id}`, {
+      const response = await authenticatedFetch(`/backend/clients/${client.id}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });

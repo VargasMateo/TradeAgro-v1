@@ -68,7 +68,7 @@ export default function ProfilePage({ userRole = 'profesional', onLogout }: Prof
 
       if (!userId) throw new Error('No user ID found for update');
 
-      const response = await authenticatedFetch('/api/profile', {
+      const response = await authenticatedFetch('/backend/profile', {
         method: 'PUT',
         body: JSON.stringify({
           id: userId,

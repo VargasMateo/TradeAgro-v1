@@ -59,7 +59,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
   const fetchJobs = async () => {
     try {
       setIsLoading(true);
-      const response = await authenticatedFetch('/api/work-orders');
+      const response = await authenticatedFetch('/backend/work-orders');
 
       if (!response.ok) throw new Error('Failed to fetch work orders');
       const data = await response.json();

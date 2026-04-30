@@ -2,14 +2,15 @@
   RewriteEngine On
   RewriteBase /
   
-  # Si el archivo o directorio solicitado existe, servirlo directamente
+  # 1. Si el archivo o directorio solicitado existe físicamente, servirlo directamente
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Redirigir todas las demás peticiones al index.html para que React se encargue del routing
-  # Excluimos explícitamente /api y /backend para que no interfiera con el backend de Node
-  RewriteCond %{REQUEST_URI} !^/api/
-  RewriteCond %{REQUEST_URI} !^/backend/
+  # 2. Excluir explícitamente la ruta del Backend para que no se redirija al index.html
+  # Esto permite que el servidor de Node (Passenger/Proxy) maneje estas solicitudes.
+  RewriteRule ^backend - [L,NC]
+
+  # 3. Redirigir todas las demás peticiones al index.html para que React maneje el routing (SPA)
   RewriteRule ^ index.html [L]
 </IfModule>

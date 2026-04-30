@@ -81,7 +81,7 @@ export default function CreateLotModal({
         }))
       };
 
-      const response = await authenticatedFetch(`/api/clients/${client.id}`, {
+      const response = await authenticatedFetch(`/backend/clients/${client.id}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });

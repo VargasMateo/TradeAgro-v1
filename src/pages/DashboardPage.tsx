@@ -14,9 +14,6 @@ import { cn } from "../lib/utils";
 import Map from "../components/Map";
 import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
-
-
-
 import { authenticatedFetch } from "../lib/api";
 
 export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
@@ -30,7 +27,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchClients = async () => {
       try {
         setIsLoadingClients(true);
-        const response = await authenticatedFetch('/api/clients');
+        const response = await authenticatedFetch('/backend/clients');
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
         }
@@ -47,7 +44,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     const fetchWorkOrders = async () => {
       setIsLoadingWorkOrders(true);
       try {
-        const response = await authenticatedFetch('/api/work-orders');
+        const response = await authenticatedFetch('/backend/work-orders');
         if (!response.ok) throw new Error('Failed to fetch work orders');
         const data = await response.json();
         setWorkOrders(Array.isArray(data) ? data : []);
@@ -259,10 +256,10 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       {/* Upcoming Jobs Section - Hidden if no work orders AND not loading */}
       {(isLoadingWorkOrders || hasAnyWorkOrders) && (
         <div className="order-4 lg:col-span-2">
-          <UpcomingWorkOrders 
-            data={workOrders} 
-            isLoading={isLoadingWorkOrders} 
-            userRole={userRole} 
+          <UpcomingWorkOrders
+            data={workOrders}
+            isLoading={isLoadingWorkOrders}
+            userRole={userRole}
           />
         </div>
       )}

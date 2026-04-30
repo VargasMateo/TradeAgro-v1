@@ -44,7 +44,7 @@ export default function CreateWorkOrderModal() {
 
   const fetchClients = async () => {
     try {
-      const response = await authenticatedFetch('/api/clients');
+      const response = await authenticatedFetch('/backend/clients');
       if (!response.ok) throw new Error('Failed to fetch clients');
       const data = await response.json();
       setClients(Array.isArray(data) ? data : []);
@@ -58,7 +58,7 @@ export default function CreateWorkOrderModal() {
 
   const fetchServices = async () => {
     try {
-      const response = await authenticatedFetch('/api/services');
+      const response = await authenticatedFetch('/backend/services');
       const data = await response.json();
       setServices(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -68,7 +68,7 @@ export default function CreateWorkOrderModal() {
 
   const fetchProfesionales = async () => {
     try {
-      const response = await authenticatedFetch('/api/profesionales');
+      const response = await authenticatedFetch('/backend/profesionales');
       const data = await response.json();
       setProfesionales(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -190,7 +190,7 @@ export default function CreateWorkOrderModal() {
       const role = user?.role || 'profesional';
 
       if (editJobId) {
-        authenticatedFetch('/api/work-orders')
+        authenticatedFetch('/backend/work-orders')
           .then(res => res.json())
           .then(async (workOrders: WorkOrder[]) => {
             const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
@@ -198,7 +198,7 @@ export default function CreateWorkOrderModal() {
               // Get profesional info to populate name search
               let pName = '';
               try {
-                const pRes = await authenticatedFetch('/api/profesionales');
+                const pRes = await authenticatedFetch('/backend/profesionales');
                 const pData = await pRes.json();
                 const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
                 pName = foundP?.displayName || '';
@@ -449,7 +449,7 @@ export default function CreateWorkOrderModal() {
     setErrors({});
     try {
       const isEdit = !!editJobId;
-      const url = isEdit ? `/api/work-orders/${editJobId}` : '/api/work-orders';
+      const url = isEdit ? `/backend/work-orders/${editJobId}` : '/backend/work-orders';
       const method = isEdit ? 'PUT' : 'POST';
 
       const storedProfile = localStorage.getItem("userProfile");
@@ -476,7 +476,7 @@ export default function CreateWorkOrderModal() {
           formDataUpload.append('files', file);
         });
 
-        const uploadRes = await authenticatedFetch(`/api/work-orders/${jobId}/attachments`, {
+        const uploadRes = await authenticatedFetch(`/backend/work-orders/${jobId}/attachments`, {
           method: 'POST',
           body: formDataUpload
         });
