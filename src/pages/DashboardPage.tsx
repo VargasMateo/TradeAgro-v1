@@ -14,9 +14,6 @@ import { cn } from "../lib/utils";
 import Map from "../components/Map";
 import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
-
-
-
 import { authenticatedFetch } from "../lib/api";
 
 export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
@@ -259,10 +256,10 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       {/* Upcoming Jobs Section - Hidden if no work orders AND not loading */}
       {(isLoadingWorkOrders || hasAnyWorkOrders) && (
         <div className="order-4 lg:col-span-2">
-          <UpcomingWorkOrders 
-            data={workOrders} 
-            isLoading={isLoadingWorkOrders} 
-            userRole={userRole} 
+          <UpcomingWorkOrders
+            data={workOrders}
+            isLoading={isLoadingWorkOrders}
+            userRole={userRole}
           />
         </div>
       )}
