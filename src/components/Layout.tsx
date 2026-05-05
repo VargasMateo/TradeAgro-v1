@@ -145,9 +145,11 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               <h1 className="font-display text-xl font-bold tracking-tight text-slate-900 leading-none">
                 TradeAgro
               </h1>
-              <span className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Admin Panel
-              </span>
+              {userRole === 'admin' && (
+                <span className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Admin Panel
+                </span>
+              )}
             </div>
           </Link>
 
