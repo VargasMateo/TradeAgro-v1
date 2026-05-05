@@ -6,7 +6,6 @@ import {
   Wheat,
   Sprout,
   Activity,
-  ArrowRight,
   TrendingUp,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -111,15 +110,15 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
         )}
 
         {(userRole === 'client' || userRole === 'admin') && (
-          <div className={cn("flex items-center gap-2 text-right", userRole === 'client' && "w-full justify-between")}>
-            <div className="flex flex-col items-end">
+          <div className={cn("flex items-center gap-2", userRole === 'admin' ? "text-right" : "text-left")}>
+            <div className={cn("flex flex-col", userRole === 'admin' ? "items-end order-1" : "items-start order-2")}>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Profesional</p>
               <p className="text-xs font-bold text-slate-700">{job.operator || "Pendiente"}</p>
             </div>
             <img
               src={job.operatorImage || `https://ui-avatars.com/api/?name=${job.operator}&background=random`}
               alt={job.operator}
-              className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 shadow-sm"
+              className={cn("h-8 w-8 rounded-full border-2 border-white bg-slate-100 shadow-sm", userRole === 'admin' ? "order-2" : "order-1")}
               referrerPolicy="no-referrer"
             />
           </div>
