@@ -1328,10 +1328,8 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/work-orders - Creating new job:', JSON.stringify(req.body));
     try {
         const { clientId, profesionalId, date, title, field, lot, hectares, service, secondaryService, campaign, amount, notes, fieldId, createdBy } = req.body;
-        // Persist services if they are new
-        await ensureServiceExists(service);
-        if (secondaryService)
-            await ensureServiceExists(secondaryService);
+        // Persist services if they are new, maintaining hierarchy
+        await ensureServicesExist(service, secondaryService);
         // Clean numeric values
         const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
         const cleanHectares = typeof hectares === 'string' ? hectares.replace(/[^0-9.]/g, '') : hectares;
@@ -1438,10 +1436,8 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
         }
         const internalJobId = orderBeforeUpdate.id;
         const { clientId, profesionalId, date, title, field, lot, hectares, service, secondaryService, status, campaign, amount, fieldId, notes } = req.body;
-        // Persist services if they are new
-        await ensureServiceExists(service);
-        if (secondaryService)
-            await ensureServiceExists(secondaryService);
+        // Persist services if they are new, maintaining hierarchy
+        await ensureServicesExist(service, secondaryService);
         // Clean numeric values
         const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
         const cleanHectares = typeof hectares === 'string' ? hectares.replace(/[^0-9.]/g, '') : hectares;
@@ -1899,9 +1895,8 @@ apiRouter.delete('/attachments/:id', authenticateToken, async (req, res) => {
  */
 apiRouter.get('/services', authenticateToken, async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT name FROM services ORDER BY name ASC');
-        const serviceNames = rows.map((r) => r.name);
-        res.json(serviceNames);
+        const [rows] = await pool.query('SELECT id, name, parentId FROM services ORDER BY name ASC');
+        res.json(rows);
     }
     catch (error) {
         console.error('[DATABASE ERROR] GET /backend/services:', error.message);
@@ -1909,19 +1904,34 @@ apiRouter.get('/services', authenticateToken, async (req, res) => {
     }
 });
 // Helper functions for backend mapping (similar to frontend)
-async function ensureServiceExists(serviceName) {
-    if (!serviceName || !serviceName.trim())
+async function ensureServicesExist(primary, secondary) {
+    if (!primary || !primary.trim())
         return;
-    const trimmed = serviceName.trim();
+    const pTrimmed = primary.trim();
     try {
-        const [existing] = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?)', [trimmed]);
-        if (existing.length === 0) {
-            console.log(`[SERVICES] Saving new service: ${trimmed}`);
-            await pool.query('INSERT INTO services (name) VALUES (?)', [trimmed]);
+        // 1. Ensure Primary exists (must be a top-level service)
+        let parentId;
+        const [pRows] = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?) AND parentId IS NULL', [pTrimmed]);
+        if (pRows.length === 0) {
+            console.log(`[SERVICES] Saving new primary service: ${pTrimmed}`);
+            const [res] = await pool.query('INSERT INTO services (name, parentId) VALUES (?, NULL)', [pTrimmed]);
+            parentId = res.insertId;
+        }
+        else {
+            parentId = pRows[0].id;
+        }
+        // 2. Ensure Secondary exists (as child of primary)
+        if (secondary && secondary.trim()) {
+            const sTrimmed = secondary.trim();
+            const [sRows] = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?) AND parentId = ?', [sTrimmed, parentId]);
+            if (sRows.length === 0) {
+                console.log(`[SERVICES] Saving new secondary service: ${sTrimmed} (Parent: ${pTrimmed})`);
+                await pool.query('INSERT INTO services (name, parentId) VALUES (?, ?)', [sTrimmed, parentId]);
+            }
         }
     }
     catch (err) {
-        console.error('[SERVICES ERROR] Failed to ensure service exists:', err.message);
+        console.error('[SERVICES ERROR] Failed to ensure services exist:', err.message);
     }
 }
 function getIconNameForService(service) {

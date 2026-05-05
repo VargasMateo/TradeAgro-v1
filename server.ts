@@ -152,27 +152,7 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
 
 const seedDefaultServices = async (connection: mysql.Connection | mysql.Pool = pool) => {
   try {
-    // Remove deprecated predefined services
-    const deprecatedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
-    for (const serviceName of deprecatedServices) {
-      const [existing]: any = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
-      if (existing.length > 0) {
-        console.log(`[SEED] Removing deprecated service: ${serviceName}`);
-        await connection.query('DELETE FROM services WHERE name = ?', [serviceName]);
-      }
-    }
-
-    const predefinedServices = ['Dron'];
-    console.log('[SEED] Checking default services...');
-
-    for (const serviceName of predefinedServices) {
-      const [existing]: any = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
-      if (existing.length === 0) {
-        console.log(`[SEED] Inserting service: ${serviceName}`);
-        await connection.query('INSERT INTO services (name, isPredefined) VALUES (?, ?)', [serviceName, true]);
-      }
-    }
-    console.log('[SEED] SUCCESS: Default services seeded.');
+    // Manual management only
   } catch (err: any) {
     console.error('[SEED ERROR] Services:', err.message);
   }
@@ -189,9 +169,11 @@ async function initializeDatabase() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS services (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        parentId INT DEFAULT NULL,
         isPredefined BOOLEAN DEFAULT FALSE,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (parentId) REFERENCES services(id) ON DELETE CASCADE
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
@@ -453,6 +435,27 @@ async function initializeDatabase() {
       }
     } catch (err) {
       console.log('[INIT] Migration to work_orders skipped or failed.');
+    }
+
+    // Migration for services: add parentId and remove UNIQUE on name
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM services');
+      const hasParentId = columns.some((c: any) => c.Field === 'parentId');
+      if (!hasParentId) {
+        console.log('[INIT] Migrating services: adding parentId column');
+        await connection.query('ALTER TABLE services ADD COLUMN parentId INT DEFAULT NULL AFTER name');
+        await connection.query('ALTER TABLE services ADD FOREIGN KEY (parentId) REFERENCES services(id) ON DELETE CASCADE');
+      }
+
+      // Check for global unique index on 'name' and remove it to allow hierarchy duplicates
+      const [indexes]: any = await connection.query('SHOW INDEX FROM services WHERE Column_name = "name" AND Non_unique = 0');
+      if (indexes.length > 0) {
+        const indexName = indexes[0].Key_name;
+        console.log(`[INIT] Migrating services: removing unique index "${indexName}" from name`);
+        await connection.query(`ALTER TABLE services DROP INDEX ${indexName}`);
+      }
+    } catch (err: any) {
+      console.log('[INIT] Migration for services skipped or failed:', err.message);
     }
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
