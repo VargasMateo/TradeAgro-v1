@@ -57,9 +57,15 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
                 {job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : '-'}
               </span>
             </div>
-            <h3 className="text-lg font-extrabold text-slate-900 line-clamp-1">
-              {job.title || job.service}
-            </h3>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-lg font-extrabold text-slate-900 truncate">
+                {job.title || job.service}
+              </h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight shrink-0">
+                {job.service}
+                {job.secondaryService && ` | ${job.secondaryService}`}
+              </p>
+            </div>
           </div>
         </div>
         <span className={cn(
