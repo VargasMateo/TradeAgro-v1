@@ -15,13 +15,11 @@ import {
   Map as MapIcon,
   Send,
   X,
-  MessageCircle,
   ChevronDown,
   Clock,
-  CheckCircle2,
   AlertTriangle
 } from "lucide-react";
-import { ChangeEvent } from "react";
+import React, { ChangeEvent } from "react";
 import Map from "../components/Map";
 import { cn } from "../lib/utils";
 import { authenticatedFetch } from "../lib/api";
@@ -30,6 +28,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
@@ -95,6 +94,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
       }
     } catch (err) {
       console.error('Error fetching attachments:', err);
+    } finally {
+      setAttachmentsLoading(false);
     }
   };
 
@@ -181,6 +182,42 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
       }
     } catch (err) {
       console.error('Delete error:', err);
+    }
+  };
+
+  const handleViewFile = async (file: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      const response = await authenticatedFetch(`${file.fileUrl}`);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error viewing file:', error);
+      alert('No se pudo abrir el archivo.');
+    }
+  };
+
+  const handleDownloadFile = async (file: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      const response = await authenticatedFetch(`${file.fileUrl}?download=true`);
+      if (!response.ok) throw new Error('Failed to download file');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('No se pudo descargar el archivo.');
     }
   };
 
@@ -365,7 +402,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
                 Orden {job.id}
               </h1>
-              
+
               <div className="relative" ref={statusMenuRef}>
                 <button
                   disabled={updatingStatus || (userRole !== 'admin' && userRole !== 'profesional')}
@@ -489,7 +526,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                         title="Contactar por WhatsApp"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+                          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232" />
                         </svg>
                       </a>
                     )}
@@ -522,7 +559,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                         title="Contactar por WhatsApp"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+                          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232" />
                         </svg>
                       </a>
                     )}
@@ -691,8 +728,19 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             </div>
 
             <div className="space-y-3 mb-6">
-              {loading ? (
-                <p className="text-center text-xs text-slate-400 py-4">Cargando...</p>
+              {attachmentsLoading ? (
+                Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 animate-pulse bg-slate-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-slate-200" />
+                      <div className="space-y-2">
+                        <div className="h-3 w-32 bg-slate-200 rounded" />
+                        <div className="h-2 w-24 bg-slate-200 rounded" />
+                      </div>
+                    </div>
+                    <div className="h-8 w-8 rounded-lg bg-slate-200" />
+                  </div>
+                ))
               ) : attachments.length === 0 ? (
                 <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
               ) : (
@@ -700,7 +748,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                   <div
                     key={index}
                     className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group cursor-pointer"
-                    onClick={() => window.open(`${file.fileUrl}?token=${localStorage.getItem('authToken')}&t=${Date.now()}`, '_blank')}
+                    onClick={(e) => handleViewFile(file, e)}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className={cn(
@@ -719,15 +767,12 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <a
-                        href={`${file.fileUrl}?token=${localStorage.getItem('authToken')}&download=true&t=${Date.now()}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors"
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors cursor-pointer"
+                        onClick={(e) => handleDownloadFile(file, e)}
                       >
                         <Download className="h-4 w-4" />
-                      </a>
+                      </button>
                       {(userRole === 'admin' || (currentUser && currentUser.id === file.uploadedBy)) && (
                         <button
                           onClick={(e) => {

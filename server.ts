@@ -10,6 +10,10 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import nodemailer from 'nodemailer';
 
+// Define __dirname for ES module scope
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 
 const app = express();
@@ -148,7 +152,17 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
 
 const seedDefaultServices = async (connection: mysql.Connection | mysql.Pool = pool) => {
   try {
-    const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización', 'Dron'];
+    // Remove deprecated predefined services
+    const deprecatedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
+    for (const serviceName of deprecatedServices) {
+      const [existing]: any = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
+      if (existing.length > 0) {
+        console.log(`[SEED] Removing deprecated service: ${serviceName}`);
+        await connection.query('DELETE FROM services WHERE name = ?', [serviceName]);
+      }
+    }
+
+    const predefinedServices = ['Dron'];
     console.log('[SEED] Checking default services...');
 
     for (const serviceName of predefinedServices) {
@@ -1646,16 +1660,27 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
 /**
  * Endpoint to update an existing job (trabajo)
  */
-apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
+apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
+  const user = req.user;
   console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id, status FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, status, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
     const orderBeforeUpdate = woRows[0];
+
+    // Authorization: Admin or the assigned Professional
+    const isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para modificar esta orden' });
+    }
+
     const internalJobId = orderBeforeUpdate.id;
 
     const {
@@ -1787,8 +1812,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
   }
 
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
@@ -1885,7 +1913,6 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
   console.log(`[SECURE DEBUG] GET /backend/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
 
   try {
-    const isNumeric = /^\d+$/.test(id);
     const query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
              p_prof.phoneNumber as professionalPhone, c.phoneNumber as clientPhone,
@@ -1896,10 +1923,10 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
       LEFT JOIN profesionals p_prof ON t.profesionalId = p_prof.userId
       LEFT JOIN clients c ON t.clientId = c.userId
       LEFT JOIN fields f ON t.fieldId = f.id
-      WHERE (${isNumeric ? 't.id = ? OR ' : ''}t.uuid = ?) AND t.deletedAt IS NULL
+      WHERE t.uuid = ? AND t.deletedAt IS NULL
     `;
 
-    const [rows]: any = await pool.query(query, isNumeric ? [id, id] : [id]);
+    const [rows]: any = await pool.query(query, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
@@ -1972,12 +1999,23 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
   }
 
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const values = (req.files as Express.Multer.File[]).map(file => [
       internalJobId,
@@ -2007,15 +2045,27 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
 /**
  * Fetch attachments for a job
  */
-apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res) => {
+apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const user = req.user as any;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const [rows]: any = await pool.query(
       'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC',
@@ -2038,15 +2088,27 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res
 /**
  * Fetch observations for a job
  */
-apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req, res) => {
+apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const user = req.user as any;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para ver las observaciones de esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const [rows]: any = await pool.query(
       `SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
@@ -2077,12 +2139,24 @@ apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req: a
   }
 
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const user = req.user as any;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para agregar observaciones a esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const [result]: any = await pool.query(
       'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
