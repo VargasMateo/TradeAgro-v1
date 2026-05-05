@@ -193,7 +193,9 @@ export default function CreateWorkOrderModal() {
         authenticatedFetch('/backend/work-orders')
           .then(res => res.json())
           .then(async (workOrders: WorkOrder[]) => {
-            const orderToEdit = workOrders.find((w: WorkOrder) => String(w.uuid) === editJobId);
+            const orderToEdit = workOrders.find((w: WorkOrder) =>
+              String(w.uuid) === editJobId || String(w.id) === editJobId
+            );
             if (orderToEdit) {
               // Get profesional info to populate name search
               let pName = '';
@@ -1279,25 +1281,26 @@ export default function CreateWorkOrderModal() {
             </div>
 
             {/* SUCCESS STEP */}
-            <div className={step === 'success' ? 'block' : 'hidden'}>
-              <div className="flex flex-col items-center justify-center pt-8 text-center animate-in zoom-in-95 duration-300">
-                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-                </div>
-                <h3 className="mb-2 text-2xl font-bold text-slate-900">
-                  ¡Trabajo Guardado!
-                </h3>
-                <p className="mb-8 text-slate-500 max-w-[300px]">
-                  El trabajo ha sido registrado exitosamente en el sistema.
-                </p>
-                <div className="flex w-full gap-3">
-                  <button
-                    onClick={handleFinishSuccess}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                  >
-                    ENTENDIDO
-                  </button>
-                </div>
+            <div className={cn(
+              "flex flex-col items-center justify-center text-center py-10 min-h-[400px] animate-in zoom-in-95 duration-300",
+              step === 'success' ? 'block' : 'hidden'
+            )}>
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              </div>
+              <h3 className="mb-2 text-2xl font-bold text-slate-900">
+                ¡Trabajo Guardado!
+              </h3>
+              <p className="mb-8 text-slate-500 max-w-[300px]">
+                El trabajo ha sido registrado exitosamente en el sistema.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={handleFinishSuccess}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  ENTENDIDO
+                </button>
               </div>
             </div>
 

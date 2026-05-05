@@ -489,7 +489,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             </button>
             {(userRole === 'profesional' || userRole === 'admin') && (
               <button
-                onClick={() => setSearchParams({ editJob: String(job.internalId) })}
+                onClick={() => setSearchParams({ editJob: job.uuid })}
                 className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
               >
                 <Edit className="h-4 w-4" />
