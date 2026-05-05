@@ -502,7 +502,7 @@ export default function CreateWorkOrderModal() {
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:p-6">
       <div className={cn(
         "relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200",
-        step === 'success' ? "max-w-lg" : "max-w-4xl"
+        step === 'success' ? "max-w-md" : "max-w-4xl"
       )}>
 
         <div className={cn(
@@ -535,8 +535,8 @@ export default function CreateWorkOrderModal() {
         </div>
 
         {/* Content Scrollable Area */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-3xl space-y-6 pb-4">
+        <div ref={scrollContainerRef} className={cn("flex-1 overflow-y-auto p-6", step === 'success' && "hidden")}>
+          <div className={cn("mx-auto max-w-3xl", step !== 'success' && "space-y-6 pb-4")}>
 
             {/* FORM STEP */}
             <div className={step === 'form' ? 'block space-y-6' : 'hidden'}>
@@ -1253,32 +1253,6 @@ export default function CreateWorkOrderModal() {
               )}
             </div>
 
-            {/* SUCCESS STEP */}
-            <div className={cn(
-              "flex flex-col items-center text-center pt-12 pb-10 px-8 animate-in zoom-in-95 duration-300",
-              step === 'success' ? 'flex' : 'hidden'
-            )}>
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
-                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-              </div>
-              <h3 className="mb-2 text-2xl font-bold text-slate-900">
-                {editJobId ? '¡Trabajo Actualizado!' : '¡Trabajo Guardado!'}
-              </h3>
-              <p className="mb-8 text-slate-500 max-w-[300px]">
-                {editJobId
-                  ? 'Los cambios han sido guardados exitosamente en el sistema.'
-                  : 'El trabajo ha sido registrado exitosamente en el sistema.'}
-              </p>
-              <div className="flex w-full">
-                <button
-                  onClick={handleFinishSuccess}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                >
-                  ENTENDIDO
-                </button>
-              </div>
-            </div>
-
             {/* SUMMARY STEP */}
             <div className={step === 'summary' ? 'block space-y-6' : 'hidden'}>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1410,6 +1384,32 @@ export default function CreateWorkOrderModal() {
               </div>
             </div>
 
+          </div>
+        </div>
+
+        {/* SUCCESS STEP */}
+        <div className={cn(
+          "flex flex-col items-center text-center p-12 pb-7 animate-in zoom-in-95 duration-300",
+          step === 'success' ? 'flex' : 'hidden'
+        )}>
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
+            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+          </div>
+          <h3 className="mb-2 text-2xl font-bold text-slate-900">
+            {editJobId ? '¡Trabajo Actualizado!' : '¡Trabajo Guardado!'}
+          </h3>
+          <p className="mb-8 text-slate-500 max-w-[300px]">
+            {editJobId
+              ? 'Los cambios han sido guardados exitosamente en el sistema.'
+              : 'El trabajo ha sido registrado exitosamente en el sistema.'}
+          </p>
+          <div className="flex w-full max-w-[300px]">
+            <button
+              onClick={handleFinishSuccess}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              ENTENDIDO
+            </button>
           </div>
         </div>
 
@@ -1569,7 +1569,7 @@ export default function CreateWorkOrderModal() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
+              className="w-full max-w-sm rounded-[2rem] bg-white p-8 pb-2 shadow-2xl text-center"
             >
               <div className={cn(
                 "mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl",
