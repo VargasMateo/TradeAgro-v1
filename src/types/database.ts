@@ -63,6 +63,12 @@ export interface WorkOrder {
   createdBy: number;
   deletedAt?: string; // timestamp
 }
+  
+export interface Service {
+  id: number;
+  name: string;
+  parentId: number | null;
+}
 
 export interface WorkOrderObservation {
   id: number;

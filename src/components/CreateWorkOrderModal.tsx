@@ -24,7 +24,7 @@ import CreateClientModal from "./CreateClientModal";
 import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
-import { WorkOrder } from "../types/database";
+import { WorkOrder, Service } from "../types/database";
 import { authenticatedFetch } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
@@ -39,7 +39,7 @@ export default function CreateWorkOrderModal() {
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
-  const [services, setServices] = useState<string[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [userRole, setUserRole] = useState<'profesional' | 'client' | 'admin' | null>(null);
 
   const fetchClients = async () => {
@@ -1060,24 +1060,24 @@ export default function CreateWorkOrderModal() {
                       {showServiceSuggestions && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {services
-                            .filter(s => s.toLowerCase().includes(formData.service.toLowerCase()))
+                            .filter(s => s.parentId === null && s.name.toLowerCase().includes(formData.service.toLowerCase()))
                             .map(s => (
                               <button
-                                key={s}
+                                key={s.id}
                                 type="button"
                                 className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
                                 onClick={() => {
-                                  setFormData(prev => ({ ...prev, service: s }));
+                                  setFormData(prev => ({ ...prev, service: s.name, secondaryService: '' }));
                                   setShowServiceSuggestions(false);
                                   if (errors.service) {
                                     setErrors(prev => { const n = { ...prev }; delete n.service; return n; });
                                   }
                                 }}
                               >
-                                {s}
+                                {s.name}
                               </button>
                             ))}
-                          {formData.service.trim() !== '' && !services.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
+                          {formData.service.trim() !== '' && !services.some(s => s.parentId === null && s.name.toLowerCase() === formData.service.trim().toLowerCase()) && (
                             <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
                               Nuevo: "{formData.service.trim()}" (Se guardará)
                             </div>
@@ -1110,21 +1110,26 @@ export default function CreateWorkOrderModal() {
                       {showSecondaryServiceSuggestions && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {services
-                            .filter(s => s.toLowerCase().includes(formData.secondaryService.toLowerCase()))
+                            .filter(s => {
+                              const selectedPrimary = services.find(ps => ps.name === formData.service);
+                              const matchesParent = selectedPrimary ? s.parentId === selectedPrimary.id : true;
+                              const matchesSearch = s.name.toLowerCase().includes(formData.secondaryService.toLowerCase());
+                              return s.parentId !== null && matchesParent && matchesSearch;
+                            })
                             .map(s => (
                               <button
-                                key={s}
+                                key={s.id}
                                 type="button"
                                 className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
                                 onClick={() => {
-                                  setFormData(prev => ({ ...prev, secondaryService: s }));
+                                  setFormData(prev => ({ ...prev, secondaryService: s.name }));
                                   setShowSecondaryServiceSuggestions(false);
                                 }}
                               >
-                                {s}
+                                {s.name}
                               </button>
                             ))}
-                          {formData.secondaryService.trim() !== '' && !services.some(s => s.toLowerCase() === formData.secondaryService.trim().toLowerCase()) && (
+                          {formData.secondaryService.trim() !== '' && !services.some(s => s.name.toLowerCase() === formData.secondaryService.trim().toLowerCase()) && (
                             <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
                               Nuevo: "{formData.secondaryService.trim()}" (Se guardará)
                             </div>
