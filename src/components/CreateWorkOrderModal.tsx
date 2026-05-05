@@ -496,34 +496,19 @@ export default function CreateWorkOrderModal() {
     }
   };
 
-  const getIconNameForService = (service: string) => {
-    switch (service) {
-      case 'Cosecha': return 'Wheat';
-      case 'Siembra': return 'Sprout';
-      case 'Fumigación': return 'Droplets';
-      case 'Fertilización': return 'Activity';
-      default: return 'Tractor';
-    }
-  };
-
-  const getColorForService = (service: string) => {
-    switch (service) {
-      case 'Cosecha': return 'orange';
-      case 'Siembra': return 'emerald';
-      case 'Fumigación': return 'blue';
-      case 'Fertilización': return 'indigo';
-      default: return 'emerald';
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:p-6">
-      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className={cn(
+        "relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200",
+        step === 'success' ? "max-w-lg" : "max-w-4xl"
+      )}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+        <div className={cn(
+          "flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4",
+          step === 'success' && "hidden"
+        )}>
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
               {step === 'form' ? (editJobId ? 'Editar Orden' : 'Nueva Orden') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Orden')}
@@ -1270,19 +1255,21 @@ export default function CreateWorkOrderModal() {
 
             {/* SUCCESS STEP */}
             <div className={cn(
-              "flex flex-col items-center justify-center text-center py-10 min-h-[400px] animate-in zoom-in-95 duration-300",
-              step === 'success' ? 'block' : 'hidden'
+              "flex flex-col items-center text-center pt-12 pb-10 px-8 animate-in zoom-in-95 duration-300",
+              step === 'success' ? 'flex' : 'hidden'
             )}>
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
                 <CheckCircle2 className="h-10 w-10 text-emerald-600" />
               </div>
               <h3 className="mb-2 text-2xl font-bold text-slate-900">
-                ¡Trabajo Guardado!
+                {editJobId ? '¡Trabajo Actualizado!' : '¡Trabajo Guardado!'}
               </h3>
               <p className="mb-8 text-slate-500 max-w-[300px]">
-                El trabajo ha sido registrado exitosamente en el sistema.
+                {editJobId
+                  ? 'Los cambios han sido guardados exitosamente en el sistema.'
+                  : 'El trabajo ha sido registrado exitosamente en el sistema.'}
               </p>
-              <div className="flex w-full gap-3">
+              <div className="flex w-full">
                 <button
                   onClick={handleFinishSuccess}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
