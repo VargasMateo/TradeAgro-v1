@@ -1111,8 +1111,11 @@ export default function CreateWorkOrderModal() {
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {services
                             .filter(s => {
-                              const selectedPrimary = services.find(ps => ps.name === formData.service);
-                              const matchesParent = selectedPrimary ? s.parentId === selectedPrimary.id : true;
+                              const selectedPrimary = services.find(ps =>
+                                ps.parentId === null &&
+                                ps.name.toLowerCase() === formData.service.trim().toLowerCase()
+                              );
+                              const matchesParent = selectedPrimary ? s.parentId === selectedPrimary.id : false;
                               const matchesSearch = s.name.toLowerCase().includes(formData.secondaryService.toLowerCase());
                               return s.parentId !== null && matchesParent && matchesSearch;
                             })
