@@ -32,6 +32,7 @@ export default function CreateWorkOrderModal() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextFetchRef = useRef(false);
 
   const isOpen = searchParams.get('newJob') === 'true' || searchParams.get('editJob') !== null;
   const editJobId = searchParams.get('editJob');
@@ -190,6 +191,11 @@ export default function CreateWorkOrderModal() {
       const role = user?.role || 'profesional';
 
       if (editJobId) {
+        if (skipNextFetchRef.current) {
+          skipNextFetchRef.current = false;
+          return;
+        }
+
         authenticatedFetch(`/backend/work-orders/${editJobId}`)
           .then(res => res.json())
           .then((orderToEdit: any) => {
@@ -233,6 +239,42 @@ export default function CreateWorkOrderModal() {
     setErrors({});
     setSelectedFiles([]);
   }, [isOpen, searchParams, editJobId]);
+
+  // Preload event listener
+  useEffect(() => {
+    const handlePreload = (e: any) => {
+      const orderToEdit = e.detail;
+      if (orderToEdit) {
+        const storedProfile = localStorage.getItem("userProfile");
+        const user = storedProfile ? JSON.parse(storedProfile) : null;
+        const currentUserId = user?.id ? String(user.id) : '';
+
+        setFormData({
+          clientId: orderToEdit.clientId || '',
+          client: orderToEdit.client || '',
+          date: orderToEdit.date ? new Date(orderToEdit.date).toISOString().split('T')[0] : '',
+          title: orderToEdit.title || orderToEdit.service || '',
+          fieldId: orderToEdit.fieldId !== undefined && orderToEdit.fieldId !== null ? String(orderToEdit.fieldId) : '',
+          field: orderToEdit.fieldName || '',
+          hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
+          service: orderToEdit.service || 'Cosecha',
+          secondaryService: orderToEdit.secondaryService || '',
+          status: orderToEdit.status || 'Pendiente',
+          campaign: orderToEdit.campaign || '25/26',
+          lot: orderToEdit.lotName || '',
+          number: orderToEdit.number || '',
+          amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
+          notes: '',
+          profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId,
+          profesional: orderToEdit.operator || ''
+        });
+        skipNextFetchRef.current = true;
+      }
+    };
+
+    window.addEventListener('preload-edit-job', handlePreload as EventListener);
+    return () => window.removeEventListener('preload-edit-job', handlePreload as EventListener);
+  }, []);
 
   const handleClose = () => {
     // Reset state
@@ -1331,11 +1373,20 @@ export default function CreateWorkOrderModal() {
                     <h5 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                       <Settings className="h-3 w-3" /> Detalles del Servicio
                     </h5>
-                    <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 sm:grid-cols-3">
+                    <div className={cn(
+                      "grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 sm:grid-cols-2",
+                      formData.secondaryService ? "lg:grid-cols-4" : "lg:grid-cols-3"
+                    )}>
                       <div>
                         <p className="text-[10px] font-medium text-slate-400">Servicio</p>
                         <p className="text-sm font-semibold text-slate-900">{formData.service || '-'}</p>
                       </div>
+                      {formData.secondaryService && (
+                        <div>
+                          <p className="text-[10px] font-medium text-slate-400">Servicio Secundario</p>
+                          <p className="text-sm font-semibold text-slate-900">{formData.secondaryService}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-[10px] font-medium text-slate-400">Campaña</p>
                         <p className="text-sm font-semibold text-slate-900">{formData.campaign || '-'}</p>

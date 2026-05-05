@@ -608,9 +608,16 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                               return <IconComponent className="h-4 w-4" />;
                             })()}
                           </div>
-                          <span className="text-sm font-medium text-slate-700">
-                            {order.service}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-slate-700">
+                              {order.service}
+                            </span>
+                            {order.secondaryService && (
+                              <span className="text-[10px] text-slate-400">
+                                {order.secondaryService}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">

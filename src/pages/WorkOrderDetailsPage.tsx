@@ -33,6 +33,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isPreloadingEdit, setIsPreloadingEdit] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -279,6 +280,30 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     return () => window.removeEventListener('job-created', handleRefresh);
   }, [id]); // Depend on id to ensure we refresh the correct one (though it handles current page)
 
+  const handleEditClick = async () => {
+    if (!job || !job.uuid) return;
+
+    setIsPreloadingEdit(true);
+    try {
+      const response = await authenticatedFetch(`/backend/work-orders/${job.uuid}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Dispatch custom event to pre-fill the modal
+        window.dispatchEvent(new CustomEvent('preload-edit-job', { detail: data }));
+        // Open the modal via search params
+        setSearchParams({ editJob: job.uuid });
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Error al obtener datos para editar');
+      }
+    } catch (err) {
+      console.error('Error pre-loading job data:', err);
+      alert('Error de conexión al obtener datos para editar');
+    } finally {
+      setIsPreloadingEdit(false);
+    }
+  };
+
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
@@ -489,11 +514,24 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             </button>
             {(userRole === 'profesional' || userRole === 'admin') && (
               <button
-                onClick={() => setSearchParams({ editJob: job.uuid })}
-                className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
+                disabled={isPreloadingEdit}
+                onClick={handleEditClick}
+                className={cn(
+                  "flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed",
+                  isPreloadingEdit && "pl-4"
+                )}
               >
-                <Edit className="h-4 w-4" />
-                Editar Orden
+                {isPreloadingEdit ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                    Cargando...
+                  </>
+                ) : (
+                  <>
+                    <Edit className="h-4 w-4" />
+                    Editar Orden
+                  </>
+                )}
               </button>
             )}
           </div>
