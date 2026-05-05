@@ -1375,7 +1375,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
         }
         res.json({
             success: true,
-            id: result.insertId
+            id: dbData.uuid
         });
         // Send notification emails asycnchronously
         try {

@@ -45,6 +45,7 @@ export type WorkOrderStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cance
 
 export interface WorkOrder {
   id: number;
+  uuid: string;
   clientId: number;
   profesionalId: number;
   date: string; // timestamp

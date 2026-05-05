@@ -193,7 +193,7 @@ export default function CreateWorkOrderModal() {
         authenticatedFetch('/backend/work-orders')
           .then(res => res.json())
           .then(async (workOrders: WorkOrder[]) => {
-            const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
+            const orderToEdit = workOrders.find((w: WorkOrder) => String(w.uuid) === editJobId);
             if (orderToEdit) {
               // Get profesional info to populate name search
               let pName = '';
