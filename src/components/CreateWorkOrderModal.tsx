@@ -190,44 +190,32 @@ export default function CreateWorkOrderModal() {
       const role = user?.role || 'profesional';
 
       if (editJobId) {
-        authenticatedFetch('/backend/work-orders')
+        authenticatedFetch(`/backend/work-orders/${editJobId}`)
           .then(res => res.json())
-          .then(async (workOrders: WorkOrder[]) => {
-            const orderToEdit = workOrders.find((w: WorkOrder) =>
-              String(w.uuid) === editJobId || String(w.id) === editJobId
-            );
+          .then((orderToEdit: any) => {
             if (orderToEdit) {
-              // Get profesional info to populate name search
-              let pName = '';
-              try {
-                const pRes = await authenticatedFetch('/backend/profesionales');
-                const pData = await pRes.json();
-                const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
-                pName = foundP?.displayName || '';
-              } catch (e) { }
-
               setFormData({
                 clientId: orderToEdit.clientId || '',
-                client: (orderToEdit as any).client || '',
+                client: orderToEdit.client || '',
                 date: orderToEdit.date ? new Date(orderToEdit.date).toISOString().split('T')[0] : '',
                 title: orderToEdit.title || orderToEdit.service || '',
                 fieldId: orderToEdit.fieldId !== undefined && orderToEdit.fieldId !== null ? String(orderToEdit.fieldId) : '',
                 field: orderToEdit.fieldName || '',
                 hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
                 service: orderToEdit.service || 'Cosecha',
-                secondaryService: (orderToEdit as any).secondaryService || '',
+                secondaryService: orderToEdit.secondaryService || '',
                 status: orderToEdit.status || 'Pendiente',
                 campaign: orderToEdit.campaign || '25/26',
                 lot: orderToEdit.lotName || '',
-                number: (orderToEdit as any).number || '',
+                number: orderToEdit.number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
-                notes: '', // Ya no usamos description, las observaciones van por tabla separada
+                notes: '',
                 profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId,
-                profesional: pName
+                profesional: orderToEdit.operator || ''
               });
             }
           })
-          .catch(err => console.error("Error fetch job for edit:", err));
+          .catch(err => console.error("Error fetching job for edit:", err));
         return;
       }
 
