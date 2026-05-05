@@ -1,25 +1,24 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const promise_1 = __importDefault(require("mysql2/promise"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const cors_1 = __importDefault(require("cors"));
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const multer_1 = __importDefault(require("multer"));
-const path_1 = __importDefault(require("path"));
-const crypto_1 = require("crypto");
-const nodemailer_1 = __importDefault(require("nodemailer"));
-dotenv_1.default.config();
-const app = (0, express_1.default)();
+import express from 'express';
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
+import nodemailer from 'nodemailer';
+// Define __dirname for ES module scope
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config();
+const app = express();
 const port = process.env.PORT || 5001;
-app.use((0, cors_1.default)({
+app.use(cors({
     origin: ['https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar'],
 }));
-app.use(express_1.default.json());
+app.use(express.json());
 // Block all /backend/test/* routes in production
 app.use('/backend/test', (req, res, next) => {
     if (process.env.NODE_ENV === 'production') {
@@ -27,14 +26,14 @@ app.use('/backend/test', (req, res, next) => {
     }
     next();
 });
-const storage = multer_1.default.memoryStorage();
-const upload = (0, multer_1.default)({
+const storage = multer.memoryStorage();
+const upload = multer({
     storage,
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 // Define a router for all API routes
-const apiRouter = express_1.default.Router();
-const pool = promise_1.default.createPool({
+const apiRouter = express.Router();
+const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASS,
@@ -56,7 +55,7 @@ const authenticateToken = (req, res, next) => {
     if (!token) {
         return res.status(401).json({ success: false, error: 'Acceso denegado. Token no proporcionado.' });
     }
-    jsonwebtoken_1.default.verify(token, JWT_SECRET, async (err, user) => {
+    jwt.verify(token, JWT_SECRET, async (err, user) => {
         if (err) {
             return res.status(403).json({ success: false, error: 'Token inválido o expirado.' });
         }
@@ -87,9 +86,9 @@ const seedDefaultUsers = async (connection = pool) => {
     // ... (rest of the code unchanged until /backend/jobs)
     try {
         console.log('[SEED] Checking if default users exist...');
-        const adminPass = await bcryptjs_1.default.hash('123456', 10);
-        const profPass = await bcryptjs_1.default.hash('123456', 10);
-        const clientPass = await bcryptjs_1.default.hash('123456', 10);
+        const adminPass = await bcrypt.hash('123456', 10);
+        const profPass = await bcrypt.hash('123456', 10);
+        const clientPass = await bcrypt.hash('123456', 10);
         // 1. Admin
         const [adminCheck] = await connection.query('SELECT id FROM users WHERE email = ?', ['admin@tradeagro.com']);
         if (adminCheck.length === 0) {
@@ -119,7 +118,16 @@ const seedDefaultUsers = async (connection = pool) => {
 };
 const seedDefaultServices = async (connection = pool) => {
     try {
-        const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización', 'Dron'];
+        // Remove deprecated predefined services
+        const deprecatedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización'];
+        for (const serviceName of deprecatedServices) {
+            const [existing] = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
+            if (existing.length > 0) {
+                console.log(`[SEED] Removing deprecated service: ${serviceName}`);
+                await connection.query('DELETE FROM services WHERE name = ?', [serviceName]);
+            }
+        }
+        const predefinedServices = ['Dron'];
         console.log('[SEED] Checking default services...');
         for (const serviceName of predefinedServices) {
             const [existing] = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
@@ -501,7 +509,7 @@ const getTransporter = () => {
         return null;
     }
     if (!smtpTransporter) {
-        smtpTransporter = nodemailer_1.default.createTransport({
+        smtpTransporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: parseInt(process.env.SMTP_PORT || '465'),
             secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
@@ -705,7 +713,7 @@ async function sendOrderCompletedEmail(orderData) {
     }
 }
 async function createPasswordSetupToken(connection, userId) {
-    const token = (0, crypto_1.randomUUID)();
+    const token = randomUUID();
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
     // Invalidate any existing tokens for this user
     await connection.query('UPDATE password_setup_tokens SET usedAt = NOW() WHERE userId = ? AND usedAt IS NULL', [userId]);
@@ -786,7 +794,7 @@ apiRouter.post('/auth/setup-password', async (req, res) => {
         }
         await connection.beginTransaction();
         // Hash and update password
-        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
         await connection.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, tokenRow.userId]);
         // Mark token as used
         await connection.query('UPDATE password_setup_tokens SET usedAt = NOW() WHERE id = ?', [tokenRow.id]);
@@ -926,13 +934,13 @@ apiRouter.post('/login', async (req, res) => {
                 passwordNotSet: true
             });
         }
-        const isMatch = await bcryptjs_1.default.compare(password, user.password);
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             console.log(`[AUTH] Failed: Invalid password for ${email}`);
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
         console.log(`[AUTH] Success: ${email} logged in as ${user.role}`);
-        const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
         // Filter out password and null fields to match polymorphic interface
         const userData = { ...user };
         delete userData.password;
@@ -1351,7 +1359,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
             amountUsd: parseFloat(cleanAmount) || 0,
             status: req.body.status || 'Pendiente',
             createdBy: req.user?.id || 0,
-            uuid: (0, crypto_1.randomUUID)()
+            uuid: randomUUID()
         };
         // Explicit audit: ensuring NO description field exists in dbData
         if ('description' in dbData || 'description' in req.body) {
@@ -1414,14 +1422,20 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
  */
 apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
+    const user = req.user;
     console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
     try {
-        // Resolve UUID/Numeric ID to internal numeric ID
-        const [woRows] = await pool.query('SELECT id, status FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+        // Resolve UUID to internal numeric ID
+        const [woRows] = await pool.query('SELECT id, status, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [id]);
         if (woRows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
         const orderBeforeUpdate = woRows[0];
+        // Authorization: Admin or the assigned Professional
+        const isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId;
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, error: 'No tienes permiso para modificar esta orden' });
+        }
         const internalJobId = orderBeforeUpdate.id;
         const { clientId, profesionalId, date, title, field, lot, hectares, service, secondaryService, status, campaign, amount, fieldId, notes } = req.body;
         // Persist services if they are new
@@ -1522,8 +1536,8 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
         return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
     try {
-        // Resolve UUID/Numeric ID to internal numeric ID
-        const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+        // Resolve UUID to internal numeric ID
+        const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [id]);
         if (woRows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
@@ -1608,7 +1622,6 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req, res) => {
     const user = req.user;
     console.log(`[SECURE DEBUG] GET /backend/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
     try {
-        const isNumeric = /^\d+$/.test(id);
         const query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
              p_prof.phoneNumber as professionalPhone, c.phoneNumber as clientPhone,
@@ -1619,9 +1632,9 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req, res) => {
       LEFT JOIN profesionals p_prof ON t.profesionalId = p_prof.userId
       LEFT JOIN clients c ON t.clientId = c.userId
       LEFT JOIN fields f ON t.fieldId = f.id
-      WHERE (${isNumeric ? 't.id = ? OR ' : ''}t.uuid = ?) AND t.deletedAt IS NULL
+      WHERE t.uuid = ? AND t.deletedAt IS NULL
     `;
-        const [rows] = await pool.query(query, isNumeric ? [id, id] : [id]);
+        const [rows] = await pool.query(query, [id]);
         if (rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
@@ -1672,7 +1685,7 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req, res) => {
 /**
  * Serve uploaded files
  */
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 /**
  * Upload attachments to a job
  */
@@ -1684,12 +1697,18 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
         return res.status(400).json({ success: false, error: 'No files uploaded' });
     }
     try {
-        // Resolve UUID/Numeric ID to internal numeric ID
-        const [woRows] = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+        // Resolve UUID to internal numeric ID
+        const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [id]);
         if (woRows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
-        const internalJobId = woRows[0].id;
+        const order = woRows[0];
+        // Authorization: Admin, Client, or Professional
+        const isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
+        }
+        const internalJobId = order.id;
         const values = req.files.map(file => [
             internalJobId,
             file.originalname,
@@ -1715,12 +1734,19 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
 apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
-        // Resolve UUID/Numeric ID to internal numeric ID
-        const [woRows] = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+        // Resolve UUID to internal numeric ID
+        const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [id]);
         if (woRows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
-        const internalJobId = woRows[0].id;
+        const order = woRows[0];
+        // Authorization: Admin, Client, or Professional
+        const user = req.user;
+        const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
+        }
+        const internalJobId = order.id;
         const [rows] = await pool.query('SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC', [internalJobId]);
         // Add the dynamic URL for each attachment
         const attachments = rows.map((row) => ({
@@ -1740,12 +1766,19 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res
 apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
-        // Resolve UUID/Numeric ID to internal numeric ID
-        const [woRows] = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+        // Resolve UUID to internal numeric ID
+        const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [id]);
         if (woRows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
-        const internalJobId = woRows[0].id;
+        const order = woRows[0];
+        // Authorization: Admin, Client, or Professional
+        const user = req.user;
+        const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, error: 'No tienes permiso para ver las observaciones de esta orden' });
+        }
+        const internalJobId = order.id;
         const [rows] = await pool.query(`SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
               u.displayName, u.role
        FROM work_order_observations o
@@ -1770,12 +1803,19 @@ apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req, r
         return res.status(400).json({ success: false, error: 'Text is required' });
     }
     try {
-        // Resolve UUID/Numeric ID to internal numeric ID
-        const [woRows] = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+        // Resolve UUID to internal numeric ID
+        const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [id]);
         if (woRows.length === 0) {
             return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
-        const internalJobId = woRows[0].id;
+        const order = woRows[0];
+        // Authorization: Admin, Client, or Professional
+        const user = req.user;
+        const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, error: 'No tienes permiso para agregar observaciones a esta orden' });
+        }
+        const internalJobId = order.id;
         const [result] = await pool.query('INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)', [internalJobId, userId, text.trim()]);
         // Fetch the created observation with user info
         const [rows] = await pool.query(`SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
@@ -2350,4 +2390,4 @@ app.use('/backend', apiRouter);
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });
-exports.default = app;
+export default app;
