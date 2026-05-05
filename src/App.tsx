@@ -55,18 +55,25 @@ export default function App() {
         // Validate JWT expiration proactively
         const payloadBase64 = token.split('.')[1];
         if (payloadBase64) {
-          const b64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+          // Convert base64url to standard base64 and add padding
+          let b64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+          // Add padding if needed — atob() requires proper padding
+          while (b64.length % 4 !== 0) {
+            b64 += '=';
+          }
           const decodedJson = atob(b64);
           const decoded = JSON.parse(decodedJson);
           const exp = decoded.exp;
           const now = Date.now() / 1000;
           if (exp && exp < now) {
+            console.warn('[AUTH] Token expired, logging out.');
             handleLogout();
           }
         }
       } catch (e) {
-        // Invalid token structure
-        handleLogout();
+        // Token parsing error — log but don't force logout.
+        // The server will reject an invalid token on the next API call anyway.
+        console.warn('[AUTH] Could not parse token for expiration check:', e);
       }
     };
 

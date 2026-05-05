@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
-    "build:server": "tsc server.ts --outDir dist-server --module commonjs --target es2022 --esModuleInterop --skipLibCheck && mv dist-server/server.js dist-server/app.js",
+    "build:server": "tsc server.ts --outDir dist-server --module ESNext --moduleResolution node --target es2022 --esModuleInterop --skipLibCheck && mv dist-server/server.js dist-server/app.js",
     "build:all": "npm run build && npm run build:server",
     "preview": "vite preview",
     "clean": "rm -rf dist",

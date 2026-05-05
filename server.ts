@@ -10,6 +10,10 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import nodemailer from 'nodemailer';
 
+// Define __dirname for ES module scope
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 
 const app = express();
@@ -148,17 +152,7 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
 
 const seedDefaultServices = async (connection: mysql.Connection | mysql.Pool = pool) => {
   try {
-    const predefinedServices = ['Cosecha', 'Siembra', 'Fumigación', 'Fertilización', 'Dron'];
-    console.log('[SEED] Checking default services...');
-
-    for (const serviceName of predefinedServices) {
-      const [existing]: any = await connection.query('SELECT id FROM services WHERE name = ?', [serviceName]);
-      if (existing.length === 0) {
-        console.log(`[SEED] Inserting service: ${serviceName}`);
-        await connection.query('INSERT INTO services (name, isPredefined) VALUES (?, ?)', [serviceName, true]);
-      }
-    }
-    console.log('[SEED] SUCCESS: Default services seeded.');
+    // Manual management only
   } catch (err: any) {
     console.error('[SEED ERROR] Services:', err.message);
   }
@@ -175,9 +169,11 @@ async function initializeDatabase() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS services (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        parentId INT DEFAULT NULL,
         isPredefined BOOLEAN DEFAULT FALSE,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (parentId) REFERENCES services(id) ON DELETE CASCADE
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
@@ -439,6 +435,27 @@ async function initializeDatabase() {
       }
     } catch (err) {
       console.log('[INIT] Migration to work_orders skipped or failed.');
+    }
+
+    // Migration for services: add parentId and remove UNIQUE on name
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM services');
+      const hasParentId = columns.some((c: any) => c.Field === 'parentId');
+      if (!hasParentId) {
+        console.log('[INIT] Migrating services: adding parentId column');
+        await connection.query('ALTER TABLE services ADD COLUMN parentId INT DEFAULT NULL AFTER name');
+        await connection.query('ALTER TABLE services ADD FOREIGN KEY (parentId) REFERENCES services(id) ON DELETE CASCADE');
+      }
+
+      // Check for global unique index on 'name' and remove it to allow hierarchy duplicates
+      const [indexes]: any = await connection.query('SHOW INDEX FROM services WHERE Column_name = "name" AND Non_unique = 0');
+      if (indexes.length > 0) {
+        const indexName = indexes[0].Key_name;
+        console.log(`[INIT] Migrating services: removing unique index "${indexName}" from name`);
+        await connection.query(`ALTER TABLE services DROP INDEX ${indexName}`);
+      }
+    } catch (err: any) {
+      console.log('[INIT] Migration for services skipped or failed:', err.message);
     }
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
@@ -1539,9 +1556,8 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       createdBy
     } = req.body;
 
-    // Persist services if they are new
-    await ensureServiceExists(service);
-    if (secondaryService) await ensureServiceExists(secondaryService);
+    // Persist services if they are new, maintaining hierarchy
+    await ensureServicesExist(service, secondaryService);
 
     // Clean numeric values
     const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
@@ -1600,7 +1616,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      id: result.insertId
+      id: dbData.uuid
     });
 
     // Send notification emails asycnchronously
@@ -1646,16 +1662,27 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
 /**
  * Endpoint to update an existing job (trabajo)
  */
-apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
+apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
+  const user = req.user;
   console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id, status FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, status, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
     const orderBeforeUpdate = woRows[0];
+
+    // Authorization: Admin or the assigned Professional
+    const isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para modificar esta orden' });
+    }
+
     const internalJobId = orderBeforeUpdate.id;
 
     const {
@@ -1675,9 +1702,8 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
       notes
     } = req.body;
 
-    // Persist services if they are new
-    await ensureServiceExists(service);
-    if (secondaryService) await ensureServiceExists(secondaryService);
+    // Persist services if they are new, maintaining hierarchy
+    await ensureServicesExist(service, secondaryService);
 
     // Clean numeric values
     const cleanAmount = typeof amount === 'string' ? amount.replace(/[^0-9.]/g, '') : amount;
@@ -1787,8 +1813,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
   }
 
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
@@ -1885,7 +1914,6 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
   console.log(`[SECURE DEBUG] GET /backend/work-orders/${id} - User: ${user.id}, Role: ${user.role}`);
 
   try {
-    const isNumeric = /^\d+$/.test(id);
     const query = `
       SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
              p_prof.phoneNumber as professionalPhone, c.phoneNumber as clientPhone,
@@ -1896,10 +1924,10 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
       LEFT JOIN profesionals p_prof ON t.profesionalId = p_prof.userId
       LEFT JOIN clients c ON t.clientId = c.userId
       LEFT JOIN fields f ON t.fieldId = f.id
-      WHERE (${isNumeric ? 't.id = ? OR ' : ''}t.uuid = ?) AND t.deletedAt IS NULL
+      WHERE t.uuid = ? AND t.deletedAt IS NULL
     `;
 
-    const [rows]: any = await pool.query(query, isNumeric ? [id, id] : [id]);
+    const [rows]: any = await pool.query(query, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
@@ -1972,12 +2000,23 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
   }
 
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const values = (req.files as Express.Multer.File[]).map(file => [
       internalJobId,
@@ -2007,15 +2046,27 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
 /**
  * Fetch attachments for a job
  */
-apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res) => {
+apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const user = req.user as any;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const [rows]: any = await pool.query(
       'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC',
@@ -2038,15 +2089,27 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res
 /**
  * Fetch observations for a job
  */
-apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req, res) => {
+apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const user = req.user as any;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para ver las observaciones de esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const [rows]: any = await pool.query(
       `SELECT o.id, o.workOrderId, o.userId, o.text, o.createdAt,
@@ -2077,12 +2140,24 @@ apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req: a
   }
 
   try {
-    // Resolve UUID/Numeric ID to internal numeric ID
-    const [woRows]: any = await pool.query('SELECT id FROM work_orders WHERE (id = ? OR uuid = ?) AND deletedAt IS NULL', [id, id]);
+    // Resolve UUID to internal numeric ID
+    const [woRows]: any = await pool.query(
+      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
     if (woRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
     }
-    const internalJobId = woRows[0].id;
+    const order = woRows[0];
+
+    // Authorization: Admin, Client, or Professional
+    const user = req.user as any;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para agregar observaciones a esta orden' });
+    }
+
+    const internalJobId = order.id;
 
     const [result]: any = await pool.query(
       'INSERT INTO work_order_observations (workOrderId, userId, text) VALUES (?, ?, ?)',
@@ -2189,9 +2264,8 @@ apiRouter.delete('/attachments/:id', authenticateToken, async (req, res) => {
  */
 apiRouter.get('/services', authenticateToken, async (req, res) => {
   try {
-    const [rows]: any = await pool.query('SELECT name FROM services ORDER BY name ASC');
-    const serviceNames = rows.map((r: any) => r.name);
-    res.json(serviceNames);
+    const [rows]: any = await pool.query('SELECT id, name, parentId FROM services ORDER BY name ASC');
+    res.json(rows);
   } catch (error: any) {
     console.error('[DATABASE ERROR] GET /backend/services:', error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch services' });
@@ -2199,17 +2273,35 @@ apiRouter.get('/services', authenticateToken, async (req, res) => {
 });
 
 // Helper functions for backend mapping (similar to frontend)
-async function ensureServiceExists(serviceName: string | null | undefined) {
-  if (!serviceName || !serviceName.trim()) return;
-  const trimmed = serviceName.trim();
+async function ensureServicesExist(primary: string | null | undefined, secondary?: string | null | undefined) {
+  if (!primary || !primary.trim()) return;
+
+  const pTrimmed = primary.trim();
   try {
-    const [existing]: any = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?)', [trimmed]);
-    if (existing.length === 0) {
-      console.log(`[SERVICES] Saving new service: ${trimmed}`);
-      await pool.query('INSERT INTO services (name) VALUES (?)', [trimmed]);
+    // 1. Ensure Primary exists (must be a top-level service)
+    let parentId: number;
+    const [pRows]: any = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?) AND parentId IS NULL', [pTrimmed]);
+
+    if (pRows.length === 0) {
+      console.log(`[SERVICES] Saving new primary service: ${pTrimmed}`);
+      const [res]: any = await pool.query('INSERT INTO services (name, parentId) VALUES (?, NULL)', [pTrimmed]);
+      parentId = res.insertId;
+    } else {
+      parentId = pRows[0].id;
+    }
+
+    // 2. Ensure Secondary exists (as child of primary)
+    if (secondary && secondary.trim()) {
+      const sTrimmed = secondary.trim();
+      const [sRows]: any = await pool.query('SELECT id FROM services WHERE LOWER(name) = LOWER(?) AND parentId = ?', [sTrimmed, parentId]);
+
+      if (sRows.length === 0) {
+        console.log(`[SERVICES] Saving new secondary service: ${sTrimmed} (Parent: ${pTrimmed})`);
+        await pool.query('INSERT INTO services (name, parentId) VALUES (?, ?)', [sTrimmed, parentId]);
+      }
     }
   } catch (err: any) {
-    console.error('[SERVICES ERROR] Failed to ensure service exists:', err.message);
+    console.error('[SERVICES ERROR] Failed to ensure services exist:', err.message);
   }
 }
 

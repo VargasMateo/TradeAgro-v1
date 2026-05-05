@@ -608,9 +608,16 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                               return <IconComponent className="h-4 w-4" />;
                             })()}
                           </div>
-                          <span className="text-sm font-medium text-slate-700">
-                            {order.service}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-slate-700">
+                              {order.service}
+                            </span>
+                            {order.secondaryService && (
+                              <span className="text-[10px] text-slate-400">
+                                {order.secondaryService}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
@@ -635,7 +642,9 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                             order.status === "Pendiente" &&
                             "border-slate-200 bg-slate-100 text-slate-500",
                             order.status === "Completado" &&
-                            "border-emerald-100 bg-emerald-50 text-emerald-600"
+                            "border-emerald-100 bg-emerald-50 text-emerald-600",
+                            order.status === "Cancelado" &&
+                            "border-red-100 bg-red-50 text-red-600"
                           )}
                         >
                           <span
@@ -643,7 +652,8 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
                               "mr-2 h-1.5 w-1.5 rounded-full",
                               order.status === "En Proceso" && "bg-amber-500",
                               order.status === "Pendiente" && "bg-slate-400",
-                              order.status === "Completado" && "bg-emerald-500"
+                              order.status === "Completado" && "bg-emerald-500",
+                              order.status === "Cancelado" && "bg-red-500"
                             )}
                           ></span>
                           {order.status}

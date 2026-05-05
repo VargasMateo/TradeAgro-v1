@@ -45,6 +45,7 @@ export type WorkOrderStatus = 'Pendiente' | 'En Proceso' | 'Completado' | 'Cance
 
 export interface WorkOrder {
   id: number;
+  uuid: string;
   clientId: number;
   profesionalId: number;
   date: string; // timestamp
@@ -61,6 +62,12 @@ export interface WorkOrder {
   createdAt: string; // timestamp
   createdBy: number;
   deletedAt?: string; // timestamp
+}
+  
+export interface Service {
+  id: number;
+  name: string;
+  parentId: number | null;
 }
 
 export interface WorkOrderObservation {

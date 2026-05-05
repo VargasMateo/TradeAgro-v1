@@ -79,7 +79,10 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   }, []);
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    if (path === "/dashboard") {
+      return location.pathname === "/dashboard" || location.pathname === "/";
+    }
+    return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
   const navItems = [
@@ -145,9 +148,11 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               <h1 className="font-display text-xl font-bold tracking-tight text-slate-900 leading-none">
                 TradeAgro
               </h1>
-              <span className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Admin Panel
-              </span>
+              {userRole === 'admin' && (
+                <span className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Admin Panel
+                </span>
+              )}
             </div>
           </Link>
 
@@ -251,7 +256,21 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               </span>
             </Link>
             <h2 className="hidden text-xl font-bold text-slate-800 lg:block">
-              {navItems.find((i) => isActive(i.path))?.label || "Inicio"}
+              {(() => {
+                if (location.pathname.startsWith("/work-orders/")) {
+                  const subPath = location.pathname.substring("/work-orders/".length);
+                  if (subPath && subPath !== "") {
+                    return "Detalles de la orden";
+                  }
+                }
+                
+                const activeItem = navItems.find((i) => isActive(i.path));
+                if (activeItem) return activeItem.label;
+                
+                if (location.pathname === "/profile") return "Mi Perfil";
+                
+                return "Inicio";
+              })()}
             </h2>
           </div>
 

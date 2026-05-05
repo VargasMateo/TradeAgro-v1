@@ -22,8 +22,10 @@ export const authenticatedFetch = async (url: string, options: RequestInit = {})
     headers,
   });
 
-  if (response.status === 401 || response.status === 403) {
-    console.warn('[AUTH] Authentication error detected (401/403). Forcing logout.');
+  // Only force-logout on 401 (token invalid/expired), NOT on 403 (permission denied).
+  // A 403 means the token is valid but the user lacks permission — not a session issue.
+  if (response.status === 401) {
+    console.warn('[AUTH] Authentication error detected (401). Forcing logout.');
     window.dispatchEvent(new CustomEvent('force-logout'));
   }
 

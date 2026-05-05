@@ -24,7 +24,7 @@ import CreateClientModal from "./CreateClientModal";
 import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
-import { WorkOrder } from "../types/database";
+import { WorkOrder, Service } from "../types/database";
 import { authenticatedFetch } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
@@ -32,6 +32,7 @@ export default function CreateWorkOrderModal() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextFetchRef = useRef(false);
 
   const isOpen = searchParams.get('newJob') === 'true' || searchParams.get('editJob') !== null;
   const editJobId = searchParams.get('editJob');
@@ -39,7 +40,7 @@ export default function CreateWorkOrderModal() {
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
-  const [services, setServices] = useState<string[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [userRole, setUserRole] = useState<'profesional' | 'client' | 'admin' | null>(null);
 
   const fetchClients = async () => {
@@ -190,42 +191,37 @@ export default function CreateWorkOrderModal() {
       const role = user?.role || 'profesional';
 
       if (editJobId) {
-        authenticatedFetch('/backend/work-orders')
-          .then(res => res.json())
-          .then(async (workOrders: WorkOrder[]) => {
-            const orderToEdit = workOrders.find((w: WorkOrder) => String(w.id) === editJobId);
-            if (orderToEdit) {
-              // Get profesional info to populate name search
-              let pName = '';
-              try {
-                const pRes = await authenticatedFetch('/backend/profesionales');
-                const pData = await pRes.json();
-                const foundP = Array.isArray(pData) ? pData.find(p => String(p.id) === String(orderToEdit.profesionalId)) : null;
-                pName = foundP?.displayName || '';
-              } catch (e) { }
+        if (skipNextFetchRef.current) {
+          skipNextFetchRef.current = false;
+          return;
+        }
 
+        authenticatedFetch(`/backend/work-orders/${editJobId}`)
+          .then(res => res.json())
+          .then((orderToEdit: any) => {
+            if (orderToEdit) {
               setFormData({
                 clientId: orderToEdit.clientId || '',
-                client: (orderToEdit as any).client || '',
+                client: orderToEdit.client || '',
                 date: orderToEdit.date ? new Date(orderToEdit.date).toISOString().split('T')[0] : '',
                 title: orderToEdit.title || orderToEdit.service || '',
                 fieldId: orderToEdit.fieldId !== undefined && orderToEdit.fieldId !== null ? String(orderToEdit.fieldId) : '',
                 field: orderToEdit.fieldName || '',
                 hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
                 service: orderToEdit.service || 'Cosecha',
-                secondaryService: (orderToEdit as any).secondaryService || '',
+                secondaryService: orderToEdit.secondaryService || '',
                 status: orderToEdit.status || 'Pendiente',
                 campaign: orderToEdit.campaign || '25/26',
                 lot: orderToEdit.lotName || '',
-                number: (orderToEdit as any).number || '',
+                number: orderToEdit.number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
-                notes: '', // Ya no usamos description, las observaciones van por tabla separada
+                notes: '',
                 profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId,
-                profesional: pName
+                profesional: orderToEdit.operator || ''
               });
             }
           })
-          .catch(err => console.error("Error fetch job for edit:", err));
+          .catch(err => console.error("Error fetching job for edit:", err));
         return;
       }
 
@@ -243,6 +239,42 @@ export default function CreateWorkOrderModal() {
     setErrors({});
     setSelectedFiles([]);
   }, [isOpen, searchParams, editJobId]);
+
+  // Preload event listener
+  useEffect(() => {
+    const handlePreload = (e: any) => {
+      const orderToEdit = e.detail;
+      if (orderToEdit) {
+        const storedProfile = localStorage.getItem("userProfile");
+        const user = storedProfile ? JSON.parse(storedProfile) : null;
+        const currentUserId = user?.id ? String(user.id) : '';
+
+        setFormData({
+          clientId: orderToEdit.clientId || '',
+          client: orderToEdit.client || '',
+          date: orderToEdit.date ? new Date(orderToEdit.date).toISOString().split('T')[0] : '',
+          title: orderToEdit.title || orderToEdit.service || '',
+          fieldId: orderToEdit.fieldId !== undefined && orderToEdit.fieldId !== null ? String(orderToEdit.fieldId) : '',
+          field: orderToEdit.fieldName || '',
+          hectares: orderToEdit.hectares !== null ? String(orderToEdit.hectares) : '',
+          service: orderToEdit.service || 'Cosecha',
+          secondaryService: orderToEdit.secondaryService || '',
+          status: orderToEdit.status || 'Pendiente',
+          campaign: orderToEdit.campaign || '25/26',
+          lot: orderToEdit.lotName || '',
+          number: orderToEdit.number || '',
+          amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
+          notes: '',
+          profesionalId: orderToEdit.profesionalId ? String(orderToEdit.profesionalId) : currentUserId,
+          profesional: orderToEdit.operator || ''
+        });
+        skipNextFetchRef.current = true;
+      }
+    };
+
+    window.addEventListener('preload-edit-job', handlePreload as EventListener);
+    return () => window.removeEventListener('preload-edit-job', handlePreload as EventListener);
+  }, []);
 
   const handleClose = () => {
     // Reset state
@@ -506,34 +538,19 @@ export default function CreateWorkOrderModal() {
     }
   };
 
-  const getIconNameForService = (service: string) => {
-    switch (service) {
-      case 'Cosecha': return 'Wheat';
-      case 'Siembra': return 'Sprout';
-      case 'Fumigación': return 'Droplets';
-      case 'Fertilización': return 'Activity';
-      default: return 'Tractor';
-    }
-  };
-
-  const getColorForService = (service: string) => {
-    switch (service) {
-      case 'Cosecha': return 'orange';
-      case 'Siembra': return 'emerald';
-      case 'Fumigación': return 'blue';
-      case 'Fertilización': return 'indigo';
-      default: return 'emerald';
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:p-6">
-      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className={cn(
+        "relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200",
+        step === 'success' ? "max-w-md" : "max-w-4xl"
+      )}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+        <div className={cn(
+          "flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4",
+          step === 'success' && "hidden"
+        )}>
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
               {step === 'form' ? (editJobId ? 'Editar Orden' : 'Nueva Orden') : (editJobId ? 'Resumen de Edición' : 'Resumen del Nuevo Orden')}
@@ -560,8 +577,8 @@ export default function CreateWorkOrderModal() {
         </div>
 
         {/* Content Scrollable Area */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-3xl space-y-6 pb-4">
+        <div ref={scrollContainerRef} className={cn("flex-1 overflow-y-auto p-6", step === 'success' && "hidden")}>
+          <div className={cn("mx-auto max-w-3xl", step !== 'success' && "space-y-6 pb-4")}>
 
             {/* FORM STEP */}
             <div className={step === 'form' ? 'block space-y-6' : 'hidden'}>
@@ -1060,24 +1077,24 @@ export default function CreateWorkOrderModal() {
                       {showServiceSuggestions && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {services
-                            .filter(s => s.toLowerCase().includes(formData.service.toLowerCase()))
+                            .filter(s => s.parentId === null && s.name.toLowerCase().includes(formData.service.toLowerCase()))
                             .map(s => (
                               <button
-                                key={s}
+                                key={s.id}
                                 type="button"
                                 className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
                                 onClick={() => {
-                                  setFormData(prev => ({ ...prev, service: s }));
+                                  setFormData(prev => ({ ...prev, service: s.name, secondaryService: '' }));
                                   setShowServiceSuggestions(false);
                                   if (errors.service) {
                                     setErrors(prev => { const n = { ...prev }; delete n.service; return n; });
                                   }
                                 }}
                               >
-                                {s}
+                                {s.name}
                               </button>
                             ))}
-                          {formData.service.trim() !== '' && !services.some(s => s.toLowerCase() === formData.service.trim().toLowerCase()) && (
+                          {formData.service.trim() !== '' && !services.some(s => s.parentId === null && s.name.toLowerCase() === formData.service.trim().toLowerCase()) && (
                             <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
                               Nuevo: "{formData.service.trim()}" (Se guardará)
                             </div>
@@ -1110,21 +1127,29 @@ export default function CreateWorkOrderModal() {
                       {showSecondaryServiceSuggestions && (
                         <div className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
                           {services
-                            .filter(s => s.toLowerCase().includes(formData.secondaryService.toLowerCase()))
+                            .filter(s => {
+                              const selectedPrimary = services.find(ps =>
+                                ps.parentId === null &&
+                                ps.name.toLowerCase() === formData.service.trim().toLowerCase()
+                              );
+                              const matchesParent = selectedPrimary ? s.parentId === selectedPrimary.id : false;
+                              const matchesSearch = s.name.toLowerCase().includes(formData.secondaryService.toLowerCase());
+                              return s.parentId !== null && matchesParent && matchesSearch;
+                            })
                             .map(s => (
                               <button
-                                key={s}
+                                key={s.id}
                                 type="button"
                                 className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 font-medium cursor-pointer"
                                 onClick={() => {
-                                  setFormData(prev => ({ ...prev, secondaryService: s }));
+                                  setFormData(prev => ({ ...prev, secondaryService: s.name }));
                                   setShowSecondaryServiceSuggestions(false);
                                 }}
                               >
-                                {s}
+                                {s.name}
                               </button>
                             ))}
-                          {formData.secondaryService.trim() !== '' && !services.some(s => s.toLowerCase() === formData.secondaryService.trim().toLowerCase()) && (
+                          {formData.secondaryService.trim() !== '' && !services.some(s => s.name.toLowerCase() === formData.secondaryService.trim().toLowerCase()) && (
                             <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100 italic">
                               Nuevo: "{formData.secondaryService.trim()}" (Se guardará)
                             </div>
@@ -1270,29 +1295,6 @@ export default function CreateWorkOrderModal() {
               )}
             </div>
 
-            {/* SUCCESS STEP */}
-            <div className={step === 'success' ? 'block' : 'hidden'}>
-              <div className="flex flex-col items-center justify-center pt-8 text-center animate-in zoom-in-95 duration-300">
-                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-                </div>
-                <h3 className="mb-2 text-2xl font-bold text-slate-900">
-                  ¡Trabajo Guardado!
-                </h3>
-                <p className="mb-8 text-slate-500 max-w-[300px]">
-                  El trabajo ha sido registrado exitosamente en el sistema.
-                </p>
-                <div className="flex w-full gap-3">
-                  <button
-                    onClick={handleFinishSuccess}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                  >
-                    ENTENDIDO
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* SUMMARY STEP */}
             <div className={step === 'summary' ? 'block space-y-6' : 'hidden'}>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1371,11 +1373,20 @@ export default function CreateWorkOrderModal() {
                     <h5 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                       <Settings className="h-3 w-3" /> Detalles del Servicio
                     </h5>
-                    <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 sm:grid-cols-3">
+                    <div className={cn(
+                      "grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 sm:grid-cols-2",
+                      formData.secondaryService ? "lg:grid-cols-4" : "lg:grid-cols-3"
+                    )}>
                       <div>
                         <p className="text-[10px] font-medium text-slate-400">Servicio</p>
                         <p className="text-sm font-semibold text-slate-900">{formData.service || '-'}</p>
                       </div>
+                      {formData.secondaryService && (
+                        <div>
+                          <p className="text-[10px] font-medium text-slate-400">Servicio Secundario</p>
+                          <p className="text-sm font-semibold text-slate-900">{formData.secondaryService}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-[10px] font-medium text-slate-400">Campaña</p>
                         <p className="text-sm font-semibold text-slate-900">{formData.campaign || '-'}</p>
@@ -1424,6 +1435,32 @@ export default function CreateWorkOrderModal() {
               </div>
             </div>
 
+          </div>
+        </div>
+
+        {/* SUCCESS STEP */}
+        <div className={cn(
+          "flex flex-col items-center text-center p-12 pb-7 animate-in zoom-in-95 duration-300",
+          step === 'success' ? 'flex' : 'hidden'
+        )}>
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
+            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+          </div>
+          <h3 className="mb-2 text-2xl font-bold text-slate-900">
+            {editJobId ? '¡Trabajo Actualizado!' : '¡Trabajo Guardado!'}
+          </h3>
+          <p className="mb-8 text-slate-500 max-w-[300px]">
+            {editJobId
+              ? 'Los cambios han sido guardados exitosamente en el sistema.'
+              : 'El trabajo ha sido registrado exitosamente en el sistema.'}
+          </p>
+          <div className="flex w-full max-w-[300px]">
+            <button
+              onClick={handleFinishSuccess}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2e4a33] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              ENTENDIDO
+            </button>
           </div>
         </div>
 
@@ -1583,7 +1620,7 @@ export default function CreateWorkOrderModal() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl text-center"
+              className="w-full max-w-sm rounded-[2rem] bg-white p-8 pb-2 shadow-2xl text-center"
             >
               <div className={cn(
                 "mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl",
