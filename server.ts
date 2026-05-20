@@ -577,6 +577,8 @@ app.post('/backend/test/reset-database', async (req, res) => {
 
 const PASSWORD_NOT_SET_PLACEHOLDER = '__PASSWORD_NOT_SET__';
 
+const EXTRA_NOTIFICATION_RECIPIENTS = ['juan.caraffo@tradeagro.com.ar', 'claudio.rivero@tradeagro.com.ar'];
+
 // Configure SMTP transporter (lazy initialization)
 let smtpTransporter: nodemailer.Transporter | null = null;
 const getTransporter = () => {
@@ -613,42 +615,62 @@ async function sendPasswordSetupEmail(userEmail: string, displayName: string, to
   const setupLink = `${appUrl}/setup-password?token=${token}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
+  const textContent = `¡Hola ${displayName}!
+
+Se ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contraseña haciendo clic en el siguiente enlace:
+
+${setupLink}
+
+Este enlace expira en 48 horas.
+
+© ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Bienvenido a TradeAgro</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc;">
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Sistema de Gesti&oacute;n Agropecuaria</p>
+    </div>
+    <div style="padding: 32px 24px;">
+      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">&iexcl;Hola ${displayName}!</h2>
+      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+        Se ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contrase&ntilde;a haciendo clic en el bot&oacute;n de abajo.
+      </p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${setupLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+          Configurar mi Contrase&ntilde;a
+        </a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+        Si el bot&oacute;n no funciona, copie y pegue este enlace en su navegador:
+      </p>
+      <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+        ${setupLink}
+      </p>
+      <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
+        Este enlace expira en 48 horas.
+      </p>
+    </div>
+    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
   try {
     const info = await transporter.sendMail({
       from: fromEmail,
       to: userEmail,
       subject: 'Bienvenido a TradeAgro — Configure su contraseña',
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-          <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Sistema de Gestión Agropecuaria</p>
-          </div>
-          <div style="padding: 32px 24px;">
-            <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">¡Hola ${displayName}!</h2>
-            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-              Se ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contraseña haciendo clic en el botón de abajo.
-            </p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${setupLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-                Configurar mi Contraseña
-              </a>
-            </div>
-            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
-              Si el botón no funciona, copie y pegue este enlace en su navegador:
-            </p>
-            <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
-              ${setupLink}
-            </p>
-            <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
-              Este enlace expira en 48 horas.
-            </p>
-          </div>
-          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.</p>
-          </div>
-        </div>
-      `
+      text: textContent,
+      html: htmlContent
     });
 
     console.log(`[EMAIL] Password setup email sent to ${userEmail}, messageId: ${info.messageId}`);
@@ -669,42 +691,64 @@ async function sendForgotPasswordEmail(userEmail: string, displayName: string, t
   const resetLink = `${appUrl}/setup-password?token=${token}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
+  const textContent = `¡Hola ${displayName}!
+
+Hemos recibido una solicitud para restablecer la contraseña de su cuenta en TradeAgro. Para elegir una nueva contraseña, acceda al siguiente enlace:
+
+${resetLink}
+
+Si no realizó esta solicitud, puede ignorar este correo. Su contraseña actual no cambiará.
+
+Este enlace expira en 48 horas.
+
+© 2026 TradeAgro. Sistema de Gestión Agropecuaria.`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Restablecer su contrase&ntilde;a</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc;">
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Restablecimiento de Contrase&ntilde;a</p>
+    </div>
+    <div style="padding: 32px 24px;">
+      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">&iexcl;Hola ${displayName}!</h2>
+      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+        Hemos recibido una solicitud para restablecer la contrase&ntilde;a de su cuenta en TradeAgro. Haga clic en el bot&oacute;n de abajo para elegir una nueva contrase&ntilde;a.
+      </p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${resetLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+          Restablecer mi Contrase&ntilde;a
+        </a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+        Si no realiz&oacute; esta solicitud, puede ignorar este correo. Su contrase&ntilde;a actual no cambiar&aacute; hasta que acceda al enlace de arriba.
+      </p>
+      <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+        ${resetLink}
+      </p>
+      <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
+        Este enlace expira en 48 horas.
+      </p>
+    </div>
+    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; 2026 TradeAgro. Sistema de Gesti&oacute;n Agropecuaria.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
   try {
     const info = await transporter.sendMail({
       from: fromEmail,
       to: userEmail,
       subject: 'Restablecer su contraseña — TradeAgro',
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-          <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Restablecimiento de Contraseña</p>
-          </div>
-          <div style="padding: 32px 24px;">
-            <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">¡Hola ${displayName}!</h2>
-            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-              Hemos recibido una solicitud para restablecer la contraseña de su cuenta en TradeAgro. Haga clic en el botón de abajo para elegir una nueva contraseña.
-            </p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${resetLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-                Restablecer mi Contraseña
-              </a>
-            </div>
-            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
-              Si no realizó esta solicitud, puede ignorar este correo. Su contraseña actual no cambiará hasta que acceda al enlace de arriba.
-            </p>
-            <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
-              ${resetLink}
-            </p>
-            <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
-              Este enlace expira en 48 horas.
-            </p>
-          </div>
-          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© 2026 TradeAgro. Sistema de Gestión Agropecuaria.</p>
-          </div>
-        </div>
-      `,
+      text: textContent,
+      html: htmlContent,
     });
 
     console.log(`[EMAIL] Forgot password email sent to ${userEmail}, messageId: ${info.messageId}`);
@@ -725,77 +769,122 @@ async function sendOrderCompletedEmail(orderData: any) {
   const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
-  try {
-    const info = await transporter.sendMail({
-      from: fromEmail,
-      to: orderData.clientEmail,
-      subject: `Orden #${orderData.id} Completada — TradeAgro`,
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-          <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Notificación de Servicio</p>
-          </div>
-          <div style="padding: 32px 24px;">
-            <div style="text-align: center; margin-bottom: 24px;">
-              <div style="display: inline-block; background: #f0fdf4; color: #166534; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 12px; border: 1px solid #bbf7d0;">
-                ✓ ORDEN FINALIZADA
-              </div>
-            </div>
-            <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">¡Tu orden ha sido completada!</h2>
-            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
-              Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con éxito.
-            </p>
+  const textContent = `¡Tu orden ha sido completada!
 
-            <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px;">
-              <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">Detalles del Servicio</h3>
-              
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Orden:</td>
-                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Servicio:</td>
-                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campo / Lote:</td>
-                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
-                </tr>
-                ${orderData.hectares ? `
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Superficie:</td>
-                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.hectares} ha.</td>
-                </tr>
-                ` : ''}
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campaña:</td>
-                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.campaign}</td>
-                </tr>
-              </table>
-            </div>
+Hola ${orderData.clientName}, te informamos que el trabajo solicitado ha sido finalizado con éxito.
 
-            <div style="text-align: center; margin-bottom: 32px;">
-              <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-                Ver detalles en el panel
-              </a>
-            </div>
+Detalles del Servicio:
+- Orden: #AG-${orderData.id}
+- Servicio: ${orderData.service}
+- Campo / Lote: ${orderData.location}
+${orderData.hectares ? `- Superficie: ${orderData.hectares} ha.\n` : ''}- Campaña: ${orderData.campaign}
 
-            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; text-align: center;">
-              Si tienes alguna duda, por favor contacta con tu asesor asignado.
-            </p>
-          </div>
-          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} TradeAgro. Este es un mensaje automático, por favor no lo respondas.</p>
-          </div>
+Ver detalles en el panel:
+${orderUrl}
+
+Si tienes alguna duda, por favor contacta con tu asesor asignado.
+
+© ${new Date().getFullYear()} TradeAgro. Este es un mensaje automático, por favor no lo respondas.`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Orden #${orderData.id} Completada</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc;">
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Notificaci&oacute;n de Servicio</p>
+    </div>
+    <div style="padding: 32px 24px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; background: #f0fdf4; color: #166534; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 12px; border: 1px solid #bbf7d0;">
+          &#10003; ORDEN FINALIZADA
         </div>
-      `,
-    });
+      </div>
+      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">&iexcl;Tu orden ha sido completada!</h2>
+      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
+        Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con &eacute;xito.
+      </p>
 
-    console.log(`[EMAIL] Order completion email sent to ${orderData.clientEmail}, messageId: ${info.messageId}`);
-  } catch (error: any) {
-    console.error(`[EMAIL ERROR] Failed to send order completion email to ${orderData.clientEmail}:`, error.message);
+      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px;">
+        <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">Detalles del Servicio</h3>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Orden:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Servicio:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campo / Lote:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
+          </tr>
+          ${orderData.hectares ? `
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Superficie:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.hectares} ha.</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campa&ntilde;a:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.campaign}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 32px;">
+        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+          Ver detalles en el panel
+        </a>
+      </div>
+
+      <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; text-align: center;">
+        Si tienes alguna duda, por favor contacta con tu asesor asignado.
+      </p>
+    </div>
+    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  // 1. Notify Client
+  if (orderData.clientEmail) {
+    try {
+      const info = await transporter.sendMail({
+        from: fromEmail,
+        to: orderData.clientEmail,
+        subject: `Orden #${orderData.id} Completada — TradeAgro`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[EMAIL] Order completion email sent to ${orderData.clientEmail}, messageId: ${info.messageId}`);
+    } catch (error: any) {
+      console.error(`[EMAIL ERROR] Failed to send order completion email to ${orderData.clientEmail}:`, error.message);
+    }
+  }
+
+  // 2. Notify extra recipients individually
+  for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
+    try {
+      const info = await transporter.sendMail({
+        from: fromEmail,
+        to: extraEmail,
+        subject: `Orden #${orderData.id} Completada — TradeAgro`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[EMAIL] Order completion copy sent to ${extraEmail}, messageId: ${info.messageId}`);
+    } catch (error: any) {
+      console.error(`[EMAIL ERROR] Failed to send order completion email copy to ${extraEmail}:`, error.message);
+    }
   }
 }
 
@@ -1368,6 +1457,16 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     try {
       await sendPasswordSetupEmail(userEmail, displayName, setupToken);
       emailSent = true;
+
+      // Send individually to extra recipients
+      for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
+        try {
+          await sendPasswordSetupEmail(extraEmail, displayName, setupToken);
+          console.log(`[EMAIL] Client registration copy successfully sent to ${extraEmail}`);
+        } catch (extraError: any) {
+          console.error(`[EMAIL ERROR] Failed to send copy of client welcome email to ${extraEmail}:`, extraError.message);
+        }
+      }
     } catch (emailError: any) {
       console.error('[AUTH ERROR] client creation email failed:', emailError.message);
       emailErrorMessage = emailError.message;
@@ -1499,37 +1598,81 @@ async function sendNewOrderEmail(orderData: any) {
   const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
-  try {
-    // Notify Client
-    if (orderData.clientEmail) {
+  const textContent = `Confirmación de Orden #AG-${orderData.id}
+
+Hola ${orderData.clientName},
+
+Se ha registrado correctamente la orden de trabajo #AG-${orderData.id}.
+
+Detalles:
+- Servicio: ${orderData.service}
+- Profesional a cargo: ${orderData.profesionalName || 'Pendiente de asignación'}
+
+Recibirás otra notificación cuando el trabajo sea completado.
+
+Ver Detalles de la Orden:
+${orderUrl}
+
+TradeAgro`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Confirmaci&oacute;n de Orden #AG-${orderData.id}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc;">
+  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background: white;">
+    <div style="background: #2e7d32; padding: 24px; text-align: center; color: white;">
+      <h1 style="margin: 0;">TradeAgro</h1>
+      <p style="margin: 4px 0 0; opacity: 0.8;">Confirmaci&oacute;n de Orden</p>
+    </div>
+    <div style="padding: 24px;">
+      <h2 style="color: #1e293b;">Hola ${orderData.clientName},</h2>
+      <p style="color: #64748b; line-height: 1.6;">Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.</p>
+      <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 24px 0;">
+        <p style="margin: 0 0 8px;"><strong>Servicio:</strong> ${orderData.service}</p>
+        <p style="margin: 0;"><strong>Profesional a cargo:</strong> ${orderData.profesionalName || 'Pendiente de asignaci&oacute;n'}</p>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ver Detalles de la Orden</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  // 1. Notify Client
+  if (orderData.clientEmail) {
+    try {
       await transporter.sendMail({
         from: fromEmail,
         to: orderData.clientEmail,
         subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
-            <div style="background: #2e7d32; padding: 24px; text-align: center; color: white;">
-              <h1 style="margin: 0;">TradeAgro</h1>
-              <p style="margin: 4px 0 0; opacity: 0.8;">Confirmación de Orden</p>
-            </div>
-            <div style="padding: 24px;">
-              <h2 style="color: #1e293b;">Hola ${orderData.clientName},</h2>
-              <p style="color: #64748b; line-height: 1.6;">Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.</p>
-              <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 24px 0;">
-                <p style="margin: 0 0 8px;"><strong>Servicio:</strong> ${orderData.service}</p>
-                <p style="margin: 0;"><strong>Profesional a cargo:</strong> ${orderData.profesionalName || 'Pendiente de asignación'}</p>
-              </div>
-              <p style="color: #94a3b8; font-size: 13px;">Recibirás otra notificación cuando el trabajo sea completado.</p>
-              <div style="text-align: center; margin-top: 24px;">
-                <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ver Detalles de la Orden</a>
-              </div>
-            </div>
-          </div>
-        `
+        text: textContent,
+        html: htmlContent
       });
+      console.log(`[EMAIL] New order confirmation email sent to ${orderData.clientEmail}`);
+    } catch (err: any) {
+      console.error(`[EMAIL ERROR] sendNewOrderEmail failed for client ${orderData.clientEmail}:`, err.message);
     }
-  } catch (err: any) {
-    console.error('[EMAIL ERROR] sendNewOrderEmail failed:', err.message);
+  }
+
+  // 2. Notify extra recipients individually
+  for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
+    try {
+      await transporter.sendMail({
+        from: fromEmail,
+        to: extraEmail,
+        subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+        text: textContent,
+        html: htmlContent
+      });
+      console.log(`[EMAIL] New order confirmation copy sent to ${extraEmail}`);
+    } catch (err: any) {
+      console.error(`[EMAIL ERROR] sendNewOrderEmail copy failed for ${extraEmail}:`, err.message);
+    }
   }
 }
 
