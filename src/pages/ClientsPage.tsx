@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, Link } from "react-router-dom";
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle, RefreshCw, Copy, Check, Sun } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { Client, ClientField } from "../types/client";
-
 import { authenticatedFetch } from "../lib/api";
 
 export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
@@ -328,9 +327,32 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
 
                 <div className="space-y-3 border-t border-slate-100 pt-6">
                   <div className="flex items-center gap-3 text-sm text-slate-500">
-                    <Mail className="h-4 w-4 text-slate-400" />
+                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                     <span className="truncate">{client.email}</span>
                   </div>
+                  {client.notificationEmails && client.notificationEmails.trim() && (
+                    <div className="mt-2 pl-7 space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Destinatarios adicionales:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {client.notificationEmails
+                          .split(/[,;\s]+/)
+                          .map((e: string) => e.trim())
+                          .filter((e: string) => e)
+                          .map((email: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 rounded bg-slate-50 border border-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 truncate max-w-[220px]"
+                              title={email}
+                            >
+                              <Mail className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                              <span className="truncate">{email}</span>
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {userRole === 'admin' && (

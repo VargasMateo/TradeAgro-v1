@@ -236,6 +236,8 @@ async function initializeDatabase() {
         cuit VARCHAR(20),
         businessName VARCHAR(255),
         phoneNumber VARCHAR(50),
+        hasStations BOOLEAN DEFAULT FALSE,
+        notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
@@ -466,6 +468,14 @@ async function initializeDatabase() {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasStations migration error:', e.message);
     }
 
+    // Migration: add notificationEmails column to clients if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
+      console.log('[INIT] Added notificationEmails column to clients');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] notificationEmails migration error:', e.message);
+    }
+
     // Migration: remove hasStations from profesionals if it was added by mistake
     try {
       await connection.query('ALTER TABLE profesionals DROP COLUMN hasStations');
@@ -501,7 +511,8 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
     const {
       id, displayName, email, role,
       phoneNumber: profPhoneNumber, specialty, // Prof fields
-      businessName, cuit, ivaCondition, phoneNumber // Client fields
+      businessName, cuit, ivaCondition, phoneNumber, // Client fields
+      notificationEmails // Client notification emails
     } = req.body;
 
     if (!id) return res.status(400).json({ error: 'User ID is required' });
@@ -522,8 +533,8 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
       );
     } else if (role === 'client') {
       await connection.query(
-        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ? WHERE userId = ?',
-        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, id]
+        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ? WHERE userId = ?',
+        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, id]
       );
     }
 
@@ -533,7 +544,7 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -887,6 +898,29 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
     }
   }
 
+  // 1b. Notify Client's additional notification emails (Distribution List)
+  if (orderData.clientNotificationEmails) {
+    const additionalEmails = orderData.clientNotificationEmails
+      .split(/[,;\s]+/)
+      .map((e: string) => e.trim())
+      .filter((e: string) => e && e.includes('@'));
+
+    for (const addEmail of additionalEmails) {
+      try {
+        const info = await transporter.sendMail({
+          from: fromEmail,
+          to: addEmail,
+          subject: `Orden #${orderData.id} Completada — TradeAgro`,
+          text: textContent,
+          html: htmlContent,
+        });
+        console.log(`[EMAIL] Order completion copy sent to client's distribution list email: ${addEmail}, messageId: ${info.messageId}`);
+      } catch (error: any) {
+        console.error(`[EMAIL ERROR] Failed to send order completion email copy to distribution list email ${addEmail}:`, error.message);
+      }
+    }
+  }
+
   // 2. Notify extra recipients individually
   for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
     try {
@@ -1157,7 +1191,7 @@ apiRouter.post('/login', async (req, res) => {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1285,6 +1319,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       ivaCondition,
       email,
       phoneNumber,
+      notificationEmails,
       fields // Array of fields from the modal
     } = req.body;
 
@@ -1301,7 +1336,8 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       businessName: businessName,
       cuit: cuit,
       ivaCondition: ivaCondition || 'Responsable Inscripto',
-      phoneNumber: phoneNumber
+      phoneNumber: phoneNumber,
+      notificationEmails: notificationEmails || null
     };
 
     console.log('[DEBUG] Updating client extension for userId:', userId);
@@ -1391,6 +1427,7 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       ivaCondition,
       email,
       phoneNumber,
+      notificationEmails,
       createdBy,
       password, // Optional, can default
       fields // Array of fields from the modal
@@ -1446,11 +1483,11 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null]
     );
 
     // 3. Insert associated fields if any
@@ -1682,6 +1719,29 @@ TradeAgro`;
     }
   }
 
+  // 1b. Notify Client's additional notification emails (Distribution List)
+  if (orderData.clientNotificationEmails) {
+    const additionalEmails = orderData.clientNotificationEmails
+      .split(/[,;\s]+/)
+      .map((e: string) => e.trim())
+      .filter((e: string) => e && e.includes('@'));
+
+    for (const addEmail of additionalEmails) {
+      try {
+        await transporter.sendMail({
+          from: fromEmail,
+          to: addEmail,
+          subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+          text: textContent,
+          html: htmlContent
+        });
+        console.log(`[EMAIL] New order confirmation copy sent to client's distribution list email: ${addEmail}`);
+      } catch (err: any) {
+        console.error(`[EMAIL ERROR] sendNewOrderEmail distribution list copy failed for ${addEmail}:`, err.message);
+      }
+    }
+  }
+
   // 2. Notify extra recipients individually
   for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
     try {
@@ -1790,9 +1850,11 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       const [orderRows]: any = await pool.query(`
         SELECT t.*, 
                u_client.displayName as clientName, u_client.email as clientEmail,
+               c_client.notificationEmails as clientNotificationEmails,
                u_prof.displayName as profesionalName, u_prof.email as profesionalEmail
         FROM work_orders t
         LEFT JOIN users u_client ON t.clientId = u_client.id
+        LEFT JOIN clients c_client ON t.clientId = c_client.userId
         LEFT JOIN users u_prof ON t.profesionalId = u_prof.id
         WHERE t.id = ?
       `, [result.insertId]);
@@ -1804,6 +1866,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
           uuid: row.uuid,
           clientName: row.clientName,
           clientEmail: row.clientEmail,
+          clientNotificationEmails: row.clientNotificationEmails,
           profesionalName: row.profesionalName,
           profesionalEmail: row.profesionalEmail,
           service: row.service,
@@ -1915,9 +1978,11 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
     if (status === 'Completado' && orderBeforeUpdate.status !== 'Completado') {
       try {
         const query = `
-          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail,
+                 c.notificationEmails as clientNotificationEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
+          LEFT JOIN clients c ON t.clientId = c.userId
           WHERE t.id = ?
         `;
         const [rows]: any = await pool.query(query, [internalJobId]);
@@ -1929,6 +1994,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
             uuid: row.uuid,
             clientName: row.clientName,
             clientEmail: row.clientEmail,
+            clientNotificationEmails: row.clientNotificationEmails,
             service: row.service || 'Servicio General',
             location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
             hectares: row.hectares,
@@ -2003,9 +2069,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
     if (status === 'Completado') {
       try {
         const query = `
-          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail,
+                 c.notificationEmails as clientNotificationEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
+          LEFT JOIN clients c ON t.clientId = c.userId
           WHERE t.id = ?
         `;
         const [rows]: any = await pool.query(query, [order.id]);
@@ -2017,6 +2085,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
             uuid: row.uuid,
             clientName: row.clientName,
             clientEmail: row.clientEmail,
+            clientNotificationEmails: row.clientNotificationEmails,
             service: row.service || 'Servicio General',
             location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
             hectares: row.hectares,

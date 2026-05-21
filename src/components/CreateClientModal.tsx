@@ -27,6 +27,7 @@ export default function CreateClientModal({
     ivaCondition: 'Responsable Inscripto' | 'Monotributista' | '';
     email: string;
     phone: string;
+    notificationEmails: string;
     fields: ClientField[];
   }>({
     name: initialName,
@@ -35,6 +36,7 @@ export default function CreateClientModal({
     ivaCondition: 'Responsable Inscripto',
     email: '',
     phone: '',
+    notificationEmails: '',
     fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
   });
 
@@ -45,6 +47,7 @@ export default function CreateClientModal({
     ivaCondition?: string;
     email?: string;
     phone?: string;
+    notificationEmails?: string;
     fields?: string;
     fieldErrors?: Record<number, { lat?: string; lng?: string }>;
   }>({});
@@ -76,6 +79,7 @@ export default function CreateClientModal({
         ivaCondition: editingClient.ivaCondition || '',
         email: editingClient.email || '',
         phone: editingClient.phone || '',
+        notificationEmails: editingClient.notificationEmails || '',
         fields: (editingClient.fields || []).map(f => ({
           name: f.name || '',
           lat: f.lat,
@@ -91,6 +95,7 @@ export default function CreateClientModal({
         ivaCondition: 'Responsable Inscripto',
         email: '',
         phone: '',
+        notificationEmails: '',
         fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
       });
     }
@@ -151,6 +156,14 @@ export default function CreateClientModal({
       newErrors.phone = 'Formato de teléfono inválido (solo números)';
     }
 
+    if (formData.notificationEmails && formData.notificationEmails.trim()) {
+      const emailList = formData.notificationEmails.split(/[,;\s]+/).map(e => e.trim()).filter(e => e !== '');
+      const invalidEmails = emailList.filter(email => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+      if (invalidEmails.length > 0) {
+        newErrors.notificationEmails = `Contiene correos inválidos: ${invalidEmails.join(', ')}`;
+      }
+    }
+
     if (formData.fields.length === 0) {
       newErrors.fields = 'Debe agregar al menos un campo';
     } else {
@@ -205,6 +218,7 @@ export default function CreateClientModal({
         ivaCondition: formData.ivaCondition || 'Responsable Inscripto',
         email: formData.email,
         phoneNumber: formData.phone,
+        notificationEmails: formData.notificationEmails || null,
         createdBy: currentUserId,
         fields: formData.fields.map(f => ({
           id: f.id,
@@ -433,6 +447,33 @@ export default function CreateClientModal({
                   {errors.phone && (
                     <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
                       {errors.phone}
+                    </p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Correos de Notificación Adicionales
+                  </label>
+                  <input
+                    type="text"
+                    name="notificationEmails"
+                    value={formData.notificationEmails}
+                    onChange={handleInputChange}
+                    placeholder="Ej: admon@agro.com, gerencia@agro.com (separados por comas o espacios)"
+                    className={cn(
+                      "w-full rounded-xl border bg-slate-50 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2",
+                      errors.notificationEmails
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                        : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                    )}
+                  />
+                  <p className="text-[11px] text-slate-400 ml-1">
+                    Direcciones de correo adicionales que recibirán copias de las notificaciones de órdenes de trabajo (creación y finalización). Sepáralas con comas, espacios o punto y coma.
+                  </p>
+                  {errors.notificationEmails && (
+                    <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                      {errors.notificationEmails}
                     </p>
                   )}
                 </div>
