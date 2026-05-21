@@ -458,6 +458,22 @@ async function initializeDatabase() {
       console.log('[INIT] Migration for services skipped or failed:', err.message);
     }
 
+    // Migration: add hasStations column to profesionals if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE profesionals ADD COLUMN hasStations BOOLEAN DEFAULT FALSE AFTER specialty');
+      console.log('[INIT] Added hasStations column to profesionals');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasStations migration error:', e.message);
+    }
+
+    // Migration: remove hasStations from clients if it was added by mistake
+    try {
+      await connection.query('ALTER TABLE clients DROP COLUMN hasStations');
+      console.log('[INIT] Removed hasStations column from clients');
+    } catch (e: any) {
+      // Column doesn't exist, that's fine
+    }
+
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('[INIT] Schema ready. Calling seed...');
 
@@ -1140,7 +1156,7 @@ apiRouter.post('/login', async (req, res) => {
   try {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
-             p.phoneNumber, p.specialty,
+             p.phoneNumber, p.specialty, p.hasStations,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
@@ -1179,6 +1195,10 @@ apiRouter.post('/login', async (req, res) => {
     // Filter out password and null fields to match polymorphic interface
     const userData: any = { ...user };
     delete userData.password;
+    // Ensure hasStations is a proper boolean before null-filter
+    if ('hasStations' in userData) {
+      userData.hasStations = !!userData.hasStations;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     res.json({
@@ -1352,6 +1372,8 @@ apiRouter.delete('/clients/:id', authenticateToken, async (req: any, res: any) =
     res.status(500).json({ error: 'Failed to delete client', details: error.message });
   }
 });
+
+
 
 /** 
  * Unified endpoint to create a client and their fields in a single transaction
@@ -2723,6 +2745,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
     const formatted = rows.map((r: any) => ({
       ...r,
       setupPending: !!r.setupPending,
+      hasStations: !!r.hasStations,
       phoneNumber: r.phoneNumber
     }));
     res.json(formatted);
@@ -2782,6 +2805,35 @@ apiRouter.delete('/profesionales/:id', authenticateToken, async (req: any, res: 
   } catch (error: any) {
     console.error('[DATABASE ERROR] DELETE /backend/profesionales:', error.message);
     res.status(500).json({ success: false, error: 'Failed to delete profesional', details: error.message });
+  }
+});
+
+/**
+ * Toggle hasStations flag for a profesional (admin only)
+ */
+apiRouter.patch('/profesionales/:id/stations-toggle', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  const { hasStations } = req.body;
+  console.log(`[DEBUG] PATCH /backend/profesionales/${id}/stations-toggle - hasStations=${hasStations}`);
+
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Solo administradores pueden modificar esta configuración.' });
+  }
+
+  try {
+    const [result]: any = await pool.query(
+      'UPDATE profesionals SET hasStations = ? WHERE userId = ?',
+      [!!hasStations, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Profesional not found' });
+    }
+
+    res.json({ success: true, hasStations: !!hasStations });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] PATCH /profesionales/:id/stations-toggle:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
   }
 });
 

@@ -6,7 +6,8 @@ import {
   Users,
   UserCheck,
   Shield,
-  ClipboardList
+  ClipboardList,
+  Sun
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
@@ -28,11 +29,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
         return {
           name: parsed.displayName || parsed.name || "Usuario",
           email: parsed.email || "",
+          hasStations: !!parsed.hasStations,
           avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
         };
       } catch (e) { /* fall through */ }
     }
-    return { name: "Usuario", email: "", avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+    return { name: "Usuario", email: "", hasStations: false, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
   };
 
   const [userProfile, setUserProfile] = useState(getInitialProfile);
@@ -46,6 +48,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           setUserProfile({
             name: parsed.displayName || parsed.name || "Usuario",
             email: parsed.email || "",
+            hasStations: !!parsed.hasStations,
             avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
         } catch (e) {
@@ -95,8 +98,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   if (userRole === 'profesional') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
-      //{ path: "/stations", label: "Estaciones", icon: Sun }
     );
+    if (userProfile.hasStations) {
+      navItems.push(
+        { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
+      );
+    }
   } else if (userRole === 'client') {
     navItems.push(
       { path: "/profesionales", label: "Profesionales", icon: UserCheck }

@@ -23,6 +23,7 @@ export interface Profesional extends User {
   role: 'profesional';
   phoneNumber?: string;
   specialty?: string;
+  hasStations?: boolean;
   deletedAt?: string;
 }
 
