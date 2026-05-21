@@ -2985,6 +2985,51 @@ app.post('/backend/test/reset-data', async (req, res) => {
 // Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
 
+/**
+ * GET /backend/weather-stations — Fetch sensor data from MKL Agro API
+ */
+app.get('/backend/weather-stations', authenticateToken, async (req: any, res: any) => {
+  console.log('[DEBUG] GET /backend/weather-stations');
+  try {
+    const MKL_TOKEN = process.env.MKL_TOKEN;
+    if (!MKL_TOKEN) {
+      console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
+      return res.status(500).json({ error: 'MKL API token configuration missing' });
+    }
+    
+    // In the future we will get dId dynamically from the frontend. For now, we default to the test sensor
+    const dId = req.query.dId || "MKL33E83E0DEABF8CE83E";
+    const apiUrl = `https://panel.mklagro.com/api/data?dId=${dId}&variable=estaciontodas`;
+
+    const mklResponse = await fetch(apiUrl, {
+      headers: {
+        'token': MKL_TOKEN
+      }
+    });
+
+    if (!mklResponse.ok) {
+      console.error('[ERROR] MKL API returned status:', mklResponse.status);
+      return res.status(mklResponse.status).json({ error: 'Failed to fetch from MKL API' });
+    }
+
+    const mklData = await mklResponse.json();
+    
+    // MKL API returns historical data. We extract the latest record for the frontend.
+    if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
+      const latestData = mklData.data[mklData.data.length - 1];
+      res.json({
+        status: mklData.status,
+        data: [latestData]
+      });
+    } else {
+      res.json(mklData);
+    }
+  } catch (error: any) {
+    console.error('[ERROR] GET /backend/weather-stations:', error.message);
+    res.status(500).json({ error: 'Failed to fetch weather stations' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);
 });
