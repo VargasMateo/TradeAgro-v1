@@ -131,7 +131,7 @@ export default function App() {
           <Route path="/reports" element={<ReportsPage userRole={userRole} />} />
           {(userRole === 'profesional' || userRole === 'admin') && (
             <>
-              <Route path="/clients" element={<ClientsPage />} />
+              <Route path="/clients" element={<ClientsPage userRole={userRole} />} />
               <Route path="/stations" element={<StationsPage />} />
             </>
           )}

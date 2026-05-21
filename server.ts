@@ -458,18 +458,18 @@ async function initializeDatabase() {
       console.log('[INIT] Migration for services skipped or failed:', err.message);
     }
 
-    // Migration: add hasStations column to profesionals if it doesn't exist
+    // Migration: add hasStations column to clients if it doesn't exist
     try {
-      await connection.query('ALTER TABLE profesionals ADD COLUMN hasStations BOOLEAN DEFAULT FALSE AFTER specialty');
-      console.log('[INIT] Added hasStations column to profesionals');
+      await connection.query('ALTER TABLE clients ADD COLUMN hasStations BOOLEAN DEFAULT FALSE AFTER phoneNumber');
+      console.log('[INIT] Added hasStations column to clients');
     } catch (e: any) {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasStations migration error:', e.message);
     }
 
-    // Migration: remove hasStations from clients if it was added by mistake
+    // Migration: remove hasStations from profesionals if it was added by mistake
     try {
-      await connection.query('ALTER TABLE clients DROP COLUMN hasStations');
-      console.log('[INIT] Removed hasStations column from clients');
+      await connection.query('ALTER TABLE profesionals DROP COLUMN hasStations');
+      console.log('[INIT] Removed hasStations column from profesionals');
     } catch (e: any) {
       // Column doesn't exist, that's fine
     }
@@ -1156,8 +1156,8 @@ apiRouter.post('/login', async (req, res) => {
   try {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
-             p.phoneNumber, p.specialty, p.hasStations,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1253,6 +1253,7 @@ apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
     const clients = clientRows.map((row: any) => ({
       ...row,
       setupPending: !!row.setupPending,
+      hasStations: !!row.hasStations,
       // Mapping for frontend compatibility
       name: row.displayName,
       phone: row.phoneNumber,
@@ -2745,7 +2746,6 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
     const formatted = rows.map((r: any) => ({
       ...r,
       setupPending: !!r.setupPending,
-      hasStations: !!r.hasStations,
       phoneNumber: r.phoneNumber
     }));
     res.json(formatted);
@@ -2809,12 +2809,12 @@ apiRouter.delete('/profesionales/:id', authenticateToken, async (req: any, res: 
 });
 
 /**
- * Toggle hasStations flag for a profesional (admin only)
+ * Toggle hasStations flag for a client (admin only)
  */
-apiRouter.patch('/profesionales/:id/stations-toggle', authenticateToken, async (req: any, res: any) => {
+apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params;
   const { hasStations } = req.body;
-  console.log(`[DEBUG] PATCH /backend/profesionales/${id}/stations-toggle - hasStations=${hasStations}`);
+  console.log(`[DEBUG] PATCH /backend/clients/${id}/stations-toggle - hasStations=${hasStations}`);
 
   if (req.user.role !== 'admin') {
     return res.status(403).json({ success: false, error: 'Solo administradores pueden modificar esta configuración.' });
@@ -2822,17 +2822,17 @@ apiRouter.patch('/profesionales/:id/stations-toggle', authenticateToken, async (
 
   try {
     const [result]: any = await pool.query(
-      'UPDATE profesionals SET hasStations = ? WHERE userId = ?',
+      'UPDATE clients SET hasStations = ? WHERE userId = ?',
       [!!hasStations, id]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, error: 'Profesional not found' });
+      return res.status(404).json({ success: false, error: 'Client not found' });
     }
 
     res.json({ success: true, hasStations: !!hasStations });
   } catch (error: any) {
-    console.error('[DATABASE ERROR] PATCH /profesionales/:id/stations-toggle:', error.message);
+    console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
     res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
   }
 });

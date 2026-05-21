@@ -98,21 +98,22 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   if (userRole === 'profesional') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
+      { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
+    );
+  } else if (userRole === 'client') {
+    navItems.push(
+      { path: "/profesionales", label: "Profesionales", icon: UserCheck }
     );
     if (userProfile.hasStations) {
       navItems.push(
         { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
       );
     }
-  } else if (userRole === 'client') {
-    navItems.push(
-      { path: "/profesionales", label: "Profesionales", icon: UserCheck }
-    );
   } else if (userRole === 'admin') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/profesionales", label: "Profesionales", icon: UserCheck },
-      //{ path: "/stations", label: "Estaciones", icon: Sun },
+      { path: "/stations", label: "Est. Meteorológicas", icon: Sun },
       { path: "/db-test", label: "DB Test", icon: Shield },
     );
   }

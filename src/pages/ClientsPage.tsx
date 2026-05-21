@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle, RefreshCw, Copy, Check } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, ArrowLeft, Save, Trash2, X, Edit, MessageCircle, RefreshCw, Copy, Check, Sun } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
@@ -9,7 +9,7 @@ import { Client, ClientField } from "../types/client";
 
 import { authenticatedFetch } from "../lib/api";
 
-export default function ClientsPage() {
+export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const location = useLocation();
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +21,7 @@ export default function ClientsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [togglingStations, setTogglingStations] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -129,6 +130,25 @@ export default function ClientsPage() {
   const handleSaveDirect = (clientData: Client) => {
     // Refresh list via event
     fetchClients();
+  };
+
+  const handleToggleStations = async (client: Client) => {
+    const newValue = !client.hasStations;
+    setTogglingStations(client.id);
+    try {
+      const response = await authenticatedFetch(`/backend/clients/${client.id}/stations-toggle`, {
+        method: 'PATCH',
+        body: JSON.stringify({ hasStations: newValue })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setClients(prev => prev.map(c => c.id === client.id ? { ...c, hasStations: newValue } : c));
+      }
+    } catch (error) {
+      console.error('Error toggling stations:', error);
+    } finally {
+      setTogglingStations(null);
+    }
   };
 
   const filteredClients = clients.filter(client =>
@@ -312,6 +332,28 @@ export default function ClientsPage() {
                     <span className="truncate">{client.email}</span>
                   </div>
                 </div>
+
+                {userRole === 'admin' && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Sun className="h-4 w-4 text-amber-500" />
+                      <span className="text-xs font-semibold text-slate-600">Est. Meteorológicas</span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleToggleStations(client); }}
+                      disabled={togglingStations === client.id}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
+                        client.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
+                      } ${togglingStations === client.id ? 'opacity-50' : ''}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                          client.hasStations ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
               </div>
             </MagneticEffect>
           </div>

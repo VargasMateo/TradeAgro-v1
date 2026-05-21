@@ -21,7 +21,6 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [profesionalToDelete, setProfesionalToDelete] = useState<Profesional | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [togglingStations, setTogglingStations] = useState<number | null>(null);
 
   const loadProfesionales = async () => {
     setIsLoading(true);
@@ -95,25 +94,6 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
       } catch (error) {
         console.error('Error deleting profesional:', error);
       }
-    }
-  };
-
-  const handleToggleStations = async (prof: Profesional) => {
-    const newValue = !prof.hasStations;
-    setTogglingStations(prof.id);
-    try {
-      const response = await authenticatedFetch(`/backend/profesionales/${prof.id}/stations-toggle`, {
-        method: 'PATCH',
-        body: JSON.stringify({ hasStations: newValue })
-      });
-      const data = await response.json();
-      if (data.success) {
-        setProfesionales(prev => prev.map(p => p.id === prof.id ? { ...p, hasStations: newValue } : p));
-      }
-    } catch (error) {
-      console.error('Error toggling stations:', error);
-    } finally {
-      setTogglingStations(null);
     }
   };
 
@@ -277,27 +257,6 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                   )}
                 </div>
 
-                {userRole === 'admin' && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <Sun className="h-4 w-4 text-amber-500" />
-                      <span className="text-xs font-semibold text-slate-600">Est. Meteorológicas</span>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleToggleStations(prof); }}
-                      disabled={togglingStations === prof.id}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
-                        prof.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
-                      } ${togglingStations === prof.id ? 'opacity-50' : ''}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                          prof.hasStations ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                )}
               </div>
             </MagneticEffect>
           </div>

@@ -16,6 +16,7 @@ export interface Client extends User {
   cuit: string;
   ivaCondition: string;
   phoneNumber?: string;
+  hasStations?: boolean;
   deletedAt?: string;
 }
 
@@ -23,7 +24,6 @@ export interface Profesional extends User {
   role: 'profesional';
   phoneNumber?: string;
   specialty?: string;
-  hasStations?: boolean;
   deletedAt?: string;
 }
 
