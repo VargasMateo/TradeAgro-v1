@@ -19,6 +19,7 @@ app.use(cors({
     origin: ['https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar'],
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 // Block all /backend/test/* routes in production
 app.use('/backend/test', (req, res, next) => {
     if (process.env.NODE_ENV === 'production') {
@@ -196,6 +197,8 @@ async function initializeDatabase() {
         cuit VARCHAR(20),
         businessName VARCHAR(255),
         phoneNumber VARCHAR(50),
+        hasStations BOOLEAN DEFAULT FALSE,
+        notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
@@ -410,6 +413,32 @@ async function initializeDatabase() {
         catch (err) {
             console.log('[INIT] Migration for services skipped or failed:', err.message);
         }
+        // Migration: add hasStations column to clients if it doesn't exist
+        try {
+            await connection.query('ALTER TABLE clients ADD COLUMN hasStations BOOLEAN DEFAULT FALSE AFTER phoneNumber');
+            console.log('[INIT] Added hasStations column to clients');
+        }
+        catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME')
+                console.error('[INIT] hasStations migration error:', e.message);
+        }
+        // Migration: add notificationEmails column to clients if it doesn't exist
+        try {
+            await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
+            console.log('[INIT] Added notificationEmails column to clients');
+        }
+        catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME')
+                console.error('[INIT] notificationEmails migration error:', e.message);
+        }
+        // Migration: remove hasStations from profesionals if it was added by mistake
+        try {
+            await connection.query('ALTER TABLE profesionals DROP COLUMN hasStations');
+            console.log('[INIT] Removed hasStations column from profesionals');
+        }
+        catch (e) {
+            // Column doesn't exist, that's fine
+        }
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
         console.log('[INIT] Schema ready. Calling seed...');
         await seedDefaultUsers(connection);
@@ -433,7 +462,8 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const { id, displayName, email, role, phoneNumber: profPhoneNumber, specialty, // Prof fields
-        businessName, cuit, ivaCondition, phoneNumber // Client fields
+        businessName, cuit, ivaCondition, phoneNumber, // Client fields
+        notificationEmails // Client notification emails
          } = req.body;
         if (!id)
             return res.status(400).json({ error: 'User ID is required' });
@@ -445,14 +475,14 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
             await connection.query('UPDATE profesionals SET phoneNumber = ?, specialty = ? WHERE userId = ?', [profPhoneNumber || phoneNumber || null, specialty || null, id]);
         }
         else if (role === 'client') {
-            await connection.query('UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ? WHERE userId = ?', [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, id]);
+            await connection.query('UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ? WHERE userId = ?', [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, id]);
         }
         await connection.commit();
         // Fetch updated user to return
         const [rows] = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -782,6 +812,28 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
             console.error(`[EMAIL ERROR] Failed to send order completion email to ${orderData.clientEmail}:`, error.message);
         }
     }
+    // 1b. Notify Client's additional notification emails (Distribution List)
+    if (orderData.clientNotificationEmails) {
+        const additionalEmails = orderData.clientNotificationEmails
+            .split(/[,;\s]+/)
+            .map((e) => e.trim())
+            .filter((e) => e && e.includes('@'));
+        for (const addEmail of additionalEmails) {
+            try {
+                const info = await transporter.sendMail({
+                    from: fromEmail,
+                    to: addEmail,
+                    subject: `Orden #${orderData.id} Completada — TradeAgro`,
+                    text: textContent,
+                    html: htmlContent,
+                });
+                console.log(`[EMAIL] Order completion copy sent to client's distribution list email: ${addEmail}, messageId: ${info.messageId}`);
+            }
+            catch (error) {
+                console.error(`[EMAIL ERROR] Failed to send order completion email copy to distribution list email ${addEmail}:`, error.message);
+            }
+        }
+    }
     // 2. Notify extra recipients individually
     for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
         try {
@@ -1002,7 +1054,7 @@ apiRouter.post('/login', async (req, res) => {
         const [rows] = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1031,6 +1083,10 @@ apiRouter.post('/login', async (req, res) => {
         // Filter out password and null fields to match polymorphic interface
         const userData = { ...user };
         delete userData.password;
+        // Ensure hasStations is a proper boolean before null-filter
+        if ('hasStations' in userData) {
+            userData.hasStations = !!userData.hasStations;
+        }
         Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
         res.json({
             success: true,
@@ -1041,6 +1097,51 @@ apiRouter.post('/login', async (req, res) => {
     catch (error) {
         console.error('[AUTH ERROR]:', error.message);
         res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+// External/Form-based Login endpoint (supports urlencoded and redirects)
+apiRouter.post('/login-external', async (req, res) => {
+    const { email, password } = req.body;
+    console.log(`[AUTH-EXTERNAL] Login attempt: ${email}`);
+    try {
+        const [rows] = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.email = ?
+    `, [email]);
+        if (rows.length === 0) {
+            return res.redirect(`/login?error=${encodeURIComponent('Credenciales inválidas')}`);
+        }
+        const user = rows[0];
+        // Check if password has not been set yet (invited user)
+        if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
+            console.log(`[AUTH-EXTERNAL] Failed: Password not set for ${email}`);
+            return res.redirect(`/login?error=${encodeURIComponent('Debe configurar su contraseña usando el enlace enviado a su correo electrónico.')}`);
+        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            console.log(`[AUTH-EXTERNAL] Failed: Invalid password for ${email}`);
+            return res.redirect(`/login?error=${encodeURIComponent('Credenciales inválidas')}`);
+        }
+        console.log(`[AUTH-EXTERNAL] Success: ${email} logged in as ${user.role}`);
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
+        // Filter out password and null fields to match polymorphic interface
+        const userData = { ...user };
+        delete userData.password;
+        if ('hasStations' in userData) {
+            userData.hasStations = !!userData.hasStations;
+        }
+        Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+        const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+        res.redirect(redirectUrl);
+    }
+    catch (error) {
+        console.error('[AUTH-EXTERNAL ERROR]:', error.message);
+        res.redirect(`/login?error=${encodeURIComponent('Error interno del servidor')}`);
     }
 });
 // Test endpoint
@@ -1079,6 +1180,7 @@ apiRouter.get('/clients', authenticateToken, async (req, res) => {
         const clients = clientRows.map((row) => ({
             ...row,
             setupPending: !!row.setupPending,
+            hasStations: !!row.hasStations,
             // Mapping for frontend compatibility
             name: row.displayName,
             phone: row.phoneNumber,
@@ -1101,7 +1203,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const userId = req.params.id; // Correct semantic: the id is the userId
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, fields // Array of fields from the modal
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, fields // Array of fields from the modal
          } = req.body;
         await connection.beginTransaction();
         // 1. Update user data (Base)
@@ -1111,7 +1213,8 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
             businessName: businessName,
             cuit: cuit,
             ivaCondition: ivaCondition || 'Responsable Inscripto',
-            phoneNumber: phoneNumber
+            phoneNumber: phoneNumber,
+            notificationEmails: notificationEmails || null
         };
         console.log('[DEBUG] Updating client extension for userId:', userId);
         await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
@@ -1181,7 +1284,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/clients - Unified creation initiated');
     const connection = await pool.getConnection();
     try {
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, createdBy, password, // Optional, can default
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, createdBy, password, // Optional, can default
         fields // Array of fields from the modal
          } = req.body;
         const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
@@ -1219,10 +1322,10 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
         }
         // 2. Create or Update Client extension record
         console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
-        await connection.query(`INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, NULL) 
+        await connection.query(`INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), deletedAt = NULL`, [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber]);
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), deletedAt = NULL`, [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null]);
         // 3. Insert associated fields if any
         if (fields && Array.isArray(fields)) {
             console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
@@ -1443,6 +1546,28 @@ TradeAgro`;
             console.error(`[EMAIL ERROR] sendNewOrderEmail failed for client ${orderData.clientEmail}:`, err.message);
         }
     }
+    // 1b. Notify Client's additional notification emails (Distribution List)
+    if (orderData.clientNotificationEmails) {
+        const additionalEmails = orderData.clientNotificationEmails
+            .split(/[,;\s]+/)
+            .map((e) => e.trim())
+            .filter((e) => e && e.includes('@'));
+        for (const addEmail of additionalEmails) {
+            try {
+                await transporter.sendMail({
+                    from: fromEmail,
+                    to: addEmail,
+                    subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+                    text: textContent,
+                    html: htmlContent
+                });
+                console.log(`[EMAIL] New order confirmation copy sent to client's distribution list email: ${addEmail}`);
+            }
+            catch (err) {
+                console.error(`[EMAIL ERROR] sendNewOrderEmail distribution list copy failed for ${addEmail}:`, err.message);
+            }
+        }
+    }
     // 2. Notify extra recipients individually
     for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
         try {
@@ -1519,9 +1644,11 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
             const [orderRows] = await pool.query(`
         SELECT t.*, 
                u_client.displayName as clientName, u_client.email as clientEmail,
+               c_client.notificationEmails as clientNotificationEmails,
                u_prof.displayName as profesionalName, u_prof.email as profesionalEmail
         FROM work_orders t
         LEFT JOIN users u_client ON t.clientId = u_client.id
+        LEFT JOIN clients c_client ON t.clientId = c_client.userId
         LEFT JOIN users u_prof ON t.profesionalId = u_prof.id
         WHERE t.id = ?
       `, [result.insertId]);
@@ -1532,6 +1659,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
                     uuid: row.uuid,
                     clientName: row.clientName,
                     clientEmail: row.clientEmail,
+                    clientNotificationEmails: row.clientNotificationEmails,
                     profesionalName: row.profesionalName,
                     profesionalEmail: row.profesionalEmail,
                     service: row.service,
@@ -1612,9 +1740,11 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
         if (status === 'Completado' && orderBeforeUpdate.status !== 'Completado') {
             try {
                 const query = `
-          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail,
+                 c.notificationEmails as clientNotificationEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
+          LEFT JOIN clients c ON t.clientId = c.userId
           WHERE t.id = ?
         `;
                 const [rows] = await pool.query(query, [internalJobId]);
@@ -1625,6 +1755,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
                         uuid: row.uuid,
                         clientName: row.clientName,
                         clientEmail: row.clientEmail,
+                        clientNotificationEmails: row.clientNotificationEmails,
                         service: row.service || 'Servicio General',
                         location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
                         hectares: row.hectares,
@@ -1688,9 +1819,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
         if (status === 'Completado') {
             try {
                 const query = `
-          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail,
+                 c.notificationEmails as clientNotificationEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
+          LEFT JOIN clients c ON t.clientId = c.userId
           WHERE t.id = ?
         `;
                 const [rows] = await pool.query(query, [order.id]);
@@ -1701,6 +1834,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
                         uuid: row.uuid,
                         clientName: row.clientName,
                         clientEmail: row.clientEmail,
+                        clientNotificationEmails: row.clientNotificationEmails,
                         service: row.service || 'Servicio General',
                         location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
                         hectares: row.hectares,
@@ -2406,6 +2540,28 @@ apiRouter.delete('/profesionales/:id', authenticateToken, async (req, res) => {
     }
 });
 /**
+ * Toggle hasStations flag for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { hasStations } = req.body;
+    console.log(`[DEBUG] PATCH /backend/clients/${id}/stations-toggle - hasStations=${hasStations}`);
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Solo administradores pueden modificar esta configuración.' });
+    }
+    try {
+        const [result] = await pool.query('UPDATE clients SET hasStations = ? WHERE userId = ?', [!!hasStations, id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Client not found' });
+        }
+        res.json({ success: true, hasStations: !!hasStations });
+    }
+    catch (error) {
+        console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+    }
+});
+/**
  * POST /backend/profesionales — create a new professional
  */
 apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
@@ -2536,6 +2692,47 @@ app.post('/backend/test/reset-data', async (req, res) => {
 // Mount the API router
 // Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
+/**
+ * GET /backend/weather-stations — Fetch sensor data from MKL Agro API
+ */
+app.get('/backend/weather-stations', authenticateToken, async (req, res) => {
+    console.log('[DEBUG] GET /backend/weather-stations');
+    try {
+        const MKL_TOKEN = process.env.MKL_TOKEN;
+        if (!MKL_TOKEN) {
+            console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
+            return res.status(500).json({ error: 'MKL API token configuration missing' });
+        }
+        // In the future we will get dId dynamically from the frontend. For now, we default to the test sensor
+        const dId = req.query.dId || "MKL33E83E0DEABF8CE83E";
+        const apiUrl = `https://panel.mklagro.com/api/data?dId=${dId}&variable=estaciontodas`;
+        const mklResponse = await fetch(apiUrl, {
+            headers: {
+                'token': MKL_TOKEN
+            }
+        });
+        if (!mklResponse.ok) {
+            console.error('[ERROR] MKL API returned status:', mklResponse.status);
+            return res.status(mklResponse.status).json({ error: 'Failed to fetch from MKL API' });
+        }
+        const mklData = await mklResponse.json();
+        // MKL API returns historical data. We extract the latest record for the frontend.
+        if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
+            const latestData = mklData.data[mklData.data.length - 1];
+            res.json({
+                status: mklData.status,
+                data: [latestData]
+            });
+        }
+        else {
+            res.json(mklData);
+        }
+    }
+    catch (error) {
+        console.error('[ERROR] GET /backend/weather-stations:', error.message);
+        res.status(500).json({ error: 'Failed to fetch weather stations' });
+    }
+});
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });
