@@ -3176,12 +3176,26 @@ app.post('/backend/test/reset-data', async (req, res) => {
 // Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
 
+// Memory caches to prevent slow, redundant external MKL API queries
+let cachedDevices: any = null;
+let cachedDevicesTimestamp = 0;
+const DEVICES_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+const sensorDataCache: Record<string, { data: any; timestamp: number }> = {};
+const SENSOR_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
 /**
  * GET /backend/weather-stations/devices — Fetch all available weather stations/devices
  */
 apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/weather-stations/devices');
   try {
+    // Return from cache if still fresh
+    if (cachedDevices && (Date.now() - cachedDevicesTimestamp < DEVICES_CACHE_TTL)) {
+      console.log('[CACHE HIT] Returning cached weather devices list');
+      return res.json(cachedDevices);
+    }
+
     const MKL_TOKEN = process.env.MKL_TOKEN;
     if (!MKL_TOKEN) {
       console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
@@ -3201,6 +3215,12 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
     }
 
     const mklData = await mklResponse.json();
+    
+    // Save to cache
+    cachedDevices = mklData;
+    cachedDevicesTimestamp = Date.now();
+    console.log('[CACHE MISS] Fetched and cached weather devices list');
+    
     res.json(mklData);
   } catch (error: any) {
     console.error('[ERROR] GET /backend/weather-stations/devices:', error.message);
@@ -3214,14 +3234,21 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
 apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/weather-stations');
   try {
+    const dId = req.query.dId || "MKL33E83E0DEABF8CE83E";
+
+    // Return from cache if still fresh
+    const cachedItem = sensorDataCache[dId];
+    if (cachedItem && (Date.now() - cachedItem.timestamp < SENSOR_CACHE_TTL)) {
+      console.log(`[CACHE HIT] Returning cached sensor data for dId: ${dId}`);
+      return res.json(cachedItem.data);
+    }
+
     const MKL_TOKEN = process.env.MKL_TOKEN;
     if (!MKL_TOKEN) {
       console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
       return res.status(500).json({ error: 'MKL API token configuration missing' });
     }
     
-    // In the future we will get dId dynamically from the frontend. For now, we default to the test sensor
-    const dId = req.query.dId || "MKL33E83E0DEABF8CE83E";
     const apiUrl = `https://panel.mklagro.com/api/data?dId=${dId}&variable=estaciontodas`;
 
     const mklResponse = await fetch(apiUrl, {
@@ -3237,16 +3264,24 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
 
     const mklData = await mklResponse.json();
     
+    let finalData = mklData;
     // MKL API returns historical data. We extract the latest record for the frontend.
     if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
       const latestData = mklData.data[mklData.data.length - 1];
-      res.json({
+      finalData = {
         status: mklData.status,
         data: [latestData]
-      });
-    } else {
-      res.json(mklData);
+      };
     }
+
+    // Save to cache
+    sensorDataCache[dId] = {
+      data: finalData,
+      timestamp: Date.now()
+    };
+    console.log(`[CACHE MISS] Fetched and cached sensor data for dId: ${dId}`);
+
+    res.json(finalData);
   } catch (error: any) {
     console.error('[ERROR] GET /backend/weather-stations:', error.message);
     res.status(500).json({ error: 'Failed to fetch weather stations' });
