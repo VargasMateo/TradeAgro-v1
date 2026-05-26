@@ -369,26 +369,94 @@ export default function StationsPage() {
 
         </div>
 
-        {/* Footer Bar */}
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white border border-slate-200 p-4 px-8 text-sm font-bold text-slate-700 shadow-sm animate-fade-in-up" style={{ animationDelay: '240ms' }}>
-          <div className="flex items-center gap-2">
-            <Battery className="h-5 w-5 text-slate-400" />
-            Batería: {formatNumber(val.bat, 1)}%
-          </div>
-          <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
-          <div className="flex items-center gap-2">
-            <Signal className="h-5 w-5 text-slate-400" />
-            Señal Celular: {val.sen_cel ?? '--'}%
-          </div>
-          <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-slate-400" />
-            Lat: {formatNumber(val.lat, 4)}
-          </div>
-          <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-slate-400" />
-            Lng: {formatNumber(val.lng, 4)}
+        {/* Diagnostics & Device Health Panel */}
+        <div className="col-span-1 md:col-span-3 mt-4 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
+          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-4 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Diagnóstico y Conectividad de la Central
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              
+              {/* Battery Status */}
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xs shrink-0">
+                  <Battery className={`h-6 w-6 ${val.bat > 50 ? 'text-emerald-500' : val.bat > 20 ? 'text-amber-500' : 'text-rose-500 animate-pulse'}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Batería</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-lg font-black text-slate-800">{formatNumber(val.bat, 1)}%</span>
+                    {/* Visual Battery Level Bar */}
+                    <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden hidden sm:block shrink-0">
+                      <div 
+                        className={`h-full rounded-full ${val.bat > 50 ? 'bg-emerald-500' : val.bat > 20 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${Math.min(100, Math.max(0, val.bat))}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signal Strength */}
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xs shrink-0">
+                  <Signal className={`h-6 w-6 ${val.sen_cel > 70 ? 'text-emerald-500' : val.sen_cel > 40 ? 'text-amber-500' : 'text-rose-500'}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Señal Celular</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-lg font-black text-slate-800">{val.sen_cel ?? '--'}%</span>
+                    {/* Signal Bars Visual Indicator */}
+                    <div className="flex items-end gap-0.5 h-3.5 mb-1 shrink-0">
+                      {[1, 2, 3, 4].map((bar) => {
+                        const active = val.sen_cel >= bar * 25;
+                        return (
+                          <div 
+                            key={bar} 
+                            className={`w-1 rounded-sm transition-all ${
+                              active 
+                                ? val.sen_cel > 70 ? 'bg-emerald-500' : val.sen_cel > 40 ? 'bg-amber-500' : 'bg-rose-500' 
+                                : 'bg-slate-200'
+                            }`}
+                            style={{ height: `${bar * 25}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coordinates / Map Pin */}
+              <div className="col-span-1 sm:col-span-2 flex items-center justify-between bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xs text-sky-500 shrink-0">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ubicación GPS</p>
+                    <p className="text-sm font-black text-slate-800 mt-0.5 truncate">
+                      Lat: {formatNumber(val.lat, 5)} <span className="text-slate-300 mx-0.5">|</span> Lng: {formatNumber(val.lng, 5)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* External link to Google Maps */}
+                {val.lat && val.lng && (
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${val.lat},${val.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-xs whitespace-nowrap ml-2"
+                  >
+                    Ver Mapa
+                  </a>
+                )}
+              </div>
+
+            </div>
           </div>
         </div>
         </div>
