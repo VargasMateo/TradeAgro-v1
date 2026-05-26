@@ -3177,9 +3177,41 @@ app.post('/backend/test/reset-data', async (req, res) => {
 app.use('/backend', apiRouter);
 
 /**
+ * GET /backend/weather-stations/devices — Fetch all available weather stations/devices
+ */
+apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, res: any) => {
+  console.log('[DEBUG] GET /backend/weather-stations/devices');
+  try {
+    const MKL_TOKEN = process.env.MKL_TOKEN;
+    if (!MKL_TOKEN) {
+      console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
+      return res.status(500).json({ error: 'MKL API token configuration missing' });
+    }
+
+    const apiUrl = 'https://panel.mklagro.com/api/device';
+    const mklResponse = await fetch(apiUrl, {
+      headers: {
+        'token': MKL_TOKEN
+      }
+    });
+
+    if (!mklResponse.ok) {
+      console.error('[ERROR] MKL API returned status:', mklResponse.status);
+      return res.status(mklResponse.status).json({ error: 'Failed to fetch devices from MKL API' });
+    }
+
+    const mklData = await mklResponse.json();
+    res.json(mklData);
+  } catch (error: any) {
+    console.error('[ERROR] GET /backend/weather-stations/devices:', error.message);
+    res.status(500).json({ error: 'Failed to fetch weather devices' });
+  }
+});
+
+/**
  * GET /backend/weather-stations — Fetch sensor data from MKL Agro API
  */
-app.get('/backend/weather-stations', authenticateToken, async (req: any, res: any) => {
+apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/weather-stations');
   try {
     const MKL_TOKEN = process.env.MKL_TOKEN;

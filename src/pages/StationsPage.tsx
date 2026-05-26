@@ -10,10 +10,15 @@ import {
   MapPin,
   Clock,
   Cloud,
-  Settings,
   Activity
 } from "lucide-react";
 import { authenticatedFetch } from "../lib/api";
+
+interface WeatherDevice {
+  name: string;
+  dId: string;
+  templateName?: string;
+}
 
 interface SensorData {
   _id: string;
@@ -115,20 +120,51 @@ const StationSkeleton = () => (
 );
 
 export default function StationsPage() {
+  const [devices, setDevices] = useState<WeatherDevice[]>([]);
+  const [selectedDid, setSelectedDid] = useState<string>("");
   const [data, setData] = useState<SensorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 1. Fetch devices list on mount
   useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        setLoading(true);
+        const res = await authenticatedFetch('/backend/weather-stations/devices');
+        if (!res.ok) throw new Error('Failed to fetch devices');
+        const json = await res.json();
+        
+        if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+          setDevices(json.data);
+          setSelectedDid(json.data[0].dId);
+        } else {
+          throw new Error('No weather devices found');
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Error fetching devices');
+        setLoading(false);
+      }
+    };
+
+    fetchDevices();
+  }, []);
+
+  // 2. Fetch sensor data when selected station changes
+  useEffect(() => {
+    if (!selectedDid) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await authenticatedFetch('/backend/weather-stations');
+        const res = await authenticatedFetch(`/backend/weather-stations?dId=${selectedDid}`);
         if (!res.ok) throw new Error('Failed to fetch sensor data');
         const json = await res.json();
         
         if (json.status === 'success' && json.data && json.data.length > 0) {
           setData(json.data[0]);
+          setError(null);
         } else {
           throw new Error('Invalid data format');
         }
@@ -141,10 +177,9 @@ export default function StationsPage() {
     };
 
     fetchData();
-    // Optional: Refresh every 5 minutes
     const interval = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedDid]);
 
   const val = data?.value;
   const lastUpdate = data ? new Date(data.time).toLocaleString('es-AR') : null;
@@ -157,29 +192,67 @@ export default function StationsPage() {
   const deltaColor = val?.color || "#808080";
   const deltaLabel = val?.label || "N/D";
 
+  const selectedDeviceName = devices.find(d => d.dId === selectedDid)?.name || "Nodo Celular";
+
   return (
     <div className="animate-in fade-in duration-500 pb-10 space-y-6">
       
       {/* Header section */}
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
               <Cloud className="h-6 w-6" />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
-              Estación Meteorológica Nodo Celular
+              Estación {selectedDeviceName}
             </h1>
           </div>
           <div className="text-sm text-slate-500 md:text-lg flex items-center gap-2 mt-2">
             <Clock className="h-4 w-4" /> 
             {lastUpdate ? (
-              <span>Actualizado: {lastUpdate}</span>
+              <span className="flex items-center gap-2">
+                Actualizado: {lastUpdate}
+                {loading && (
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                )}
+              </span>
             ) : (
               <div className="h-5 w-48 rounded bg-slate-200 animate-pulse" />
             )}
           </div>
         </div>
+
+        {/* Station Selector Dropdown */}
+        {devices.length > 0 && (
+          <div className="flex flex-col gap-1.5 w-full md:w-auto md:min-w-[280px]">
+            <label htmlFor="station-selector" className="text-xs font-bold text-slate-400 tracking-wider uppercase">
+              Seleccionar Central
+            </label>
+            <div className="relative">
+              <select
+                id="station-selector"
+                value={selectedDid}
+                onChange={(e) => setSelectedDid(e.target.value)}
+                className="w-full bg-white border border-slate-200 text-slate-700 font-semibold px-4 py-3 pr-10 rounded-xl shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer text-sm"
+              >
+                {devices.map((device) => (
+                  <option key={device.dId} value={device.dId}>
+                    {device.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {loading && !data ? (
@@ -192,13 +265,13 @@ export default function StationsPage() {
           </div>
         </div>
       ) : data && val ? (
-        <>
+        <div key={selectedDid} className={`transition-all duration-300 ease-in-out ${loading ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 md:col-span-3">
           
           {/* Temperature */}
-          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-sky-50 border border-sky-100 p-6 text-slate-900 shadow-sm relative overflow-hidden">
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-sky-50 border border-sky-100 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '0ms' }}>
             <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-10">
               <Thermometer className="h-24 w-24 text-sky-600" />
             </div>
@@ -213,7 +286,7 @@ export default function StationsPage() {
           </div>
 
           {/* Humidity */}
-          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden">
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '40ms' }}>
             <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
               <Droplets className="h-24 w-24 text-sky-600" />
             </div>
@@ -228,7 +301,7 @@ export default function StationsPage() {
           </div>
 
           {/* Pressure */}
-          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden">
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '80ms' }}>
             <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
               <Gauge className="h-24 w-24 text-slate-600" />
             </div>
@@ -243,7 +316,7 @@ export default function StationsPage() {
           </div>
 
           {/* Wind */}
-          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden">
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
             <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
               <Wind className="h-24 w-24 text-sky-500" />
             </div>
@@ -258,7 +331,7 @@ export default function StationsPage() {
           </div>
 
           {/* Dew Point */}
-          <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden">
+          <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '160ms' }}>
              <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-5">
               <ThermometerSun className="h-24 w-24 text-amber-500" />
             </div>
@@ -274,10 +347,11 @@ export default function StationsPage() {
 
           {/* Delta T */}
           <div 
-            className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl p-6 shadow-sm relative overflow-hidden"
+            className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl p-6 shadow-sm relative overflow-hidden animate-fade-in-up"
             style={{ 
               backgroundColor: deltaColor !== "#808080" ? `${deltaColor}15` : "#F8FAFC",
-              border: `2px solid ${deltaColor !== "#808080" ? deltaColor : "#E2E8F0"}`
+              border: `2px solid ${deltaColor !== "#808080" ? deltaColor : "#E2E8F0"}`,
+              animationDelay: '200ms'
             }}
           >
             <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-10">
@@ -296,7 +370,7 @@ export default function StationsPage() {
         </div>
 
         {/* Footer Bar */}
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white border border-slate-200 p-4 px-8 text-sm font-bold text-slate-700 shadow-sm">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white border border-slate-200 p-4 px-8 text-sm font-bold text-slate-700 shadow-sm animate-fade-in-up" style={{ animationDelay: '240ms' }}>
           <div className="flex items-center gap-2">
             <Battery className="h-5 w-5 text-slate-400" />
             Batería: {formatNumber(val.bat, 1)}%
@@ -318,7 +392,7 @@ export default function StationsPage() {
           </div>
         </div>
         </div>
-        </>
+        </div>
       ) : null}
 
     </div>
