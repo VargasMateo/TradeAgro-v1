@@ -17,10 +17,12 @@ import {
   X,
   ChevronDown,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from "lucide-react";
 import React, { ChangeEvent } from "react";
 import Map from "../components/Map";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { cn } from "../lib/utils";
 import { authenticatedFetch } from "../lib/api";
 
@@ -34,6 +36,8 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isPreloadingEdit, setIsPreloadingEdit] = useState(false);
+  const [deletingJob, setDeletingJob] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -304,6 +308,34 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     }
   };
 
+  const handleDeleteClick = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteJob = async () => {
+    if (!job || !job.uuid) return;
+
+    setDeletingJob(true);
+    try {
+      const response = await authenticatedFetch(`/backend/work-orders/${job.uuid}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        setIsDeleteModalOpen(false);
+        navigate('/work-orders');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Error al eliminar la orden de trabajo');
+      }
+    } catch (err) {
+      console.error('Error deleting job:', err);
+      alert('Error de conexión al intentar eliminar la orden');
+    } finally {
+      setDeletingJob(false);
+    }
+  };
+
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
@@ -530,6 +562,25 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                   <>
                     <Edit className="h-4 w-4" />
                     Editar Orden
+                  </>
+                )}
+              </button>
+            )}
+            {userRole === 'admin' && (
+              <button
+                disabled={deletingJob}
+                onClick={handleDeleteClick}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/20 active:scale-95 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {deletingJob ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
                   </>
                 )}
               </button>
@@ -873,9 +924,18 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               </a>
             </div>
           )}
-
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteJob}
+        isLoading={deletingJob}
+        title={`¿Eliminar orden ${job.id}?`}
+        description="Esta acción eliminará de forma irreversible y permanente esta orden de trabajo, todos sus archivos adjuntos y todas las observaciones del chat asociadas. No se puede deshacer."
+        confirmText="Eliminar Orden"
+      />
     </div>
   );
 }

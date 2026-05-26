@@ -1897,17 +1897,38 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
  */
 apiRouter.delete('/work-orders/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Soft delete requested`);
+    console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Hard delete requested by ${req.user.role}`);
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Acceso denegado. Solo los administradores pueden eliminar órdenes de trabajo.' });
+    }
+    const connection = await pool.getConnection();
     try {
-        const [result] = await pool.query('UPDATE work_orders SET deletedAt = NOW() WHERE id = ?', [id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Job not found' });
+        await connection.beginTransaction();
+        // 1. Fetch the exact ID of the work order
+        const [woRows] = await connection.query('SELECT id FROM work_orders WHERE uuid = ? OR id = ?', [id, id]);
+        if (woRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
-        res.json({ success: true, message: 'Job soft-deleted successfully' });
+        const realId = woRows[0].id;
+        // 2. Delete associated records manually to support MyISAM / lack of foreign keys
+        console.log(`[DEBUG] Deleting observations for workOrderId: ${realId}`);
+        await connection.query('DELETE FROM work_order_observations WHERE workOrderId = ?', [realId]);
+        console.log(`[DEBUG] Deleting attachments for workOrderId: ${realId}`);
+        await connection.query('DELETE FROM work_order_attachments WHERE workOrderId = ?', [realId]);
+        // 3. Delete the work order itself
+        console.log(`[DEBUG] Deleting work order ID: ${realId}`);
+        await connection.query('DELETE FROM work_orders WHERE id = ?', [realId]);
+        await connection.commit();
+        res.json({ success: true, message: 'Orden de trabajo y todos sus datos asociados eliminados correctamente' });
     }
     catch (error) {
+        await connection.rollback();
         console.error('[DATABASE ERROR] DELETE /backend/work-orders:', error.message);
         res.status(500).json({ error: 'Failed to delete job', details: error.message });
+    }
+    finally {
+        connection.release();
     }
 });
 /**
