@@ -641,7 +641,14 @@ export default function CreateWorkOrderModal() {
                                   setShowProfesionalSuggestions(false);
                                 }}
                               >
-                                <span className="font-bold">{p.displayName}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold">{p.displayName}</span>
+                                  {p.isTest && (
+                                    <span className="inline-flex items-center rounded bg-rose-50 px-1.5 py-0.5 text-[8px] font-extrabold text-rose-600 border border-rose-100 shrink-0">
+                                      TEST
+                                    </span>
+                                  )}
+                                </div>
                                 {p.specialty && <span className="text-[10px] text-slate-500 capitalize">{p.specialty}</span>}
                               </button>
                             ))}
@@ -716,7 +723,14 @@ export default function CreateWorkOrderModal() {
                                 setShowClientSuggestions(false);
                               }}
                             >
-                              <span className="font-bold">{c.name}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold">{c.name}</span>
+                                  {c.isTest && (
+                                    <span className="inline-flex items-center rounded bg-rose-50 px-1.5 py-0.5 text-[8px] font-extrabold text-rose-600 border border-rose-100 shrink-0">
+                                      TEST
+                                    </span>
+                                  )}
+                                </div>
                               {c.businessName && <span className="text-[10px] text-slate-500">{c.businessName}</span>}
                             </button>
                           ))}
