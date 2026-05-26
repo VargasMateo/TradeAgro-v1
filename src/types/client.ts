@@ -18,5 +18,6 @@ export interface Client {
   setupPending?: boolean;
   hasStations?: boolean;
   notificationEmails?: string;
+  isTest?: boolean;
   createdAt?: string;
 }

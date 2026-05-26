@@ -220,6 +220,11 @@ export default function ProfesionalesPage({ userRole = 'client' }: { userRole?: 
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors first-letter:uppercase text-nowrap truncate">
                       {prof.displayName}
                     </h3>
+                    {prof.isTest && (
+                      <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-extrabold text-rose-600 border border-rose-100 shrink-0">
+                        TEST
+                      </span>
+                    )}
                     {prof.setupPending && (
                       <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
                         Pendiente

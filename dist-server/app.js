@@ -1151,13 +1151,15 @@ apiRouter.get('/health', (req, res) => {
 // Endpoint to fetch clients from clients
 apiRouter.get('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/clients - Fetching active clients');
+    const isAdmin = req.user.role === 'admin';
     try {
         const [clientRows] = await pool.query(`
-      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id,
+      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id, u.isTest,
              (u.password = ?) as setupPending
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
+      ${isAdmin ? '' : 'AND u.isTest = 0'}
     `, [PASSWORD_NOT_SET_PLACEHOLDER]);
         const [fieldRows] = await pool.query('SELECT * FROM fields');
         // Process fields into a map for easy lookup
@@ -1181,6 +1183,7 @@ apiRouter.get('/clients', authenticateToken, async (req, res) => {
             ...row,
             setupPending: !!row.setupPending,
             hasStations: !!row.hasStations,
+            isTest: !!row.isTest,
             // Mapping for frontend compatibility
             name: row.displayName,
             phone: row.phoneNumber,
@@ -1203,11 +1206,11 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const userId = req.params.id; // Correct semantic: the id is the userId
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, fields // Array of fields from the modal
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, isTest, fields // Array of fields from the modal
          } = req.body;
         await connection.beginTransaction();
         // 1. Update user data (Base)
-        await connection.query('UPDATE users SET displayName = ?, email = ? WHERE id = ?', [displayName, email, userId]);
+        await connection.query('UPDATE users SET displayName = ?, email = ?, isTest = ? WHERE id = ?', [displayName, email, isTest ? 1 : 0, userId]);
         // 2. Update client data (Extension)
         const clientData = {
             businessName: businessName,
@@ -1284,7 +1287,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/clients - Unified creation initiated');
     const connection = await pool.getConnection();
     try {
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, createdBy, password, // Optional, can default
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, createdBy, isTest, password, // Optional, can default
         fields // Array of fields from the modal
          } = req.body;
         const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
@@ -1301,7 +1304,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
                 // Reactivate soft-deleted client
                 newUserId = existing.id;
                 console.log('[DEBUG] Reactivating soft-deleted client userId:', newUserId);
-                await connection.query('UPDATE users SET displayName = ?, password = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]);
+                await connection.query('UPDATE users SET displayName = ?, password = ?, isTest = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, isTest ? 1 : 0, newUserId]);
                 // Clear previous fields to avoid duplicates since the frontend sends fresh ones
                 await connection.query('DELETE FROM fields WHERE clientId = ?', [newUserId]);
             }
@@ -1317,7 +1320,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
         }
         else {
             // 1. Create completely new User
-            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)', [displayName, userEmail, PASSWORD_NOT_SET_PLACEHOLDER, 'client', createdBy ?? 'Admin']);
+            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy, isTest) VALUES (?, ?, ?, ?, ?, ?)', [displayName, userEmail, PASSWORD_NOT_SET_PLACEHOLDER, 'client', createdBy ?? 'Admin', isTest ? 1 : 0]);
             newUserId = userResult.insertId;
         }
         // 2. Create or Update Client extension record
@@ -1440,6 +1443,10 @@ apiRouter.get('/work-orders', authenticateToken, async (req, res) => {
         }
         else {
             console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
+        }
+        // Hide test work orders for non-admins
+        if (role !== 'admin') {
+            query += ` AND u.isTest = 0 AND (p_user.isTest IS NULL OR p_user.isTest = 0)`;
         }
         query += ` ORDER BY t.createdAt DESC`;
         console.log(`[DEBUG] GET /backend/work-orders - User: ${id}, Role: ${role}`);
@@ -2458,26 +2465,29 @@ apiRouter.get('/tokens', authenticateToken, async (req, res) => {
  */
 apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/profesionales for user:', req.user.email);
+    const isAdmin = req.user.role === 'admin';
     try {
         let rows;
         if (req.user.role === 'client') {
             [rows] = await pool.query(`
-        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id,
+        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id, u.isTest,
                (u.password = ?) as setupPending
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
         WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
+        ${isAdmin ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER, req.user.id]);
         }
         else {
             [rows] = await pool.query(`
-        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id,
+        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id, u.isTest,
                (u.password = ?) as setupPending
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
+        ${isAdmin ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER]);
         }
@@ -2485,6 +2495,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
         const formatted = rows.map((r) => ({
             ...r,
             setupPending: !!r.setupPending,
+            isTest: !!r.isTest,
             phoneNumber: r.phoneNumber
         }));
         res.json(formatted);
@@ -2502,10 +2513,10 @@ apiRouter.put('/profesionales/:id', authenticateToken, async (req, res) => {
     console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
     const connection = await pool.getConnection();
     try {
-        const { displayName, email, phoneNumber, specialty } = req.body;
+        const { displayName, email, phoneNumber, specialty, isTest } = req.body;
         await connection.beginTransaction();
         // 1. Update User base
-        await connection.query('UPDATE users SET displayName = ?, email = ? WHERE id = ?', [displayName, email, id]);
+        await connection.query('UPDATE users SET displayName = ?, email = ?, isTest = ? WHERE id = ?', [displayName, email, isTest ? 1 : 0, id]);
         // 2. Update Profesional extension
         const profData = { phoneNumber, specialty };
         await connection.query('UPDATE profesionals SET ? WHERE userId = ?', [profData, id]);
@@ -2568,7 +2579,7 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/profesionales - Creating new profesional:', JSON.stringify(req.body));
     const connection = await pool.getConnection();
     try {
-        const { displayName, email, password, phoneNumber, specialty, createdBy } = req.body;
+        const { displayName, email, password, phoneNumber, specialty, createdBy, isTest } = req.body;
         // 0. Check for existing soft-deleted user to reactivate
         const [existingUsers] = await connection.query(`SELECT u.id, u.role, p.deletedAt as profDeletedAt
        FROM users u
@@ -2582,7 +2593,7 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
                 // Reactivate soft-deleted profesional
                 newUserId = existing.id;
                 console.log('[DEBUG] Reactivating soft-deleted profesional userId:', newUserId);
-                await connection.query('UPDATE users SET displayName = ?, password = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]);
+                await connection.query('UPDATE users SET displayName = ?, password = ?, isTest = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, isTest ? 1 : 0, newUserId]);
             }
             else {
                 // Active user exists
@@ -2596,7 +2607,7 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
         }
         else {
             // 1. Create completely new User
-            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)', [displayName, email, PASSWORD_NOT_SET_PLACEHOLDER, 'profesional', createdBy ?? 'Admin']);
+            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy, isTest) VALUES (?, ?, ?, ?, ?, ?)', [displayName, email, PASSWORD_NOT_SET_PLACEHOLDER, 'profesional', createdBy ?? 'Admin', isTest ? 1 : 0]);
             newUserId = userResult.insertId;
         }
         // 2. Create or Update Profesional extension

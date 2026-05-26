@@ -8,6 +8,7 @@ export interface User {
   createdAt: string;
   createdBy: number;
   setupPending?: boolean;
+  isTest?: boolean;
 }
 
 export interface Client extends User {
