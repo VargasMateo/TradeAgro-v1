@@ -23,6 +23,7 @@ app.use(cors({
   origin: ['https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar'],
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Block all /backend/test/* routes in production
 app.use('/backend/test', (req: any, res: any, next: any) => {
@@ -1243,6 +1244,62 @@ apiRouter.post('/login', async (req, res) => {
   } catch (error: any) {
     console.error('[AUTH ERROR]:', error.message);
     res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// External/Form-based Login endpoint (supports urlencoded and redirects)
+apiRouter.post('/login-external', async (req, res) => {
+  const { email, password } = req.body;
+  console.log(`[AUTH-EXTERNAL] Login attempt: ${email}`);
+
+  try {
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.email = ?
+    `, [email]);
+
+    if (rows.length === 0) {
+      return res.redirect(`/login?error=${encodeURIComponent('Credenciales inválidas')}`);
+    }
+
+    const user = rows[0];
+    // Check if password has not been set yet (invited user)
+    if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
+      console.log(`[AUTH-EXTERNAL] Failed: Password not set for ${email}`);
+      return res.redirect(`/login?error=${encodeURIComponent('Debe configurar su contraseña usando el enlace enviado a su correo electrónico.')}`);
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log(`[AUTH-EXTERNAL] Failed: Invalid password for ${email}`);
+      return res.redirect(`/login?error=${encodeURIComponent('Credenciales inválidas')}`);
+    }
+
+    console.log(`[AUTH-EXTERNAL] Success: ${email} logged in as ${user.role}`);
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET!,
+      { expiresIn: '365d' }
+    );
+
+    // Filter out password and null fields to match polymorphic interface
+    const userData: any = { ...user };
+    delete userData.password;
+    if ('hasStations' in userData) {
+      userData.hasStations = !!userData.hasStations;
+    }
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+    const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+    res.redirect(redirectUrl);
+  } catch (error: any) {
+    console.error('[AUTH-EXTERNAL ERROR]:', error.message);
+    res.redirect(`/login?error=${encodeURIComponent('Error interno del servidor')}`);
   }
 });
 

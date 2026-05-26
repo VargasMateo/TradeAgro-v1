@@ -112,6 +112,23 @@ export default function App() {
     );
   }
 
+  // Intercept external login callback
+  if (window.location.pathname === '/login-callback') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const userJson = params.get('user');
+    if (token && userJson) {
+      try {
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("userProfile", userJson);
+        window.location.href = '/';
+        return null;
+      } catch (e) {
+        console.error('Error handling external login callback:', e);
+      }
+    }
+  }
+
   if (!isAuthenticated) {
     return <LoginPage onLogin={(role) => {
       setUserRole(role);
