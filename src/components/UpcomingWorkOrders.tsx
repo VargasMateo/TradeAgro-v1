@@ -136,9 +136,9 @@ export default function UpcomingWorkOrders({
                 <span className="text-xs font-semibold text-slate-400">{`#AG-${workOrder.id}`}</span>
               </div>
 
-              <div className="flex items-baseline gap-2 mb-1.5">
+              <div className="flex flex-col gap-0.5 mb-1.5">
                 <h4 className="font-bold text-slate-900 truncate">{workOrder.title}</h4>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight shrink-0">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">
                   {workOrder.service}
                   {workOrder.secondaryService && ` | ${workOrder.secondaryService}`}
                 </p>

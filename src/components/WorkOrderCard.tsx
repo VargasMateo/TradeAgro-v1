@@ -57,11 +57,11 @@ export default function WorkOrderCard({ job, userRole }: WorkOrderCardProps) {
                 {job.date ? new Date(job.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : '-'}
               </span>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex flex-col gap-0.5">
               <h3 className="text-lg font-extrabold text-slate-900 truncate">
                 {job.title || job.service}
               </h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight shrink-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">
                 {job.service}
                 {job.secondaryService && ` | ${job.secondaryService}`}
               </p>
