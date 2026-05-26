@@ -80,12 +80,12 @@ const authenticateToken = (req: any, res: any, next: any) => {
       if (user.role === 'client') {
         const [rows]: any = await pool.query('SELECT deletedAt FROM clients WHERE userId = ?', [user.id]);
         if (rows.length === 0 || rows[0].deletedAt !== null) {
-          return res.status(403).json({ success: false, error: 'Cuenta eliminada o inactiva.' });
+          return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
         }
       } else if (user.role === 'profesional') {
         const [rows]: any = await pool.query('SELECT deletedAt FROM profesionals WHERE userId = ?', [user.id]);
         if (rows.length === 0 || rows[0].deletedAt !== null) {
-          return res.status(403).json({ success: false, error: 'Cuenta eliminada o inactiva.' });
+          return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
         }
       }
     } catch (dbErr) {
@@ -1191,6 +1191,7 @@ apiRouter.post('/login', async (req, res) => {
   try {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
       FROM users u
@@ -1204,6 +1205,17 @@ apiRouter.post('/login', async (req, res) => {
     }
 
     const user = rows[0];
+
+    // Check soft-deleted status
+    if (user.role === 'client' && user.clientDeletedAt !== null) {
+      console.log(`[AUTH] Failed: Client account is deleted for ${email}`);
+      return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
+    }
+    if (user.role === 'profesional' && user.profDeletedAt !== null) {
+      console.log(`[AUTH] Failed: Profesional account is deleted for ${email}`);
+      return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
+    }
+
     // Check if password has not been set yet (invited user)
     if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
       console.log(`[AUTH] Failed: Password not set for ${email}`);
@@ -1255,6 +1267,7 @@ apiRouter.post('/login-external', async (req, res) => {
   try {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
       FROM users u
@@ -1268,6 +1281,17 @@ apiRouter.post('/login-external', async (req, res) => {
     }
 
     const user = rows[0];
+
+    // Check soft-deleted status
+    if (user.role === 'client' && user.clientDeletedAt !== null) {
+      console.log(`[AUTH-EXTERNAL] Failed: Client account is deleted for ${email}`);
+      return res.redirect(`/login?error=${encodeURIComponent('Tu cuenta se encuentra desactivada.')}`);
+    }
+    if (user.role === 'profesional' && user.profDeletedAt !== null) {
+      console.log(`[AUTH-EXTERNAL] Failed: Profesional account is deleted for ${email}`);
+      return res.redirect(`/login?error=${encodeURIComponent('Tu cuenta se encuentra desactivada.')}`);
+    }
+
     // Check if password has not been set yet (invited user)
     if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
       console.log(`[AUTH-EXTERNAL] Failed: Password not set for ${email}`);

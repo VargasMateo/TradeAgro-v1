@@ -26,7 +26,9 @@ export const authenticatedFetch = async (url: string, options: RequestInit = {})
   // A 403 means the token is valid but the user lacks permission — not a session issue.
   if (response.status === 401) {
     console.warn('[AUTH] Authentication error detected (401). Forcing logout.');
-    window.dispatchEvent(new CustomEvent('force-logout'));
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userProfile");
+    window.location.href = '/?error=' + encodeURIComponent('Tu cuenta se encuentra desactivada o la sesión ha expirado.');
   }
 
   return response;
