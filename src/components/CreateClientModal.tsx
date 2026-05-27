@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy } from "lucide-react";
+import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy, Sun } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
@@ -29,6 +29,7 @@ export default function CreateClientModal({
     phone: string;
     notificationEmails: string;
     isTest: boolean;
+    hasStations: boolean;
     fields: ClientField[];
   }>({
     name: initialName,
@@ -39,6 +40,7 @@ export default function CreateClientModal({
     phone: '',
     notificationEmails: '',
     isTest: false,
+    hasStations: false,
     fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
   });
 
@@ -104,6 +106,7 @@ export default function CreateClientModal({
         phone: editingClient.phone || '',
         notificationEmails: editingClient.notificationEmails || '',
         isTest: !!editingClient.isTest,
+        hasStations: !!editingClient.hasStations,
         fields: (editingClient.fields || []).map(f => ({
           name: f.name || '',
           lat: f.lat,
@@ -122,6 +125,7 @@ export default function CreateClientModal({
         phone: '',
         notificationEmails: '',
         isTest: false,
+        hasStations: false,
         fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
       });
     }
@@ -274,6 +278,7 @@ export default function CreateClientModal({
         phoneNumber: formData.phone,
         notificationEmails: formData.notificationEmails || null,
         isTest: formData.isTest,
+        hasStations: formData.hasStations,
         createdBy: currentUserId,
         fields: formData.fields.map(f => ({
           id: f.id,
@@ -568,21 +573,52 @@ export default function CreateClientModal({
               </div>
 
               {isAdmin && (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <input
-                    type="checkbox"
-                    id="isTest"
-                    checked={formData.isTest}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isTest: e.target.checked }))}
-                    className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
-                  />
-                  <div>
-                    <label htmlFor="isTest" className="text-sm font-bold text-slate-900 cursor-pointer block">
-                      Marcar como Usuario de Prueba (Test User)
-                    </label>
-                    <p className="text-[11px] text-slate-500">
-                      Los usuarios de prueba y sus órdenes asociadas solo serán visibles para administradores.
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <input
+                      type="checkbox"
+                      id="isTest"
+                      checked={formData.isTest}
+                      onChange={(e) => setFormData(prev => ({ ...prev, isTest: e.target.checked }))}
+                      className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                    />
+                    <div>
+                      <label htmlFor="isTest" className="text-sm font-bold text-slate-900 cursor-pointer block">
+                        Marcar como Usuario de Prueba (Test User)
+                      </label>
+                      <p className="text-[11px] text-slate-500">
+                        Los usuarios de prueba y sus órdenes asociadas solo serán visibles para administradores.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-sky-100 bg-sky-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+                        <Sun className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-bold text-slate-900 block">
+                          Habilitar Estaciones Meteorológicas
+                        </label>
+                        <p className="text-[11px] text-slate-500">
+                          Permite al cliente visualizar y gestionar estaciones de clima.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setFormData(prev => ({ ...prev, hasStations: !prev.hasStations })); }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shrink-0 ${
+                        formData.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                          formData.hasStations ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               )}
