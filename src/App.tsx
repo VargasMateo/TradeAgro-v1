@@ -112,6 +112,23 @@ export default function App() {
     );
   }
 
+  // Intercept external login callback
+  if (window.location.pathname === '/login-callback') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const userJson = params.get('user');
+    if (token && userJson) {
+      try {
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("userProfile", userJson);
+        window.location.href = '/';
+        return null;
+      } catch (e) {
+        console.error('Error handling external login callback:', e);
+      }
+    }
+  }
+
   if (!isAuthenticated) {
     return <LoginPage onLogin={(role) => {
       setUserRole(role);
@@ -130,11 +147,9 @@ export default function App() {
           <Route path="/work-orders/:id" element={<WorkOrderDetailsPage userRole={userRole} />} />
           <Route path="/reports" element={<ReportsPage userRole={userRole} />} />
           {(userRole === 'profesional' || userRole === 'admin') && (
-            <>
-              <Route path="/clients" element={<ClientsPage />} />
-              {/* <Route path="/stations" element={<StationsPage />} /> */}
-            </>
+            <Route path="/clients" element={<ClientsPage userRole={userRole} />} />
           )}
+          <Route path="/stations" element={<StationsPage />} />
           {(userRole === 'client' || userRole === 'admin') && (
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}

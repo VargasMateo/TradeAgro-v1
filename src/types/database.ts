@@ -8,6 +8,7 @@ export interface User {
   createdAt: string;
   createdBy: number;
   setupPending?: boolean;
+  isTest?: boolean;
 }
 
 export interface Client extends User {
@@ -16,6 +17,7 @@ export interface Client extends User {
   cuit: string;
   ivaCondition: string;
   phoneNumber?: string;
+  hasStations?: boolean;
   deletedAt?: string;
 }
 

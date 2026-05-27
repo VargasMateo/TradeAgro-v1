@@ -24,13 +24,27 @@ export default function CreateProfesionalModal({
     displayName: initialDisplayName,
     email: '',
     phoneNumber: '',
-    specialty: ''
+    specialty: '',
+    isTest: false
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [createdId, setCreatedId] = useState<number | null>(null);
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
   const [invitedEmail, setInvitedEmail] = useState('');
   const [setupLink, setSetupLink] = useState('');
+
+  const [isAdmin] = useState(() => {
+    const storedProfile = localStorage.getItem("userProfile");
+    if (storedProfile) {
+      try {
+        const profile = JSON.parse(storedProfile);
+        return profile.role === 'admin';
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
 
   const [errors, setErrors] = useState<{
     displayName?: string;
@@ -58,14 +72,16 @@ export default function CreateProfesionalModal({
         displayName: editingProfesional.displayName || '',
         email: editingProfesional.email || '',
         phoneNumber: editingProfesional.phoneNumber || '',
-        specialty: editingProfesional.specialty || ''
+        specialty: editingProfesional.specialty || '',
+        isTest: !!editingProfesional.isTest
       });
     } else {
       setFormData({
         displayName: initialDisplayName,
         email: '',
         phoneNumber: '',
-        specialty: ''
+        specialty: '',
+        isTest: false
       });
     }
     setStep('form');
@@ -295,6 +311,26 @@ export default function CreateProfesionalModal({
                   </p>
                 )}
               </div>
+
+              {isAdmin && (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <input
+                    type="checkbox"
+                    id="isTest"
+                    checked={formData.isTest}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isTest: e.target.checked }))}
+                    className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="isTest" className="text-sm font-bold text-slate-900 cursor-pointer block">
+                      Marcar como Profesional de Prueba (Test Professional)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Los profesionales de prueba y sus órdenes asociadas solo serán visibles para administradores.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* SUCCESS STEP */

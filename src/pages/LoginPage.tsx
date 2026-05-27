@@ -18,6 +18,16 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get('error');
+    if (errorParam) {
+      setError(errorParam);
+      // Clean query params so refreshing doesn't show the error again
+      window.history.replaceState(null, '', '/');
+    }
+  }, []);
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -19,6 +19,7 @@ app.use(cors({
     origin: ['https://tradeagrosmart.com.ar', 'https://www.tradeagrosmart.com.ar'],
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 // Block all /backend/test/* routes in production
 app.use('/backend/test', (req, res, next) => {
     if (process.env.NODE_ENV === 'production') {
@@ -65,13 +66,13 @@ const authenticateToken = (req, res, next) => {
             if (user.role === 'client') {
                 const [rows] = await pool.query('SELECT deletedAt FROM clients WHERE userId = ?', [user.id]);
                 if (rows.length === 0 || rows[0].deletedAt !== null) {
-                    return res.status(403).json({ success: false, error: 'Cuenta eliminada o inactiva.' });
+                    return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
                 }
             }
             else if (user.role === 'profesional') {
                 const [rows] = await pool.query('SELECT deletedAt FROM profesionals WHERE userId = ?', [user.id]);
                 if (rows.length === 0 || rows[0].deletedAt !== null) {
-                    return res.status(403).json({ success: false, error: 'Cuenta eliminada o inactiva.' });
+                    return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
                 }
             }
         }
@@ -196,6 +197,8 @@ async function initializeDatabase() {
         cuit VARCHAR(20),
         businessName VARCHAR(255),
         phoneNumber VARCHAR(50),
+        hasStations BOOLEAN DEFAULT FALSE,
+        notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
@@ -410,6 +413,32 @@ async function initializeDatabase() {
         catch (err) {
             console.log('[INIT] Migration for services skipped or failed:', err.message);
         }
+        // Migration: add hasStations column to clients if it doesn't exist
+        try {
+            await connection.query('ALTER TABLE clients ADD COLUMN hasStations BOOLEAN DEFAULT FALSE AFTER phoneNumber');
+            console.log('[INIT] Added hasStations column to clients');
+        }
+        catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME')
+                console.error('[INIT] hasStations migration error:', e.message);
+        }
+        // Migration: add notificationEmails column to clients if it doesn't exist
+        try {
+            await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
+            console.log('[INIT] Added notificationEmails column to clients');
+        }
+        catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME')
+                console.error('[INIT] notificationEmails migration error:', e.message);
+        }
+        // Migration: remove hasStations from profesionals if it was added by mistake
+        try {
+            await connection.query('ALTER TABLE profesionals DROP COLUMN hasStations');
+            console.log('[INIT] Removed hasStations column from profesionals');
+        }
+        catch (e) {
+            // Column doesn't exist, that's fine
+        }
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
         console.log('[INIT] Schema ready. Calling seed...');
         await seedDefaultUsers(connection);
@@ -433,7 +462,8 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const { id, displayName, email, role, phoneNumber: profPhoneNumber, specialty, // Prof fields
-        businessName, cuit, ivaCondition, phoneNumber // Client fields
+        businessName, cuit, ivaCondition, phoneNumber, // Client fields
+        notificationEmails // Client notification emails
          } = req.body;
         if (!id)
             return res.status(400).json({ error: 'User ID is required' });
@@ -445,14 +475,14 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
             await connection.query('UPDATE profesionals SET phoneNumber = ?, specialty = ? WHERE userId = ?', [profPhoneNumber || phoneNumber || null, specialty || null, id]);
         }
         else if (role === 'client') {
-            await connection.query('UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ? WHERE userId = ?', [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, id]);
+            await connection.query('UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ? WHERE userId = ?', [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, id]);
         }
         await connection.commit();
         // Fetch updated user to return
         const [rows] = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -782,6 +812,28 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
             console.error(`[EMAIL ERROR] Failed to send order completion email to ${orderData.clientEmail}:`, error.message);
         }
     }
+    // 1b. Notify Client's additional notification emails (Distribution List)
+    if (orderData.clientNotificationEmails) {
+        const additionalEmails = orderData.clientNotificationEmails
+            .split(/[,;\s]+/)
+            .map((e) => e.trim())
+            .filter((e) => e && e.includes('@'));
+        for (const addEmail of additionalEmails) {
+            try {
+                const info = await transporter.sendMail({
+                    from: fromEmail,
+                    to: addEmail,
+                    subject: `Orden #${orderData.id} Completada — TradeAgro`,
+                    text: textContent,
+                    html: htmlContent,
+                });
+                console.log(`[EMAIL] Order completion copy sent to client's distribution list email: ${addEmail}, messageId: ${info.messageId}`);
+            }
+            catch (error) {
+                console.error(`[EMAIL ERROR] Failed to send order completion email copy to distribution list email ${addEmail}:`, error.message);
+            }
+        }
+    }
     // 2. Notify extra recipients individually
     for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
         try {
@@ -1001,8 +1053,9 @@ apiRouter.post('/login', async (req, res) => {
     try {
         const [rows] = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1012,6 +1065,15 @@ apiRouter.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
         const user = rows[0];
+        // Check soft-deleted status
+        if (user.role === 'client' && user.clientDeletedAt !== null) {
+            console.log(`[AUTH] Failed: Client account is deleted for ${email}`);
+            return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
+        }
+        if (user.role === 'profesional' && user.profDeletedAt !== null) {
+            console.log(`[AUTH] Failed: Profesional account is deleted for ${email}`);
+            return res.status(401).json({ success: false, error: 'Tu cuenta se encuentra desactivada.' });
+        }
         // Check if password has not been set yet (invited user)
         if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
             console.log(`[AUTH] Failed: Password not set for ${email}`);
@@ -1031,6 +1093,10 @@ apiRouter.post('/login', async (req, res) => {
         // Filter out password and null fields to match polymorphic interface
         const userData = { ...user };
         delete userData.password;
+        // Ensure hasStations is a proper boolean before null-filter
+        if ('hasStations' in userData) {
+            userData.hasStations = !!userData.hasStations;
+        }
         Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
         res.json({
             success: true,
@@ -1043,6 +1109,61 @@ apiRouter.post('/login', async (req, res) => {
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
+// External/Form-based Login endpoint (supports urlencoded and redirects)
+apiRouter.post('/login-external', async (req, res) => {
+    const { email, password } = req.body;
+    console.log(`[AUTH-EXTERNAL] Login attempt: ${email}`);
+    try {
+        const [rows] = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.email = ?
+    `, [email]);
+        if (rows.length === 0) {
+            return res.redirect(`/login?error=${encodeURIComponent('Credenciales inválidas')}`);
+        }
+        const user = rows[0];
+        // Check soft-deleted status
+        if (user.role === 'client' && user.clientDeletedAt !== null) {
+            console.log(`[AUTH-EXTERNAL] Failed: Client account is deleted for ${email}`);
+            return res.redirect(`/login?error=${encodeURIComponent('Tu cuenta se encuentra desactivada.')}`);
+        }
+        if (user.role === 'profesional' && user.profDeletedAt !== null) {
+            console.log(`[AUTH-EXTERNAL] Failed: Profesional account is deleted for ${email}`);
+            return res.redirect(`/login?error=${encodeURIComponent('Tu cuenta se encuentra desactivada.')}`);
+        }
+        // Check if password has not been set yet (invited user)
+        if (user.password === PASSWORD_NOT_SET_PLACEHOLDER) {
+            console.log(`[AUTH-EXTERNAL] Failed: Password not set for ${email}`);
+            return res.redirect(`/login?error=${encodeURIComponent('Debe configurar su contraseña usando el enlace enviado a su correo electrónico.')}`);
+        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            console.log(`[AUTH-EXTERNAL] Failed: Invalid password for ${email}`);
+            return res.redirect(`/login?error=${encodeURIComponent('Credenciales inválidas')}`);
+        }
+        console.log(`[AUTH-EXTERNAL] Success: ${email} logged in as ${user.role}`);
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
+        // Filter out password and null fields to match polymorphic interface
+        const userData = { ...user };
+        delete userData.password;
+        if ('hasStations' in userData) {
+            userData.hasStations = !!userData.hasStations;
+        }
+        Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+        const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+        res.redirect(redirectUrl);
+    }
+    catch (error) {
+        console.error('[AUTH-EXTERNAL ERROR]:', error.message);
+        res.redirect(`/login?error=${encodeURIComponent('Error interno del servidor')}`);
+    }
+});
 // Test endpoint
 apiRouter.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
@@ -1050,13 +1171,15 @@ apiRouter.get('/health', (req, res) => {
 // Endpoint to fetch clients from clients
 apiRouter.get('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/clients - Fetching active clients');
+    const isAdmin = req.user.role === 'admin';
     try {
         const [clientRows] = await pool.query(`
-      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id,
+      SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id, u.isTest,
              (u.password = ?) as setupPending
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
+      ${isAdmin ? '' : 'AND u.isTest = 0'}
     `, [PASSWORD_NOT_SET_PLACEHOLDER]);
         const [fieldRows] = await pool.query('SELECT * FROM fields');
         // Process fields into a map for easy lookup
@@ -1079,6 +1202,8 @@ apiRouter.get('/clients', authenticateToken, async (req, res) => {
         const clients = clientRows.map((row) => ({
             ...row,
             setupPending: !!row.setupPending,
+            hasStations: !!row.hasStations,
+            isTest: !!row.isTest,
             // Mapping for frontend compatibility
             name: row.displayName,
             phone: row.phoneNumber,
@@ -1101,17 +1226,18 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const userId = req.params.id; // Correct semantic: the id is the userId
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, fields // Array of fields from the modal
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, isTest, fields // Array of fields from the modal
          } = req.body;
         await connection.beginTransaction();
         // 1. Update user data (Base)
-        await connection.query('UPDATE users SET displayName = ?, email = ? WHERE id = ?', [displayName, email, userId]);
+        await connection.query('UPDATE users SET displayName = ?, email = ?, isTest = ? WHERE id = ?', [displayName, email, isTest ? 1 : 0, userId]);
         // 2. Update client data (Extension)
         const clientData = {
             businessName: businessName,
             cuit: cuit,
             ivaCondition: ivaCondition || 'Responsable Inscripto',
-            phoneNumber: phoneNumber
+            phoneNumber: phoneNumber,
+            notificationEmails: notificationEmails || null
         };
         console.log('[DEBUG] Updating client extension for userId:', userId);
         await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
@@ -1181,7 +1307,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/clients - Unified creation initiated');
     const connection = await pool.getConnection();
     try {
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, createdBy, password, // Optional, can default
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, createdBy, isTest, password, // Optional, can default
         fields // Array of fields from the modal
          } = req.body;
         const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
@@ -1198,7 +1324,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
                 // Reactivate soft-deleted client
                 newUserId = existing.id;
                 console.log('[DEBUG] Reactivating soft-deleted client userId:', newUserId);
-                await connection.query('UPDATE users SET displayName = ?, password = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]);
+                await connection.query('UPDATE users SET displayName = ?, password = ?, isTest = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, isTest ? 1 : 0, newUserId]);
                 // Clear previous fields to avoid duplicates since the frontend sends fresh ones
                 await connection.query('DELETE FROM fields WHERE clientId = ?', [newUserId]);
             }
@@ -1214,15 +1340,15 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
         }
         else {
             // 1. Create completely new User
-            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)', [displayName, userEmail, PASSWORD_NOT_SET_PLACEHOLDER, 'client', createdBy ?? 'Admin']);
+            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy, isTest) VALUES (?, ?, ?, ?, ?, ?)', [displayName, userEmail, PASSWORD_NOT_SET_PLACEHOLDER, 'client', createdBy ?? 'Admin', isTest ? 1 : 0]);
             newUserId = userResult.insertId;
         }
         // 2. Create or Update Client extension record
         console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
-        await connection.query(`INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, NULL) 
+        await connection.query(`INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), deletedAt = NULL`, [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber]);
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), deletedAt = NULL`, [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null]);
         // 3. Insert associated fields if any
         if (fields && Array.isArray(fields)) {
             console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
@@ -1338,6 +1464,10 @@ apiRouter.get('/work-orders', authenticateToken, async (req, res) => {
         else {
             console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
         }
+        // Hide test work orders for non-admins
+        if (role !== 'admin') {
+            query += ` AND u.isTest = 0 AND (p_user.isTest IS NULL OR p_user.isTest = 0)`;
+        }
         query += ` ORDER BY t.createdAt DESC`;
         console.log(`[DEBUG] GET /backend/work-orders - User: ${id}, Role: ${role}`);
         const [rows] = await pool.query(query, params);
@@ -1443,6 +1573,28 @@ TradeAgro`;
             console.error(`[EMAIL ERROR] sendNewOrderEmail failed for client ${orderData.clientEmail}:`, err.message);
         }
     }
+    // 1b. Notify Client's additional notification emails (Distribution List)
+    if (orderData.clientNotificationEmails) {
+        const additionalEmails = orderData.clientNotificationEmails
+            .split(/[,;\s]+/)
+            .map((e) => e.trim())
+            .filter((e) => e && e.includes('@'));
+        for (const addEmail of additionalEmails) {
+            try {
+                await transporter.sendMail({
+                    from: fromEmail,
+                    to: addEmail,
+                    subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+                    text: textContent,
+                    html: htmlContent
+                });
+                console.log(`[EMAIL] New order confirmation copy sent to client's distribution list email: ${addEmail}`);
+            }
+            catch (err) {
+                console.error(`[EMAIL ERROR] sendNewOrderEmail distribution list copy failed for ${addEmail}:`, err.message);
+            }
+        }
+    }
     // 2. Notify extra recipients individually
     for (const extraEmail of EXTRA_NOTIFICATION_RECIPIENTS) {
         try {
@@ -1519,9 +1671,11 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
             const [orderRows] = await pool.query(`
         SELECT t.*, 
                u_client.displayName as clientName, u_client.email as clientEmail,
+               c_client.notificationEmails as clientNotificationEmails,
                u_prof.displayName as profesionalName, u_prof.email as profesionalEmail
         FROM work_orders t
         LEFT JOIN users u_client ON t.clientId = u_client.id
+        LEFT JOIN clients c_client ON t.clientId = c_client.userId
         LEFT JOIN users u_prof ON t.profesionalId = u_prof.id
         WHERE t.id = ?
       `, [result.insertId]);
@@ -1532,6 +1686,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
                     uuid: row.uuid,
                     clientName: row.clientName,
                     clientEmail: row.clientEmail,
+                    clientNotificationEmails: row.clientNotificationEmails,
                     profesionalName: row.profesionalName,
                     profesionalEmail: row.profesionalEmail,
                     service: row.service,
@@ -1612,9 +1767,11 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
         if (status === 'Completado' && orderBeforeUpdate.status !== 'Completado') {
             try {
                 const query = `
-          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail,
+                 c.notificationEmails as clientNotificationEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
+          LEFT JOIN clients c ON t.clientId = c.userId
           WHERE t.id = ?
         `;
                 const [rows] = await pool.query(query, [internalJobId]);
@@ -1625,6 +1782,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req, res) => {
                         uuid: row.uuid,
                         clientName: row.clientName,
                         clientEmail: row.clientEmail,
+                        clientNotificationEmails: row.clientNotificationEmails,
                         service: row.service || 'Servicio General',
                         location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
                         hectares: row.hectares,
@@ -1688,9 +1846,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
         if (status === 'Completado') {
             try {
                 const query = `
-          SELECT t.*, u.displayName as clientName, u.email as clientEmail
+          SELECT t.*, u.displayName as clientName, u.email as clientEmail,
+                 c.notificationEmails as clientNotificationEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
+          LEFT JOIN clients c ON t.clientId = c.userId
           WHERE t.id = ?
         `;
                 const [rows] = await pool.query(query, [order.id]);
@@ -1701,6 +1861,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
                         uuid: row.uuid,
                         clientName: row.clientName,
                         clientEmail: row.clientEmail,
+                        clientNotificationEmails: row.clientNotificationEmails,
                         service: row.service || 'Servicio General',
                         location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
                         hectares: row.hectares,
@@ -1736,17 +1897,38 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
  */
 apiRouter.delete('/work-orders/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Soft delete requested`);
+    console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Hard delete requested by ${req.user.role}`);
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Acceso denegado. Solo los administradores pueden eliminar órdenes de trabajo.' });
+    }
+    const connection = await pool.getConnection();
     try {
-        const [result] = await pool.query('UPDATE work_orders SET deletedAt = NOW() WHERE id = ?', [id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Job not found' });
+        await connection.beginTransaction();
+        // 1. Fetch the exact ID of the work order
+        const [woRows] = await connection.query('SELECT id FROM work_orders WHERE uuid = ? OR id = ?', [id, id]);
+        if (woRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
         }
-        res.json({ success: true, message: 'Job soft-deleted successfully' });
+        const realId = woRows[0].id;
+        // 2. Delete associated records manually to support MyISAM / lack of foreign keys
+        console.log(`[DEBUG] Deleting observations for workOrderId: ${realId}`);
+        await connection.query('DELETE FROM work_order_observations WHERE workOrderId = ?', [realId]);
+        console.log(`[DEBUG] Deleting attachments for workOrderId: ${realId}`);
+        await connection.query('DELETE FROM work_order_attachments WHERE workOrderId = ?', [realId]);
+        // 3. Delete the work order itself
+        console.log(`[DEBUG] Deleting work order ID: ${realId}`);
+        await connection.query('DELETE FROM work_orders WHERE id = ?', [realId]);
+        await connection.commit();
+        res.json({ success: true, message: 'Orden de trabajo y todos sus datos asociados eliminados correctamente' });
     }
     catch (error) {
+        await connection.rollback();
         console.error('[DATABASE ERROR] DELETE /backend/work-orders:', error.message);
         res.status(500).json({ error: 'Failed to delete job', details: error.message });
+    }
+    finally {
+        connection.release();
     }
 });
 /**
@@ -2324,26 +2506,29 @@ apiRouter.get('/tokens', authenticateToken, async (req, res) => {
  */
 apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/profesionales for user:', req.user.email);
+    const isAdmin = req.user.role === 'admin';
     try {
         let rows;
         if (req.user.role === 'client') {
             [rows] = await pool.query(`
-        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id,
+        SELECT DISTINCT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id, u.isTest,
                (u.password = ?) as setupPending
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
         WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
+        ${isAdmin ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER, req.user.id]);
         }
         else {
             [rows] = await pool.query(`
-        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id,
+        SELECT p.*, u.displayName, u.email, u.createdAt, u.createdBy, p.userId as id, u.isTest,
                (u.password = ?) as setupPending
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
+        ${isAdmin ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER]);
         }
@@ -2351,6 +2536,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
         const formatted = rows.map((r) => ({
             ...r,
             setupPending: !!r.setupPending,
+            isTest: !!r.isTest,
             phoneNumber: r.phoneNumber
         }));
         res.json(formatted);
@@ -2368,10 +2554,10 @@ apiRouter.put('/profesionales/:id', authenticateToken, async (req, res) => {
     console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
     const connection = await pool.getConnection();
     try {
-        const { displayName, email, phoneNumber, specialty } = req.body;
+        const { displayName, email, phoneNumber, specialty, isTest } = req.body;
         await connection.beginTransaction();
         // 1. Update User base
-        await connection.query('UPDATE users SET displayName = ?, email = ? WHERE id = ?', [displayName, email, id]);
+        await connection.query('UPDATE users SET displayName = ?, email = ?, isTest = ? WHERE id = ?', [displayName, email, isTest ? 1 : 0, id]);
         // 2. Update Profesional extension
         const profData = { phoneNumber, specialty };
         await connection.query('UPDATE profesionals SET ? WHERE userId = ?', [profData, id]);
@@ -2406,13 +2592,35 @@ apiRouter.delete('/profesionales/:id', authenticateToken, async (req, res) => {
     }
 });
 /**
+ * Toggle hasStations flag for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { hasStations } = req.body;
+    console.log(`[DEBUG] PATCH /backend/clients/${id}/stations-toggle - hasStations=${hasStations}`);
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Solo administradores pueden modificar esta configuración.' });
+    }
+    try {
+        const [result] = await pool.query('UPDATE clients SET hasStations = ? WHERE userId = ?', [!!hasStations, id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Client not found' });
+        }
+        res.json({ success: true, hasStations: !!hasStations });
+    }
+    catch (error) {
+        console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+    }
+});
+/**
  * POST /backend/profesionales — create a new professional
  */
 apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/profesionales - Creating new profesional:', JSON.stringify(req.body));
     const connection = await pool.getConnection();
     try {
-        const { displayName, email, password, phoneNumber, specialty, createdBy } = req.body;
+        const { displayName, email, password, phoneNumber, specialty, createdBy, isTest } = req.body;
         // 0. Check for existing soft-deleted user to reactivate
         const [existingUsers] = await connection.query(`SELECT u.id, u.role, p.deletedAt as profDeletedAt
        FROM users u
@@ -2426,7 +2634,7 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
                 // Reactivate soft-deleted profesional
                 newUserId = existing.id;
                 console.log('[DEBUG] Reactivating soft-deleted profesional userId:', newUserId);
-                await connection.query('UPDATE users SET displayName = ?, password = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, newUserId]);
+                await connection.query('UPDATE users SET displayName = ?, password = ?, isTest = ? WHERE id = ?', [displayName, PASSWORD_NOT_SET_PLACEHOLDER, isTest ? 1 : 0, newUserId]);
             }
             else {
                 // Active user exists
@@ -2440,7 +2648,7 @@ apiRouter.post('/profesionales', authenticateToken, async (req, res) => {
         }
         else {
             // 1. Create completely new User
-            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy) VALUES (?, ?, ?, ?, ?)', [displayName, email, PASSWORD_NOT_SET_PLACEHOLDER, 'profesional', createdBy ?? 'Admin']);
+            const [userResult] = await connection.query('INSERT INTO users (displayName, email, password, role, createdBy, isTest) VALUES (?, ?, ?, ?, ?, ?)', [displayName, email, PASSWORD_NOT_SET_PLACEHOLDER, 'profesional', createdBy ?? 'Admin', isTest ? 1 : 0]);
             newUserId = userResult.insertId;
         }
         // 2. Create or Update Profesional extension
@@ -2536,6 +2744,298 @@ app.post('/backend/test/reset-data', async (req, res) => {
 // Mount the API router
 // Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
+// Memory caches to prevent slow, redundant external MKL API queries
+let cachedDevices = null;
+let cachedDevicesTimestamp = 0;
+const DEVICES_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const sensorDataCache = {};
+const SENSOR_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+let activeMklToken = null;
+/**
+ * Validates, rotates, and fetches a fresh JWT token dynamically from MKL Agro login API
+ */
+async function getMklToken(forceRefresh = false) {
+    const MKL_EMAIL = process.env.MKL_EMAIL;
+    const MKL_PASSWORD = process.env.MKL_PASSWORD;
+    // 1. If we have a token and aren't forcing a refresh, check its remaining lifetime
+    if (activeMklToken && !forceRefresh) {
+        try {
+            const parts = activeMklToken.split('.');
+            if (parts.length === 3) {
+                const base64Url = parts[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(Buffer.from(base64, 'base64')
+                    .toString('utf8')
+                    .split('')
+                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join(''));
+                const payload = JSON.parse(jsonPayload);
+                const expirationTime = payload.exp * 1000;
+                // If token has more than 1 hour left, use it
+                if (Date.now() < expirationTime - 60 * 60 * 1000) {
+                    return activeMklToken;
+                }
+                console.log('[MKL AUTH] Token is expiring soon (less than 1 hour). Initiating refresh...');
+            }
+        }
+        catch (e) {
+            console.warn('[MKL AUTH] Failed to parse cached JWT payload:', e.message);
+        }
+    }
+    // 2. Fetch new token from MKL login endpoint using email/password
+    try {
+        console.log(`[MKL AUTH] Authenticating with MKL Agro API for user "${MKL_EMAIL}"...`);
+        const loginResponse = await fetch('https://panel.mklagro.com/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: MKL_EMAIL,
+                password: MKL_PASSWORD
+            })
+        });
+        if (!loginResponse.ok) {
+            throw new Error(`Authentication endpoint returned status ${loginResponse.status}`);
+        }
+        const result = await loginResponse.json();
+        if (result.status === 'success' && result.token) {
+            activeMklToken = result.token;
+            console.log('[MKL AUTH] Obtained fresh MKL Agro JWT session token successfully.');
+            return activeMklToken;
+        }
+        else {
+            throw new Error(result.error || 'Invalid login response payload');
+        }
+    }
+    catch (error) {
+        console.error('[MKL AUTH ERROR] Failed to login to MKL Agro:', error.message);
+        throw error;
+    }
+}
+/**
+ * GET /backend/weather-stations/debug-token — Get current active MKL token (for debug/testing)
+ */
+apiRouter.get('/weather-stations/debug-token', authenticateToken, async (req, res) => {
+    res.json({ token: activeMklToken });
+});
+/**
+ * POST /backend/weather-stations/debug-reset-token — Sets token to an invalid signature to test auto-healing (401 retry)
+ */
+apiRouter.post('/weather-stations/debug-reset-token', authenticateToken, async (req, res) => {
+    activeMklToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalidpayloadmock.invalidsignature";
+    console.log('[MKL DEBUG] Token forcefully set to invalid mock token to test 401 recovery');
+    // Also invalidate local caches so the next click/fetch forces a fresh network call to MKL!
+    cachedDevices = null;
+    cachedDevicesTimestamp = 0;
+    Object.keys(sensorDataCache).forEach(key => delete sensorDataCache[key]);
+    res.json({ success: true, token: activeMklToken, message: 'Token set to invalid mock to force 401 auto-healing' });
+});
+/**
+ * GET /backend/weather-stations/devices — Fetch all available weather stations/devices
+ */
+apiRouter.get('/weather-stations/devices', authenticateToken, async (req, res) => {
+    console.log('[DEBUG] GET /backend/weather-stations/devices');
+    try {
+        // Return from cache if still fresh
+        if (cachedDevices && (Date.now() - cachedDevicesTimestamp < DEVICES_CACHE_TTL)) {
+            console.log('[CACHE HIT] Returning cached weather devices list');
+            return res.json(cachedDevices);
+        }
+        let token = await getMklToken();
+        const apiUrl = 'https://panel.mklagro.com/api/device';
+        let mklResponse = await fetch(apiUrl, {
+            headers: {
+                'token': token
+            }
+        });
+        // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+        if (mklResponse.status === 401) {
+            console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+            token = await getMklToken(true); // force session login
+            mklResponse = await fetch(apiUrl, {
+                headers: {
+                    'token': token
+                }
+            });
+        }
+        if (!mklResponse.ok) {
+            console.error('[ERROR] MKL API returned status:', mklResponse.status);
+            const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+            return res.status(status).json({ error: 'Failed to fetch devices from MKL API' });
+        }
+        const mklData = await mklResponse.json();
+        // Save to cache
+        cachedDevices = mklData;
+        cachedDevicesTimestamp = Date.now();
+        console.log('[CACHE MISS] Fetched and cached weather devices list');
+        res.json(mklData);
+    }
+    catch (error) {
+        console.error('[ERROR] GET /backend/weather-stations/devices:', error.message);
+        res.status(500).json({ error: 'Failed to fetch weather devices' });
+    }
+});
+/**
+ * GET /backend/weather-stations — Fetch sensor data from MKL Agro API
+ */
+apiRouter.get('/weather-stations', authenticateToken, async (req, res) => {
+    console.log('[DEBUG] GET /backend/weather-stations');
+    try {
+        const dId = req.query.dId || "MKL33E83E0DEABF8CE83E";
+        // Return from cache if still fresh
+        const cachedItem = sensorDataCache[dId];
+        if (cachedItem && (Date.now() - cachedItem.timestamp < SENSOR_CACHE_TTL)) {
+            console.log(`[CACHE HIT] Returning cached sensor data for dId: ${dId}`);
+            return res.json(cachedItem.data);
+        }
+        let token = await getMklToken();
+        const apiUrl = `https://panel.mklagro.com/api/data?dId=${dId}&variable=estaciontodas`;
+        let mklResponse = await fetch(apiUrl, {
+            headers: {
+                'token': token
+            }
+        });
+        // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+        if (mklResponse.status === 401) {
+            console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+            token = await getMklToken(true); // force session login
+            mklResponse = await fetch(apiUrl, {
+                headers: {
+                    'token': token
+                }
+            });
+        }
+        if (!mklResponse.ok) {
+            console.error('[ERROR] MKL API returned status:', mklResponse.status);
+            const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+            return res.status(status).json({ error: 'Failed to fetch from MKL API' });
+        }
+        const mklData = await mklResponse.json();
+        let finalData = mklData;
+        // MKL API returns historical data. We extract the latest record for the frontend.
+        if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
+            // Sort descending by time to guarantee index 0 is always the absolute latest record
+            const sortedData = [...mklData.data].sort((a, b) => b.time - a.time);
+            const latestData = JSON.parse(JSON.stringify(sortedData[0])); // Clone to avoid mutating shared state
+            // Filter the data array to only calculate min/max of the SAME CALENDAR DAY as the latest record.
+            const latestDateStr = new Date(latestData.time).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+            const todaysRecords = mklData.data.filter((record) => {
+                if (!record.time)
+                    return false;
+                const dStr = new Date(record.time).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+                return dStr === latestDateStr;
+            });
+            // Calculate absolute min/max over the same calendar day returned historical data array
+            if (latestData.value) {
+                // Dew Point helper to calculate dew point per-record
+                const calculateDp = (t, h) => {
+                    if (t === undefined || t === null || h === undefined || h === null || h <= 0)
+                        return null;
+                    const a = 17.27;
+                    const b = 237.7;
+                    const alpha = ((a * t) / (b + t)) + Math.log(h / 100.0);
+                    return (b * alpha) / (a - alpha);
+                };
+                let minTemp = latestData.value.temp1min ?? latestData.value.temp1avg;
+                let maxTemp = latestData.value.temp1max ?? latestData.value.temp1avg;
+                let minHum = (latestData.value.hum1min !== undefined && latestData.value.hum1min > 0) ? latestData.value.hum1min : latestData.value.hum1avg;
+                if (!minHum || minHum <= 0)
+                    minHum = 50; // default fallback
+                let maxHum = latestData.value.hum1max ?? latestData.value.hum1avg;
+                let minPres = (latestData.value.presmin !== undefined && latestData.value.presmin > 0) ? latestData.value.presmin : latestData.value.presavg;
+                if (!minPres || minPres <= 0)
+                    minPres = 1000; // default fallback
+                let maxPres = latestData.value.presmax ?? latestData.value.presavg;
+                let minVel = latestData.value.velmin ?? latestData.value.velavg;
+                let maxVel = latestData.value.velmax ?? latestData.value.velavg;
+                // Initialize Dew Point min/max from the latest reading
+                let latestDp = calculateDp(latestData.value.temp1avg, latestData.value.hum1avg);
+                let minDp = latestDp;
+                let maxDp = latestDp;
+                for (const record of todaysRecords) {
+                    const val = record.value;
+                    if (val) {
+                        // Temperature
+                        if (val.temp1min !== undefined && val.temp1min !== null)
+                            minTemp = Math.min(minTemp, val.temp1min);
+                        if (val.temp1avg !== undefined && val.temp1avg !== null)
+                            minTemp = Math.min(minTemp, val.temp1avg);
+                        if (val.temp1max !== undefined && val.temp1max !== null)
+                            maxTemp = Math.max(maxTemp, val.temp1max);
+                        if (val.temp1avg !== undefined && val.temp1avg !== null)
+                            maxTemp = Math.max(maxTemp, val.temp1avg);
+                        // Humidity (ignoring invalid 0% telemetry drops)
+                        if (val.hum1min !== undefined && val.hum1min !== null && val.hum1min > 0)
+                            minHum = Math.min(minHum, val.hum1min);
+                        if (val.hum1avg !== undefined && val.hum1avg !== null && val.hum1avg > 0)
+                            minHum = Math.min(minHum, val.hum1avg);
+                        if (val.hum1max !== undefined && val.hum1max !== null)
+                            maxHum = Math.max(maxHum, val.hum1max);
+                        if (val.hum1avg !== undefined && val.hum1avg !== null)
+                            maxHum = Math.max(maxHum, val.hum1avg);
+                        // Pressure (ignoring invalid 0 hPa telemetry drops)
+                        if (val.presmin !== undefined && val.presmin !== null && val.presmin > 0)
+                            minPres = Math.min(minPres, val.presmin);
+                        if (val.presavg !== undefined && val.presavg !== null && val.presavg > 0)
+                            minPres = Math.min(minPres, val.presavg);
+                        if (val.presmax !== undefined && val.presmax !== null)
+                            maxPres = Math.max(maxPres, val.presmax);
+                        if (val.presavg !== undefined && val.presavg !== null)
+                            maxPres = Math.max(maxPres, val.presavg);
+                        // Wind Speed
+                        if (val.velmin !== undefined && val.velmin !== null)
+                            minVel = Math.min(minVel, val.velmin);
+                        if (val.velavg !== undefined && val.velavg !== null)
+                            minVel = Math.min(minVel, val.velavg);
+                        if (val.velmax !== undefined && val.velmax !== null)
+                            maxVel = Math.max(maxVel, val.velmax);
+                        if (val.velavg !== undefined && val.velavg !== null)
+                            maxVel = Math.max(maxVel, val.velavg);
+                        // Dew Point (calculated per-record then min/maxed)
+                        const dp = calculateDp(val.temp1avg, val.hum1avg);
+                        if (dp !== null && !isNaN(dp)) {
+                            if (minDp === null || isNaN(minDp)) {
+                                minDp = dp;
+                                maxDp = dp;
+                            }
+                            else {
+                                minDp = Math.min(minDp, dp);
+                                maxDp = Math.max(maxDp, dp);
+                            }
+                        }
+                    }
+                }
+                // Apply global calculated mins and maxes to the latest record
+                latestData.value.temp1min = minTemp;
+                latestData.value.temp1max = maxTemp;
+                latestData.value.hum1min = minHum;
+                latestData.value.hum1max = maxHum;
+                latestData.value.presmin = minPres;
+                latestData.value.presmax = maxPres;
+                latestData.value.velmin = minVel;
+                latestData.value.velmax = maxVel;
+                latestData.value.dpMin = minDp;
+                latestData.value.dpMax = maxDp;
+            }
+            finalData = {
+                status: mklData.status,
+                data: [latestData]
+            };
+        }
+        // Save to cache
+        sensorDataCache[dId] = {
+            data: finalData,
+            timestamp: Date.now()
+        };
+        console.log(`[CACHE MISS] Fetched and cached sensor data for dId: ${dId}`);
+        res.json(finalData);
+    }
+    catch (error) {
+        console.error('[ERROR] GET /backend/weather-stations:', error.message);
+        res.status(500).json({ error: 'Failed to fetch weather stations' });
+    }
+});
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });

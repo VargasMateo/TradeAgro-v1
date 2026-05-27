@@ -262,7 +262,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                                 key={jobIndex}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/work-orders/${(job.id || '').replace('#', '')}`);
+                                  navigate(`/work-orders/${job.uuid || job.id}`);
                                 }}
                                 className="bg-white border border-slate-200 rounded-lg p-1.5 md:p-2 text-[9px] md:text-xs shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-emerald-200 group/job relative overflow-hidden"
                               >
@@ -334,7 +334,7 @@ export default function CalendarPage({ userRole = 'profesional' }: { userRole?: 
                                     key={jobIndex}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/work-orders/${(job.id || '').replace('#', '')}`);
+                                      navigate(`/work-orders/${job.uuid || job.id}`);
                                     }}
                                     className="bg-white border border-slate-200 rounded-lg p-1.5 md:p-2 text-[9px] md:text-xs shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-emerald-200 group/job relative overflow-hidden"
                                   >

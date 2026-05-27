@@ -1,337 +1,549 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Sun,
-  Cloud,
-  CloudRain,
-  Wind,
+  Thermometer,
+  ThermometerSun,
   Droplets,
-  Calendar,
+  Wind,
+  Gauge,
+  Battery,
+  Signal,
   MapPin,
-  Search,
-  Filter,
-  CloudLightning,
-  CloudDrizzle,
-  CloudSun,
-  ChevronLeft,
-  ChevronRight
+  Clock,
+  Cloud,
+  Activity,
+  Settings
 } from "lucide-react";
-import { cn } from "../lib/utils";
-import MagneticEffect from "../components/MagneticEffect";
+import { authenticatedFetch } from "../lib/api";
 
-// Weather Configuration Map
-const weatherConfig: any = {
-  "Despejado": {
-    icon: Sun,
-    color: "bg-sky-500",
-    iconColor: "text-yellow-300",
-    gradient: "from-sky-400 to-sky-600"
-  },
-  "Soleado": {
-    icon: Sun,
-    color: "bg-blue-500",
-    iconColor: "text-yellow-300",
-    gradient: "from-blue-400 to-blue-600"
-  },
-  "Parc. Nublado": {
-    icon: CloudSun,
-    color: "bg-indigo-500",
-    iconColor: "text-yellow-200",
-    gradient: "from-indigo-400 to-indigo-600"
-  },
-  "Nublado": {
-    icon: Cloud,
-    color: "bg-slate-500",
-    iconColor: "text-slate-200",
-    gradient: "from-slate-400 to-slate-600"
-  },
-  "Lluvia": {
-    icon: CloudRain,
-    color: "bg-cyan-700",
-    iconColor: "text-cyan-200",
-    gradient: "from-cyan-600 to-cyan-800"
-  },
-  "Tormentas": {
-    icon: CloudLightning,
-    color: "bg-violet-800",
-    iconColor: "text-yellow-400",
-    gradient: "from-violet-700 to-violet-900"
-  },
-  "Llovizna": {
-    icon: CloudDrizzle,
-    color: "bg-teal-600",
-    iconColor: "text-teal-200",
-    gradient: "from-teal-500 to-teal-700"
-  },
-  "Ventoso": {
-    icon: Wind,
-    color: "bg-emerald-600",
-    iconColor: "text-emerald-200",
-    gradient: "from-emerald-500 to-emerald-700"
-  },
-  "Caluroso": {
-    icon: Sun,
-    color: "bg-orange-500",
-    iconColor: "text-yellow-100",
-    gradient: "from-orange-400 to-orange-600"
-  }
+interface WeatherDevice {
+  name: string;
+  dId: string;
+  templateName?: string;
+}
+
+interface SensorData {
+  _id: string;
+  userId: string;
+  dId: string;
+  variable: string;
+  time: number;
+  value: {
+    temp1min: number;
+    temp1max: number;
+    temp1avg: number;
+    hum1min: number;
+    hum1max: number;
+    hum1avg: number;
+    presmin: number;
+    presmax: number;
+    presavg: number;
+    velmin: number;
+    velmax: number;
+    velavg: number;
+    dirmin: number;
+    dirmax: number;
+    diravg: number;
+    dir: number;
+    dirq: string;
+    rafaga: number;
+    rafaga_dir: number;
+    rafaga_dirq: string;
+    dt: number;
+    dtq: string;
+    dtc: string;
+    cond: string;
+    label: string;
+    color: string;
+    bat: number;
+    sen_cel: number;
+    lat: number;
+    lng: number;
+    [key: string]: any;
+  };
+}
+
+// Approximation of Magnus formula for Dew Point
+const calculateDewPoint = (temp: number | undefined, hum: number | undefined) => {
+  if (temp === undefined || hum === undefined) return undefined;
+  const a = 17.27;
+  const b = 237.7;
+  const alpha = ((a * temp) / (b + temp)) + Math.log(hum / 100.0);
+  return (b * alpha) / (a - alpha);
 };
 
-// Mock Data for Stations/Fields
-const stations = [
-  {
-    id: 1,
-    client: "AgroExport S.A.",
-    field: "Campo Norte",
-    location: "Pergamino, Buenos Aires",
-    weather: {
-      today: { temp: 24, condition: "Despejado", humidity: 45, wind: "12 km/h", precip: "0%", uv: "Alto" },
-      tomorrow: { temp: 22, condition: "Parc. Nublado", humidity: 55, wind: "15 km/h", precip: "10%", uv: "Medio" },
-      next: { temp: 18, condition: "Lluvia", humidity: 82, wind: "22 km/h", precip: "90%", uv: "Bajo" },
-    }
-  },
-  {
-    id: 2,
-    client: "Finca La Estela",
-    field: "Lote Los Olivos",
-    location: "Mendoza, Argentina",
-    weather: {
-      today: { temp: 28, condition: "Soleado", humidity: 30, wind: "8 km/h", precip: "0%", uv: "Muy Alto" },
-      tomorrow: { temp: 29, condition: "Caluroso", humidity: 28, wind: "10 km/h", precip: "0%", uv: "Muy Alto" },
-      next: { temp: 26, condition: "Ventoso", humidity: 35, wind: "35 km/h", precip: "5%", uv: "Alto" },
-    }
-  },
-  {
-    id: 3,
-    client: "Juan Pérez",
-    field: "Sector Río",
-    location: "Rosario, Santa Fe",
-    weather: {
-      today: { temp: 21, condition: "Nublado", humidity: 65, wind: "18 km/h", precip: "20%", uv: "Bajo" },
-      tomorrow: { temp: 19, condition: "Tormentas", humidity: 88, wind: "25 km/h", precip: "80%", uv: "Bajo" },
-      next: { temp: 20, condition: "Llovizna", humidity: 75, wind: "15 km/h", precip: "40%", uv: "Bajo" },
-    }
-  },
-  {
-    id: 4,
-    client: "Cooperativa Sur",
-    field: "Parcela 4B",
-    location: "Balcarce, Buenos Aires",
-    weather: {
-      today: { temp: 18, condition: "Ventoso", humidity: 50, wind: "28 km/h", precip: "10%", uv: "Medio" },
-      tomorrow: { temp: 16, condition: "Nublado", humidity: 55, wind: "20 km/h", precip: "15%", uv: "Bajo" },
-      next: { temp: 17, condition: "Despejado", humidity: 48, wind: "12 km/h", precip: "0%", uv: "Medio" },
-    }
-  },
-  {
-    id: 5,
-    client: "Los Alamos",
-    field: "Viñedo Principal",
-    location: "San Rafael, Mendoza",
-    weather: {
-      today: { temp: 26, condition: "Despejado", humidity: 35, wind: "5 km/h", precip: "0%", uv: "Alto" },
-      tomorrow: { temp: 27, condition: "Soleado", humidity: 32, wind: "8 km/h", precip: "0%", uv: "Alto" },
-      next: { temp: 25, condition: "Parc. Nublado", humidity: 40, wind: "12 km/h", precip: "0%", uv: "Medio" },
-    }
-  },
-  {
-    id: 6,
-    client: "Campo Verde",
-    field: "Lote Maíz",
-    location: "Venado Tuerto, Santa Fe",
-    weather: {
-      today: { temp: 23, condition: "Parc. Nublado", humidity: 60, wind: "14 km/h", precip: "5%", uv: "Medio" },
-      tomorrow: { temp: 25, condition: "Despejado", humidity: 55, wind: "16 km/h", precip: "0%", uv: "Alto" },
-      next: { temp: 28, condition: "Caluroso", humidity: 50, wind: "20 km/h", precip: "0%", uv: "Muy Alto" },
-    }
-  }
-];
-
-// Helper to generate days
-const generateDays = (count: number) => {
-  const days = [];
-  const today = new Date();
-
-  for (let i = 0; i < count; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-
-    let label = '';
-    if (i === 0) label = 'Hoy';
-    else if (i === 1) label = 'Mañana';
-    else if (i === 2) label = 'Pasado';
-    else {
-      // Format: "Lun", "Mar", etc.
-      label = date.toLocaleDateString('es-ES', { weekday: 'short' });
-      label = label.charAt(0).toUpperCase() + label.slice(1);
-    }
-
-    const dateStr = date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-
-    days.push({
-      key: date.toISOString().split('T')[0], // YYYY-MM-DD
-      label,
-      date: dateStr,
-      index: i
-    });
-  }
-  return days;
+const formatNumber = (num: number | undefined, decimals = 1, fallback = '--') => {
+  if (num === undefined || num === null || isNaN(num)) return fallback;
+  return num.toFixed(decimals);
 };
+
+const timeAgo = (timestamp: number | undefined) => {
+  if (!timestamp) return "";
+  const diffMs = Date.now() - timestamp;
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return "hace unos segundos";
+  if (diffMins < 60) return `hace ${diffMins} ${diffMins === 1 ? 'minuto' : 'minutos'}`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  return `hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+};
+
+const StationSkeleton = () => (
+  <>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 md:col-span-3">
+        {/* Metric Cards x4 */}
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-52">
+            <div className="relative z-10 flex flex-col items-center text-center w-full animate-pulse">
+              <div className="h-12 w-32 bg-slate-100 rounded-xl mb-3" />
+              <div className="h-4 w-24 bg-slate-50 rounded mb-4" />
+              <div className="h-4 w-20 bg-slate-50 rounded mb-1.5" />
+              <div className="h-4 w-20 bg-slate-50 rounded" />
+            </div>
+          </div>
+        ))}
+
+        {/* Dew Point */}
+        <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-48">
+          <div className="relative z-10 flex flex-col items-center text-center animate-pulse">
+            <div className="h-12 w-32 bg-slate-100 rounded-xl mb-3" />
+            <div className="h-4 w-32 bg-slate-50 rounded mb-4" />
+            <div className="flex gap-6">
+              <div className="h-4 w-20 bg-slate-50 rounded" />
+              <div className="h-4 w-20 bg-slate-50 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Delta T */}
+        <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-48">
+          <div className="relative z-10 flex flex-col items-center text-center animate-pulse">
+            <div className="h-16 w-40 bg-slate-100 rounded-xl mb-3" />
+            <div className="h-4 w-24 bg-slate-50 rounded mb-4" />
+            <div className="h-8 w-32 bg-slate-100 rounded-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-2 h-14 w-full rounded-xl bg-white border border-slate-100 shadow-sm animate-pulse col-span-1 md:col-span-3" />
+    </div>
+  </>
+);
 
 export default function StationsPage() {
-  const [days] = useState(() => generateDays(14)); // Generate 14 days
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [scrollIndex, setScrollIndex] = useState(0);
+  const [devices, setDevices] = useState<WeatherDevice[]>([]);
+  const [selectedDid, setSelectedDid] = useState<string>("");
+  const [data, setData] = useState<SensorData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const VISIBLE_DAYS = 3; // Number of days visible at once
+  // Diagnostic states
+  const [debugToken, setDebugToken] = useState<string>("");
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string>("");
 
-  const handlePrev = () => {
-    setScrollIndex(prev => Math.max(0, prev - 1));
+  const fetchDebugToken = async () => {
+    try {
+      const res = await authenticatedFetch('/backend/weather-stations/debug-token');
+      if (res.ok) {
+        const json = await res.json();
+        setDebugToken(json.token || "No hay token activo");
+      }
+    } catch (e) {
+      console.error('Error fetching debug token:', e);
+    }
   };
 
-  const handleNext = () => {
-    setScrollIndex(prev => Math.min(days.length - VISIBLE_DAYS, prev + 1));
+  const handleResetToken = async () => {
+    try {
+      setDebugLoading(true);
+      const res = await authenticatedFetch('/backend/weather-stations/debug-reset-token', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setDebugToken(json.token);
+        setDebugMessage("¡Token invalidado con éxito! Cuando recargues o cambies de central, la consola del backend mostrará el intento fallido (401), se re-autenticará en MKL en milisegundos y recuperará los datos perfectamente.");
+        setTimeout(() => setDebugMessage(""), 10000);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Error invalidando token');
+    } finally {
+      setDebugLoading(false);
+    }
   };
 
-  const visibleDays = days.slice(scrollIndex, scrollIndex + VISIBLE_DAYS);
+  // 1. Fetch devices list on mount
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        setLoading(true);
+        const res = await authenticatedFetch('/backend/weather-stations/devices');
+        if (!res.ok) throw new Error('Failed to fetch devices');
+        const json = await res.json();
+        
+        if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+          setDevices(json.data);
+          setSelectedDid(json.data[0].dId);
+        } else {
+          throw new Error('No weather devices found');
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Error fetching devices');
+        setLoading(false);
+      }
+    };
+
+    fetchDevices();
+    fetchDebugToken();
+  }, []);
+
+  // 2. Fetch sensor data when selected station changes
+  useEffect(() => {
+    if (!selectedDid) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const res = await authenticatedFetch(`/backend/weather-stations?dId=${selectedDid}`);
+        if (!res.ok) throw new Error('Failed to fetch sensor data');
+        const json = await res.json();
+        
+        if (json.status === 'success' && json.data && json.data.length > 0) {
+          setData(json.data[0]);
+          setError(null);
+          fetchDebugToken(); // Refresh token in UI
+        } else {
+          throw new Error('Invalid data format');
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Error fetching data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [selectedDid]);
+
+  const val = data?.value;
+  const lastUpdate = data ? new Date(data.time).toLocaleString('es-AR') : null;
+
+  const dpCurrent = val ? formatNumber(calculateDewPoint(val.temp1avg, val.hum1avg), 1) : '--';
+  const dpMin = val && val.dpMin !== undefined ? formatNumber(val.dpMin, 1) : (val ? formatNumber(calculateDewPoint(val.temp1min, val.hum1min), 1) : '--');
+  const dpMax = val && val.dpMax !== undefined ? formatNumber(val.dpMax, 1) : (val ? formatNumber(calculateDewPoint(val.temp1max, val.hum1max), 1) : '--');
+
+  // Parse colors. Convert API color to RGB/rgba if needed or just use it directly.
+  const getDeltaTColorAndLabel = () => {
+    const rawLabel = val?.dtq || val?.label || "N/D";
+    const labelUpper = rawLabel.toUpperCase();
+    let color = val?.dtc || val?.color || "#808080";
+    
+    if (
+      labelUpper.includes("OPTIMO") || 
+      labelUpper.includes("ÓPTIMO") || 
+      labelUpper.includes("BUENO") || 
+      labelUpper.includes("EXCELENTE") || 
+      labelUpper.includes("OK")
+    ) {
+      color = "#10B981"; // Emerald green
+    } else if (
+      labelUpper.includes("PRECAUCION") || 
+      labelUpper.includes("PRECAUCIÓN") || 
+      labelUpper.includes("MODERADO") || 
+      labelUpper.includes("ALERTA")
+    ) {
+      color = "#F59E0B"; // Amber yellow
+    } else if (
+      labelUpper.includes("NO APLICAR") || 
+      labelUpper.includes("CRITICO") || 
+      labelUpper.includes("CRÍTICO") || 
+      labelUpper.includes("PELIGRO")
+    ) {
+      color = "#EF4444"; // Red
+    }
+    
+    return { color, label: rawLabel };
+  };
+
+  const { color: deltaColor, label: deltaLabel } = getDeltaTColorAndLabel();
+
+  const selectedDeviceName = devices.find(d => d.dId === selectedDid)?.name || "Nodo Celular";
 
   return (
-    <div className="animate-in fade-in duration-500 space-y-8 pb-10">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+    <div className="animate-in fade-in duration-500 pb-10 space-y-6">
+      
+      {/* Header section */}
+      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div className="space-y-1">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
-            Estaciones Meteorológicas
+            Estación {selectedDeviceName}
           </h1>
-          <p className="text-sm text-slate-500 md:text-lg">
-            Monitoreo climático en tiempo real de sus campos.
-          </p>
+          <div className="text-sm text-slate-500 md:text-lg flex items-center gap-2 mt-2">
+            <Clock className="h-4 w-4" /> 
+            {data?.time ? (
+              <span className="flex items-center gap-2">
+                Actualizado: {timeAgo(data.time)}
+                {loading && (
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                )}
+              </span>
+            ) : (
+              <div className="h-5 w-48 rounded bg-slate-200 animate-pulse" />
+            )}
+          </div>
         </div>
 
-        {/* Day Filter / Slider */}
-        <div className="flex items-center gap-2 rounded-xl bg-slate-100 p-1">
-          <button
-            onClick={handlePrev}
-            disabled={scrollIndex === 0}
-            className="p-2 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors cursor-pointer disabled:cursor-default"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-
-          <div className="flex gap-1 overflow-hidden">
-            {visibleDays.map((day) => (
-              <button
-                key={day.key}
-                onClick={() => setSelectedDayIndex(day.index)}
-                className={cn(
-                  "flex w-24 flex-col items-center rounded-lg px-2 py-2 text-sm font-medium transition-all cursor-pointer",
-                  selectedDayIndex === day.index
-                    ? "bg-white text-emerald-700 shadow-sm"
-                    : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700"
-                )}
+        {/* Station Selector Dropdown */}
+        {devices.length > 0 && (
+          <div className="flex flex-col gap-1.5 w-full md:w-auto md:min-w-[280px]">
+            <label htmlFor="station-selector" className="text-xs font-bold text-slate-400 tracking-wider uppercase">
+              Seleccionar Central
+            </label>
+            <div className="relative">
+              <select
+                id="station-selector"
+                value={selectedDid}
+                onChange={(e) => setSelectedDid(e.target.value)}
+                className="w-full bg-white border border-slate-200 text-slate-700 font-semibold px-4 py-3 pr-10 rounded-xl shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer text-sm"
               >
-                <span className="leading-none">{day.label}</span>
-                <span className="mt-1 text-[10px] opacity-70">{day.date}</span>
-              </button>
-            ))}
+                {devices.map((device) => (
+                  <option key={device.dId} value={device.dId}>
+                    {device.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {loading && !data ? (
+        <StationSkeleton />
+      ) : error && !data ? (
+        <div className="flex h-64 items-center justify-center">
+          <div className="rounded-xl bg-red-50 p-6 text-center text-red-600">
+            <p className="font-medium">Error al cargar datos</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
+      ) : data && val ? (
+        <div key={selectedDid} className={`transition-all duration-300 ease-in-out ${loading ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 md:col-span-3">
+          
+          {/* Temperature */}
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-sky-50 border border-sky-100 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-10">
+              <Thermometer className="h-24 w-24 text-sky-600" />
+            </div>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <h2 className="text-5xl font-black text-sky-900">{formatNumber(val.temp1avg, 1)}°C</h2>
+              <p className="mt-1 text-sm font-bold tracking-widest text-sky-600/80">TEMPERATURA</p>
+              <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
+                <span className="text-sky-700">Min: {formatNumber(val.temp1min, 1)}°C</span>
+                <span className="text-rose-600">Max: {formatNumber(val.temp1max, 1)}°C</span>
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={handleNext}
-            disabled={scrollIndex >= days.length - VISIBLE_DAYS}
-            className="p-2 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors cursor-pointer disabled:cursor-default"
+          {/* Humidity */}
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '40ms' }}>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
+              <Droplets className="h-24 w-24 text-sky-600" />
+            </div>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <h2 className="text-5xl font-black">{formatNumber(val.hum1avg, 1)}%</h2>
+              <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">HUMEDAD</p>
+              <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
+                <span className="text-sky-600">Min: {formatNumber(val.hum1min, 1)}%</span>
+                <span className="text-rose-600">Max: {formatNumber(val.hum1max, 1)}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pressure */}
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '80ms' }}>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
+              <Gauge className="h-24 w-24 text-slate-600" />
+            </div>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <h2 className="text-5xl font-black">{formatNumber(val.presavg, 1)}</h2>
+              <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">PRESIÓN (hPa)</p>
+              <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
+                <span className="text-sky-600">Min: {formatNumber(val.presmin, 1)}</span>
+                <span className="text-rose-600">Max: {formatNumber(val.presmax, 1)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Wind */}
+          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
+              <Wind className="h-24 w-24 text-sky-500" />
+            </div>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <h2 className="text-5xl font-black">{formatNumber(val.velavg, 1)} <span className="text-3xl">km/h</span></h2>
+              <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">VIENTO {val.dirq || '--'}</p>
+              <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
+                <span className="text-sky-600">Min: {formatNumber(val.velmin, 1)}</span>
+                <span className="text-rose-600">Max: {formatNumber(val.velmax, 1)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Dew Point */}
+          <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+             <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-5">
+              <ThermometerSun className="h-24 w-24 text-amber-500" />
+            </div>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <h2 className="text-5xl font-black">{dpCurrent}°C</h2>
+              <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">PUNTO DE ROCÍO</p>
+              <div className="mt-3 flex flex-row gap-6 text-sm font-bold">
+                <span className="text-sky-600">Min: {dpMin}°C</span>
+                <span className="text-rose-600">Max: {dpMax}°C</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Delta T */}
+          <div 
+            className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl p-6 shadow-sm relative overflow-hidden animate-fade-in-up"
+            style={{ 
+              backgroundColor: deltaColor !== "#808080" ? `${deltaColor}15` : "#F8FAFC",
+              border: `2px solid ${deltaColor !== "#808080" ? deltaColor : "#E2E8F0"}`,
+              animationDelay: '200ms'
+            }}
           >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-10">
+              <Thermometer className="h-24 w-24" style={{ color: deltaColor !== "#808080" ? deltaColor : "#64748B" }} />
+            </div>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <h2 className="text-6xl font-black" style={{ color: deltaColor !== "#808080" ? deltaColor : "#334155" }}>{formatNumber(val.dt, 1)}°C</h2>
+              <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">DELTA T</p>
+              <div className="mt-4 flex items-center gap-2 rounded-full px-4 py-1.5 font-bold text-white shadow-sm" style={{ backgroundColor: deltaColor }}>
+                <Activity className="h-4 w-4" />
+                {deltaLabel}
+              </div>
+            </div>
+          </div>
+
         </div>
-      </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Buscar por campo, cliente o ubicación..."
-          className="w-full rounded-2xl border-none bg-white py-4 pl-12 pr-4 text-slate-900 shadow-sm ring-1 ring-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/20"
-        />
-      </div>
-
-      {/* Stations Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {stations.map((station) => {
-          // Logic to cycle through mock data for extended days
-          const mockKeys = ['today', 'tomorrow', 'next'];
-          const key = selectedDayIndex < 3
-            ? mockKeys[selectedDayIndex]
-            : mockKeys[selectedDayIndex % 3];
-
-          const weather = (station.weather as any)[key];
-          const config = weatherConfig[weather.condition] || weatherConfig["Despejado"];
-          const WeatherIcon = config.icon;
-
-          return (
-            <div key={station.id} className="h-full">
-              <MagneticEffect className="rounded-[2rem]">
-              <div
-                className={cn(
-                  "group relative overflow-hidden rounded-[2rem] p-8 text-white shadow-lg transition-all hover:shadow-xl bg-gradient-to-br h-full",
-                  config.gradient
-                )}
-              >
-                {/* Background Pattern */}
-                <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-white/10 blur-3xl transition-transform group-hover:scale-110"></div>
-
-                <div className="relative z-10">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 opacity-90">
-                        <MapPin className="h-4 w-4" />
-                        <span className="text-sm font-medium">{station.location}</span>
-                      </div>
-                      <h3 className="mt-1 text-xl font-bold">{station.field}</h3>
-                      <p className="text-sm opacity-75">{station.client}</p>
-                    </div>
-                    <WeatherIcon className={cn("h-14 w-14 drop-shadow-lg", config.iconColor)} />
-                  </div>
-
-                  {/* Main Temp */}
-                  <div className="mt-8">
-                    <h2 className="text-6xl font-bold tracking-tighter">
-                      {weather.temp}°C
-                    </h2>
-                    <p className="mt-2 text-lg font-medium opacity-90">
-                      {weather.condition} • Humedad {weather.humidity}%
-                    </p>
-                  </div>
-
-                  {/* Stats Grid */}
-                  <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/20 pt-6">
-                    <div className="text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-                        VIENTO
-                      </p>
-                      <p className="mt-1 text-lg font-bold">{weather.wind}</p>
-                    </div>
-                    <div className="text-center border-l border-white/20">
-                      <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-                        PRECIP.
-                      </p>
-                      <p className="mt-1 text-lg font-bold">{weather.precip}</p>
-                    </div>
-                    <div className="text-center border-l border-white/20">
-                      <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-                        UV
-                      </p>
-                      <p className="mt-1 text-lg font-bold">{weather.uv}</p>
+        {/* Diagnostics & Device Health Panel */}
+        <div className="col-span-1 md:col-span-3 mt-4 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
+          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-4 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Diagnóstico y Conectividad de la Central
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              
+              {/* Battery Status */}
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xs shrink-0">
+                  <Battery className={`h-6 w-6 ${val.bat > 50 ? 'text-emerald-500' : val.bat > 20 ? 'text-amber-500' : 'text-rose-500 animate-pulse'}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Batería</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-lg font-black text-slate-800">{formatNumber(val.bat, 1)}%</span>
+                    {/* Visual Battery Level Bar */}
+                    <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden hidden sm:block shrink-0">
+                      <div 
+                        className={`h-full rounded-full ${val.bat > 50 ? 'bg-emerald-500' : val.bat > 20 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${Math.min(100, Math.max(0, val.bat))}%` }}
+                      ></div>
                     </div>
                   </div>
                 </div>
               </div>
-              </MagneticEffect>
+
+              {/* Signal Strength */}
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xs shrink-0">
+                  <Signal className={`h-6 w-6 ${val.sen_cel > 70 ? 'text-emerald-500' : val.sen_cel > 40 ? 'text-amber-500' : 'text-rose-500'}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Señal Celular</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-lg font-black text-slate-800">{val.sen_cel ?? '--'}%</span>
+                    {/* Signal Bars Visual Indicator */}
+                    <div className="flex items-end gap-0.5 h-3.5 mb-1 shrink-0">
+                      {[1, 2, 3, 4].map((bar) => {
+                        const active = val.sen_cel >= bar * 25;
+                        return (
+                          <div 
+                            key={bar} 
+                            className={`w-1 rounded-sm transition-all ${
+                              active 
+                                ? val.sen_cel > 70 ? 'bg-emerald-500' : val.sen_cel > 40 ? 'bg-amber-500' : 'bg-rose-500' 
+                                : 'bg-slate-200'
+                            }`}
+                            style={{ height: `${bar * 25}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coordinates / Map Pin */}
+              <div className="col-span-1 sm:col-span-2 flex items-center justify-between bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xs text-sky-500 shrink-0">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ubicación GPS</p>
+                    <p className="text-sm font-black text-slate-800 mt-0.5 truncate">
+                      Lat: {formatNumber(val.lat, 5)} <span className="text-slate-300 mx-0.5">|</span> Lng: {formatNumber(val.lng, 5)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* External link to Google Maps */}
+                {val.lat && val.lng && (
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${val.lat},${val.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-xs whitespace-nowrap ml-2"
+                  >
+                    Ver Mapa
+                  </a>
+                )}
+              </div>
+
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+        </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }

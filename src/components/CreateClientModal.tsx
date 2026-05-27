@@ -27,6 +27,8 @@ export default function CreateClientModal({
     ivaCondition: 'Responsable Inscripto' | 'Monotributista' | '';
     email: string;
     phone: string;
+    notificationEmails: string;
+    isTest: boolean;
     fields: ClientField[];
   }>({
     name: initialName,
@@ -35,6 +37,8 @@ export default function CreateClientModal({
     ivaCondition: 'Responsable Inscripto',
     email: '',
     phone: '',
+    notificationEmails: '',
+    isTest: false,
     fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
   });
 
@@ -45,6 +49,7 @@ export default function CreateClientModal({
     ivaCondition?: string;
     email?: string;
     phone?: string;
+    notificationEmails?: string;
     fields?: string;
     fieldErrors?: Record<number, { lat?: string; lng?: string }>;
   }>({});
@@ -67,8 +72,29 @@ export default function CreateClientModal({
   const [invitedEmail, setInvitedEmail] = useState('');
   const [setupLink, setSetupLink] = useState('');
 
+  const [emailChips, setEmailChips] = useState<string[]>([]);
+  const [chipInput, setChipInput] = useState('');
+
+  const [isAdmin] = useState(() => {
+    const storedProfile = localStorage.getItem("userProfile");
+    if (storedProfile) {
+      try {
+        const profile = JSON.parse(storedProfile);
+        return profile.role === 'admin';
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
+
   useEffect(() => {
     if (editingClient) {
+      const initialEmails = editingClient.notificationEmails
+        ? editingClient.notificationEmails.split(/[,;\s]+/).map(e => e.trim()).filter(e => e !== '')
+        : [];
+      setEmailChips(initialEmails);
+
       setFormData({
         name: editingClient.name || '',
         businessName: editingClient.businessName || '',
@@ -76,6 +102,8 @@ export default function CreateClientModal({
         ivaCondition: editingClient.ivaCondition || '',
         email: editingClient.email || '',
         phone: editingClient.phone || '',
+        notificationEmails: editingClient.notificationEmails || '',
+        isTest: !!editingClient.isTest,
         fields: (editingClient.fields || []).map(f => ({
           name: f.name || '',
           lat: f.lat,
@@ -84,6 +112,7 @@ export default function CreateClientModal({
         }))
       });
     } else {
+      setEmailChips([]);
       setFormData({
         name: initialName,
         businessName: '',
@@ -91,6 +120,8 @@ export default function CreateClientModal({
         ivaCondition: 'Responsable Inscripto',
         email: '',
         phone: '',
+        notificationEmails: '',
+        isTest: false,
         fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
       });
     }
@@ -98,6 +129,34 @@ export default function CreateClientModal({
     setCreatedId(null);
     setErrors({});
   }, [editingClient, initialName, isOpen]);
+
+  const addChip = (value: string) => {
+    const cleanValue = value.replace(/[,;\s]/g, '').trim();
+    if (!cleanValue) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanValue)) {
+      setErrors(prev => ({ ...prev, notificationEmails: 'Formato de email inválido' }));
+      return;
+    }
+
+    if (emailChips.includes(cleanValue)) {
+      setErrors(prev => ({ ...prev, notificationEmails: 'Este correo ya fue agregado' }));
+      return;
+    }
+
+    const updatedChips = [...emailChips, cleanValue];
+    setEmailChips(updatedChips);
+    setFormData(prev => ({ ...prev, notificationEmails: updatedChips.join(', ') }));
+    setChipInput('');
+    setErrors(prev => ({ ...prev, notificationEmails: undefined }));
+  };
+
+  const removeChip = (indexToRemove: number) => {
+    const updatedChips = emailChips.filter((_, idx) => idx !== indexToRemove);
+    setEmailChips(updatedChips);
+    setFormData(prev => ({ ...prev, notificationEmails: updatedChips.join(', ') }));
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -149,6 +208,14 @@ export default function CreateClientModal({
 
     if (formData.phone.trim() && !/^\d{8,20}$/.test(formData.phone)) {
       newErrors.phone = 'Formato de teléfono inválido (solo números)';
+    }
+
+    if (formData.notificationEmails && formData.notificationEmails.trim()) {
+      const emailList = formData.notificationEmails.split(/[,;\s]+/).map(e => e.trim()).filter(e => e !== '');
+      const invalidEmails = emailList.filter(email => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+      if (invalidEmails.length > 0) {
+        newErrors.notificationEmails = `Contiene correos inválidos: ${invalidEmails.join(', ')}`;
+      }
     }
 
     if (formData.fields.length === 0) {
@@ -205,6 +272,8 @@ export default function CreateClientModal({
         ivaCondition: formData.ivaCondition || 'Responsable Inscripto',
         email: formData.email,
         phoneNumber: formData.phone,
+        notificationEmails: formData.notificationEmails || null,
+        isTest: formData.isTest,
         createdBy: currentUserId,
         fields: formData.fields.map(f => ({
           id: f.id,
@@ -436,7 +505,87 @@ export default function CreateClientModal({
                     </p>
                   )}
                 </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Correos de Notificación Adicionales
+                  </label>
+                  <div className={cn(
+                    "flex flex-wrap gap-2 w-full rounded-xl border bg-slate-50 px-3 py-2 text-slate-700 focus-within:ring-2 focus-within:bg-white transition-all",
+                    errors.notificationEmails
+                      ? "border-red-300 focus-within:border-red-500 focus-within:ring-red-500/20"
+                      : "border-slate-200 focus-within:border-emerald-500 focus-within:ring-emerald-500/20"
+                  )}>
+                    {emailChips.map((chip, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-100 shadow-sm animate-in fade-in zoom-in-95 duration-200"
+                      >
+                        <span>{chip}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeChip(index)}
+                          className="text-emerald-500 hover:text-emerald-800 transition-colors rounded-full hover:bg-emerald-100/50 p-0.5 cursor-pointer"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <input
+                      type="text"
+                      value={chipInput}
+                      onChange={(e) => {
+                        setChipInput(e.target.value);
+                        if (errors.notificationEmails) {
+                          setErrors(prev => ({ ...prev, notificationEmails: undefined }));
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',' || e.key === ' ' || e.key === ';') {
+                          e.preventDefault();
+                          addChip(chipInput);
+                        } else if (e.key === 'Backspace' && !chipInput && emailChips.length > 0) {
+                          removeChip(emailChips.length - 1);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (chipInput) {
+                          addChip(chipInput);
+                        }
+                      }}
+                      placeholder={emailChips.length === 0 ? "Ej: admon@agro.com (presiona Enter o Coma para agregar)" : "Agregar correo..."}
+                      className="flex-1 bg-transparent min-w-[150px] outline-none text-slate-700 placeholder:text-slate-400 text-sm py-1"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 ml-1">
+                    Direcciones de correo adicionales que recibirán copias de las notificaciones de órdenes de trabajo (creación y finalización). Presiona Enter, Coma o Espacio para agregar cada correo.
+                  </p>
+                  {errors.notificationEmails && (
+                    <p className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                      {errors.notificationEmails}
+                    </p>
+                  )}
+                </div>
               </div>
+
+              {isAdmin && (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <input
+                    type="checkbox"
+                    id="isTest"
+                    checked={formData.isTest}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isTest: e.target.checked }))}
+                    className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="isTest" className="text-sm font-bold text-slate-900 cursor-pointer block">
+                      Marcar como Usuario de Prueba (Test User)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Los usuarios de prueba y sus órdenes asociadas solo serán visibles para administradores.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Fields Section */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
