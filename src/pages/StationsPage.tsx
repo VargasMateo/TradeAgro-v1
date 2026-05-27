@@ -540,58 +540,6 @@ export default function StationsPage() {
             </div>
           </div>
         </div>
-        {/* Panel de Diagnóstico de Token MKL (Desarrollo / Pruebas) */}
-        <div className="col-span-1 md:col-span-3 mt-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg text-slate-100 relative overflow-hidden">
-            <div className="absolute right-4 top-4 opacity-10">
-              <Settings className="h-24 w-24 text-slate-400" />
-            </div>
-            
-            <h3 className="text-xs font-bold text-emerald-400 tracking-wider uppercase mb-3 flex items-center gap-2">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              CONSOLA DE DIAGNÓSTICO (TEST AUTO-HEALING & TOKEN)
-            </h3>
-            
-            <p className="text-xs text-slate-400 max-w-2xl mb-4">
-              Esta sección te permite ver el token JWT real que TradeAgro está utilizando para comunicarse con MKL Agro, e invalidarlo artificialmente para comprobar el mecanismo automático de re-autenticación.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Token JWT Activo en Memoria</p>
-                <div className="font-mono text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 select-all overflow-x-auto break-all max-h-24 scrollbar-hide text-emerald-300">
-                  {debugToken || "Cargando token..."}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={handleResetToken}
-                  disabled={debugLoading}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-                >
-                  {debugLoading ? 'Invalidando...' : '⚠️ Simular Token Inválido (Probar Auto-Healing)'}
-                </button>
-
-                <button
-                  onClick={fetchDebugToken}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all border border-slate-700 cursor-pointer"
-                >
-                  Actualizar Token
-                </button>
-              </div>
-
-              {debugMessage && (
-                <div className="text-xs bg-emerald-950/80 border border-emerald-800/80 text-emerald-300 rounded-xl p-3 animate-in fade-in duration-300">
-                  {debugMessage}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
         </div>
         </div>
       ) : null}
