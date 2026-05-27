@@ -76,6 +76,21 @@ const formatNumber = (num: number | undefined, decimals = 1, fallback = '--') =>
   return num.toFixed(decimals);
 };
 
+const timeAgo = (timestamp: number | undefined) => {
+  if (!timestamp) return "";
+  const diffMs = Date.now() - timestamp;
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return "hace unos segundos";
+  if (diffMins < 60) return `hace ${diffMins} ${diffMins === 1 ? 'minuto' : 'minutos'}`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  return `hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+};
+
 const StationSkeleton = () => (
   <>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -229,8 +244,39 @@ export default function StationsPage() {
   const dpMax = val ? formatNumber(calculateDewPoint(val.temp1max, val.hum1max), 1) : '--';
 
   // Parse colors. Convert API color to RGB/rgba if needed or just use it directly.
-  const deltaColor = val?.color || "#808080";
-  const deltaLabel = val?.label || "N/D";
+  const getDeltaTColorAndLabel = () => {
+    const rawLabel = val?.dtq || val?.label || "N/D";
+    const labelUpper = rawLabel.toUpperCase();
+    let color = val?.dtc || val?.color || "#808080";
+    
+    if (
+      labelUpper.includes("OPTIMO") || 
+      labelUpper.includes("ÓPTIMO") || 
+      labelUpper.includes("BUENO") || 
+      labelUpper.includes("EXCELENTE") || 
+      labelUpper.includes("OK")
+    ) {
+      color = "#10B981"; // Emerald green
+    } else if (
+      labelUpper.includes("PRECAUCION") || 
+      labelUpper.includes("PRECAUCIÓN") || 
+      labelUpper.includes("MODERADO") || 
+      labelUpper.includes("ALERTA")
+    ) {
+      color = "#F59E0B"; // Amber yellow
+    } else if (
+      labelUpper.includes("NO APLICAR") || 
+      labelUpper.includes("CRITICO") || 
+      labelUpper.includes("CRÍTICO") || 
+      labelUpper.includes("PELIGRO")
+    ) {
+      color = "#EF4444"; // Red
+    }
+    
+    return { color, label: rawLabel };
+  };
+
+  const { color: deltaColor, label: deltaLabel } = getDeltaTColorAndLabel();
 
   const selectedDeviceName = devices.find(d => d.dId === selectedDid)?.name || "Nodo Celular";
 
@@ -245,9 +291,9 @@ export default function StationsPage() {
           </h1>
           <div className="text-sm text-slate-500 md:text-lg flex items-center gap-2 mt-2">
             <Clock className="h-4 w-4" /> 
-            {lastUpdate ? (
+            {data?.time ? (
               <span className="flex items-center gap-2">
-                Actualizado: {lastUpdate}
+                Actualizado: {timeAgo(data.time)}
                 {loading && (
                   <span className="flex h-2.5 w-2.5 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

@@ -3373,7 +3373,74 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
     let finalData = mklData;
     // MKL API returns historical data. We extract the latest record for the frontend.
     if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
-      const latestData = mklData.data[mklData.data.length - 1];
+      // Sort descending by time to guarantee index 0 is always the absolute latest record
+      const sortedData = [...mklData.data].sort((a: any, b: any) => b.time - a.time);
+      const latestData = JSON.parse(JSON.stringify(sortedData[0])); // Clone to avoid mutating shared state
+
+      // Filter the data array to only calculate min/max of the SAME CALENDAR DAY as the latest record.
+      const latestDateStr = new Date(latestData.time).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+      const todaysRecords = mklData.data.filter((record: any) => {
+        if (!record.time) return false;
+        const dStr = new Date(record.time).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        return dStr === latestDateStr;
+      });
+
+      // Calculate absolute min/max over the same calendar day returned historical data array
+      if (latestData.value) {
+        let minTemp = latestData.value.temp1min ?? latestData.value.temp1avg;
+        let maxTemp = latestData.value.temp1max ?? latestData.value.temp1avg;
+        
+        let minHum = (latestData.value.hum1min !== undefined && latestData.value.hum1min > 0) ? latestData.value.hum1min : latestData.value.hum1avg;
+        if (!minHum || minHum <= 0) minHum = 50; // default fallback
+        let maxHum = latestData.value.hum1max ?? latestData.value.hum1avg;
+        
+        let minPres = (latestData.value.presmin !== undefined && latestData.value.presmin > 0) ? latestData.value.presmin : latestData.value.presavg;
+        if (!minPres || minPres <= 0) minPres = 1000; // default fallback
+        let maxPres = latestData.value.presmax ?? latestData.value.presavg;
+        
+        let minVel = latestData.value.velmin ?? latestData.value.velavg;
+        let maxVel = latestData.value.velmax ?? latestData.value.velavg;
+
+        for (const record of todaysRecords) {
+          const val = record.value;
+          if (val) {
+            // Temperature
+            if (val.temp1min !== undefined && val.temp1min !== null) minTemp = Math.min(minTemp, val.temp1min);
+            if (val.temp1avg !== undefined && val.temp1avg !== null) minTemp = Math.min(minTemp, val.temp1avg);
+            if (val.temp1max !== undefined && val.temp1max !== null) maxTemp = Math.max(maxTemp, val.temp1max);
+            if (val.temp1avg !== undefined && val.temp1avg !== null) maxTemp = Math.max(maxTemp, val.temp1avg);
+
+            // Humidity (ignoring invalid 0% telemetry drops)
+            if (val.hum1min !== undefined && val.hum1min !== null && val.hum1min > 0) minHum = Math.min(minHum, val.hum1min);
+            if (val.hum1avg !== undefined && val.hum1avg !== null && val.hum1avg > 0) minHum = Math.min(minHum, val.hum1avg);
+            if (val.hum1max !== undefined && val.hum1max !== null) maxHum = Math.max(maxHum, val.hum1max);
+            if (val.hum1avg !== undefined && val.hum1avg !== null) maxHum = Math.max(maxHum, val.hum1avg);
+
+            // Pressure (ignoring invalid 0 hPa telemetry drops)
+            if (val.presmin !== undefined && val.presmin !== null && val.presmin > 0) minPres = Math.min(minPres, val.presmin);
+            if (val.presavg !== undefined && val.presavg !== null && val.presavg > 0) minPres = Math.min(minPres, val.presavg);
+            if (val.presmax !== undefined && val.presmax !== null) maxPres = Math.max(maxPres, val.presmax);
+            if (val.presavg !== undefined && val.presavg !== null) maxPres = Math.max(maxPres, val.presavg);
+
+            // Wind Speed
+            if (val.velmin !== undefined && val.velmin !== null) minVel = Math.min(minVel, val.velmin);
+            if (val.velavg !== undefined && val.velavg !== null) minVel = Math.min(minVel, val.velavg);
+            if (val.velmax !== undefined && val.velmax !== null) maxVel = Math.max(maxVel, val.velmax);
+            if (val.velavg !== undefined && val.velavg !== null) maxVel = Math.max(maxVel, val.velavg);
+          }
+        }
+
+        // Apply global calculated mins and maxes to the latest record
+        latestData.value.temp1min = minTemp;
+        latestData.value.temp1max = maxTemp;
+        latestData.value.hum1min = minHum;
+        latestData.value.hum1max = maxHum;
+        latestData.value.presmin = minPres;
+        latestData.value.presmax = maxPres;
+        latestData.value.velmin = minVel;
+        latestData.value.velmax = maxVel;
+      }
+
       finalData = {
         status: mklData.status,
         data: [latestData]
