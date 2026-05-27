@@ -3387,6 +3387,15 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
 
       // Calculate absolute min/max over the same calendar day returned historical data array
       if (latestData.value) {
+        // Dew Point helper to calculate dew point per-record
+        const calculateDp = (t: number | undefined | null, h: number | undefined | null) => {
+          if (t === undefined || t === null || h === undefined || h === null || h <= 0) return null;
+          const a = 17.27;
+          const b = 237.7;
+          const alpha = ((a * t) / (b + t)) + Math.log(h / 100.0);
+          return (b * alpha) / (a - alpha);
+        };
+
         let minTemp = latestData.value.temp1min ?? latestData.value.temp1avg;
         let maxTemp = latestData.value.temp1max ?? latestData.value.temp1avg;
         
@@ -3400,6 +3409,11 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
         
         let minVel = latestData.value.velmin ?? latestData.value.velavg;
         let maxVel = latestData.value.velmax ?? latestData.value.velavg;
+
+        // Initialize Dew Point min/max from the latest reading
+        let latestDp = calculateDp(latestData.value.temp1avg, latestData.value.hum1avg);
+        let minDp = latestDp;
+        let maxDp = latestDp;
 
         for (const record of todaysRecords) {
           const val = record.value;
@@ -3427,6 +3441,18 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
             if (val.velavg !== undefined && val.velavg !== null) minVel = Math.min(minVel, val.velavg);
             if (val.velmax !== undefined && val.velmax !== null) maxVel = Math.max(maxVel, val.velmax);
             if (val.velavg !== undefined && val.velavg !== null) maxVel = Math.max(maxVel, val.velavg);
+
+            // Dew Point (calculated per-record then min/maxed)
+            const dp = calculateDp(val.temp1avg, val.hum1avg);
+            if (dp !== null && !isNaN(dp)) {
+              if (minDp === null || isNaN(minDp)) {
+                minDp = dp;
+                maxDp = dp;
+              } else {
+                minDp = Math.min(minDp, dp);
+                maxDp = Math.max(maxDp, dp);
+              }
+            }
           }
         }
 
@@ -3439,6 +3465,8 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
         latestData.value.presmax = maxPres;
         latestData.value.velmin = minVel;
         latestData.value.velmax = maxVel;
+        latestData.value.dpMin = minDp;
+        latestData.value.dpMax = maxDp;
       }
 
       finalData = {

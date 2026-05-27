@@ -240,8 +240,8 @@ export default function StationsPage() {
   const lastUpdate = data ? new Date(data.time).toLocaleString('es-AR') : null;
 
   const dpCurrent = val ? formatNumber(calculateDewPoint(val.temp1avg, val.hum1avg), 1) : '--';
-  const dpMin = val ? formatNumber(calculateDewPoint(val.temp1min, val.hum1min), 1) : '--';
-  const dpMax = val ? formatNumber(calculateDewPoint(val.temp1max, val.hum1max), 1) : '--';
+  const dpMin = val && val.dpMin !== undefined ? formatNumber(val.dpMin, 1) : (val ? formatNumber(calculateDewPoint(val.temp1min, val.hum1min), 1) : '--');
+  const dpMax = val && val.dpMax !== undefined ? formatNumber(val.dpMax, 1) : (val ? formatNumber(calculateDewPoint(val.temp1max, val.hum1max), 1) : '--');
 
   // Parse colors. Convert API color to RGB/rgba if needed or just use it directly.
   const getDeltaTColorAndLabel = () => {
