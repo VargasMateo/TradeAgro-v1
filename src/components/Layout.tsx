@@ -1,5 +1,6 @@
 import { ReactNode, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import logoIso from "../assets/tradeagro-drawer.png";
 import {
   Home,
   Menu,
@@ -138,30 +139,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
         <div className="flex h-full flex-col">
           {/* Logo Section */}
           <Link to="/dashboard" className="flex h-24 items-center gap-4 border-b border-slate-100 px-8 transition-opacity hover:opacity-80">
-            <div className="relative flex h-12 w-12 items-center justify-center">
-              <svg viewBox="0 0 100 100" className="h-full w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <clipPath id="logo-clip-desktop">
-                  <circle cx="50" cy="50" r="50" />
-                </clipPath>
-                <g clipPath="url(#logo-clip-desktop)">
-                  <rect x="0" y="0" width="100" height="100" fill="#0A6C35" />
-                  <path d="M 0 0 L 100 0 L 100 50 Q 45 25 0 45 Z" fill="#005A9C" />
-                  <path d="M -5 45 Q 45 25 105 45" stroke="white" strokeWidth="6" fill="none" />
-                  <path d="M -5 68 Q 50 45 105 72" stroke="white" strokeWidth="6" fill="none" />
-                  <path d="M -5 92 Q 55 68 105 100" stroke="white" strokeWidth="6" fill="none" />
-                </g>
-              </svg>
-            </div>
-            <div className="flex flex-col justify-center">
-              <h1 className="font-display text-xl font-bold tracking-tight text-slate-900 leading-none">
-                TradeAgro
-              </h1>
-              {userRole === 'admin' && (
-                <span className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Admin Panel
-                </span>
-              )}
-            </div>
+            <img src={logoIso} alt="TradeAgro" className="h-10 w-auto object-contain" />
+            {userRole === 'admin' && (
+              <span className="ml-2 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Admin
+              </span>
+            )}
           </Link>
 
           {/* Navigation */}
@@ -245,23 +228,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               <Menu className="h-6 w-6" />
             </button>
             <Link to="/dashboard" className="flex items-center gap-2 lg:hidden transition-opacity hover:opacity-80">
-              <div className="relative flex h-8 w-8 items-center justify-center">
-                <svg viewBox="0 0 100 100" className="h-full w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <clipPath id="logo-clip-mobile">
-                    <circle cx="50" cy="50" r="50" />
-                  </clipPath>
-                  <g clipPath="url(#logo-clip-mobile)">
-                    <rect x="0" y="0" width="100" height="100" fill="#0A6C35" />
-                    <path d="M 0 0 L 100 0 L 100 50 Q 45 25 0 45 Z" fill="#005A9C" />
-                    <path d="M -5 45 Q 45 25 105 45" stroke="white" strokeWidth="6" fill="none" />
-                    <path d="M -5 68 Q 50 45 105 72" stroke="white" strokeWidth="6" fill="none" />
-                    <path d="M -5 92 Q 55 68 105 100" stroke="white" strokeWidth="6" fill="none" />
-                  </g>
-                </svg>
-              </div>
-              <span className="font-display text-lg font-bold text-slate-900">
-                TradeAgro
-              </span>
+              <img src={logoIso} alt="TradeAgro" className="h-8 w-auto object-contain" />
             </Link>
             <h2 className="hidden text-xl font-bold text-slate-800 lg:block">
               {(() => {
