@@ -3184,6 +3184,97 @@ const DEVICES_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const sensorDataCache: Record<string, { data: any; timestamp: number }> = {};
 const SENSOR_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 
+let activeMklToken: string | null = null;
+
+/**
+ * Validates, rotates, and fetches a fresh JWT token dynamically from MKL Agro login API
+ */
+async function getMklToken(forceRefresh = false): Promise<string> {
+  const MKL_EMAIL = process.env.MKL_EMAIL;
+  const MKL_PASSWORD = process.env.MKL_PASSWORD;
+
+  // 1. If we have a token and aren't forcing a refresh, check its remaining lifetime
+  if (activeMklToken && !forceRefresh) {
+    try {
+      const parts = activeMklToken.split('.');
+      if (parts.length === 3) {
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          Buffer.from(base64, 'base64')
+            .toString('utf8')
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        const expirationTime = payload.exp * 1000;
+        
+        // If token has more than 1 hour left, use it
+        if (Date.now() < expirationTime - 60 * 60 * 1000) {
+          return activeMklToken;
+        }
+        console.log('[MKL AUTH] Token is expiring soon (less than 1 hour). Initiating refresh...');
+      }
+    } catch (e: any) {
+      console.warn('[MKL AUTH] Failed to parse cached JWT payload:', e.message);
+    }
+  }
+
+  // 2. Fetch new token from MKL login endpoint using email/password
+  try {
+    console.log(`[MKL AUTH] Authenticating with MKL Agro API for user "${MKL_EMAIL}"...`);
+    const loginResponse = await fetch('https://panel.mklagro.com/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: MKL_EMAIL,
+        password: MKL_PASSWORD
+      })
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error(`Authentication endpoint returned status ${loginResponse.status}`);
+    }
+
+    const result: any = await loginResponse.json();
+    if (result.status === 'success' && result.token) {
+      activeMklToken = result.token;
+      console.log('[MKL AUTH] Obtained fresh MKL Agro JWT session token successfully.');
+      return activeMklToken!;
+    } else {
+      throw new Error(result.error || 'Invalid login response payload');
+    }
+  } catch (error: any) {
+    console.error('[MKL AUTH ERROR] Failed to login to MKL Agro:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * GET /backend/weather-stations/debug-token — Get current active MKL token (for debug/testing)
+ */
+apiRouter.get('/weather-stations/debug-token', authenticateToken, async (req: any, res: any) => {
+  res.json({ token: activeMklToken });
+});
+
+/**
+ * POST /backend/weather-stations/debug-reset-token — Sets token to an invalid signature to test auto-healing (401 retry)
+ */
+apiRouter.post('/weather-stations/debug-reset-token', authenticateToken, async (req: any, res: any) => {
+  activeMklToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalidpayloadmock.invalidsignature";
+  console.log('[MKL DEBUG] Token forcefully set to invalid mock token to test 401 recovery');
+  
+  // Also invalidate local caches so the next click/fetch forces a fresh network call to MKL!
+  cachedDevices = null;
+  cachedDevicesTimestamp = 0;
+  Object.keys(sensorDataCache).forEach(key => delete sensorDataCache[key]);
+  
+  res.json({ success: true, token: activeMklToken, message: 'Token set to invalid mock to force 401 auto-healing' });
+});
+
 /**
  * GET /backend/weather-stations/devices — Fetch all available weather stations/devices
  */
@@ -3196,22 +3287,30 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
       return res.json(cachedDevices);
     }
 
-    const MKL_TOKEN = process.env.MKL_TOKEN;
-    if (!MKL_TOKEN) {
-      console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
-      return res.status(500).json({ error: 'MKL API token configuration missing' });
-    }
-
+    let token = await getMklToken();
     const apiUrl = 'https://panel.mklagro.com/api/device';
-    const mklResponse = await fetch(apiUrl, {
+    
+    let mklResponse = await fetch(apiUrl, {
       headers: {
-        'token': MKL_TOKEN
+        'token': token
       }
     });
 
+    // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+    if (mklResponse.status === 401) {
+      console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+      token = await getMklToken(true); // force session login
+      mklResponse = await fetch(apiUrl, {
+        headers: {
+          'token': token
+        }
+      });
+    }
+
     if (!mklResponse.ok) {
       console.error('[ERROR] MKL API returned status:', mklResponse.status);
-      return res.status(mklResponse.status).json({ error: 'Failed to fetch devices from MKL API' });
+      const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+      return res.status(status).json({ error: 'Failed to fetch devices from MKL API' });
     }
 
     const mklData = await mklResponse.json();
@@ -3243,23 +3342,30 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
       return res.json(cachedItem.data);
     }
 
-    const MKL_TOKEN = process.env.MKL_TOKEN;
-    if (!MKL_TOKEN) {
-      console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
-      return res.status(500).json({ error: 'MKL API token configuration missing' });
-    }
-    
+    let token = await getMklToken();
     const apiUrl = `https://panel.mklagro.com/api/data?dId=${dId}&variable=estaciontodas`;
 
-    const mklResponse = await fetch(apiUrl, {
+    let mklResponse = await fetch(apiUrl, {
       headers: {
-        'token': MKL_TOKEN
+        'token': token
       }
     });
 
+    // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+    if (mklResponse.status === 401) {
+      console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+      token = await getMklToken(true); // force session login
+      mklResponse = await fetch(apiUrl, {
+        headers: {
+          'token': token
+        }
+      });
+    }
+
     if (!mklResponse.ok) {
       console.error('[ERROR] MKL API returned status:', mklResponse.status);
-      return res.status(mklResponse.status).json({ error: 'Failed to fetch from MKL API' });
+      const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+      return res.status(status).json({ error: 'Failed to fetch from MKL API' });
     }
 
     const mklData = await mklResponse.json();
