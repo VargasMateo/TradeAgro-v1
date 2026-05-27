@@ -147,11 +147,9 @@ export default function App() {
           <Route path="/work-orders/:id" element={<WorkOrderDetailsPage userRole={userRole} />} />
           <Route path="/reports" element={<ReportsPage userRole={userRole} />} />
           {(userRole === 'profesional' || userRole === 'admin') && (
-            <>
-              <Route path="/clients" element={<ClientsPage userRole={userRole} />} />
-              <Route path="/stations" element={<StationsPage />} />
-            </>
+            <Route path="/clients" element={<ClientsPage userRole={userRole} />} />
           )}
+          <Route path="/stations" element={<StationsPage />} />
           {(userRole === 'client' || userRole === 'admin') && (
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
