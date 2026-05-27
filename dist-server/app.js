@@ -2744,41 +2744,292 @@ app.post('/backend/test/reset-data', async (req, res) => {
 // Mount the API router
 // Using /backend as the stable endpoint for production and local development
 app.use('/backend', apiRouter);
+// Memory caches to prevent slow, redundant external MKL API queries
+let cachedDevices = null;
+let cachedDevicesTimestamp = 0;
+const DEVICES_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const sensorDataCache = {};
+const SENSOR_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+let activeMklToken = null;
+/**
+ * Validates, rotates, and fetches a fresh JWT token dynamically from MKL Agro login API
+ */
+async function getMklToken(forceRefresh = false) {
+    const MKL_EMAIL = process.env.MKL_EMAIL;
+    const MKL_PASSWORD = process.env.MKL_PASSWORD;
+    // 1. If we have a token and aren't forcing a refresh, check its remaining lifetime
+    if (activeMklToken && !forceRefresh) {
+        try {
+            const parts = activeMklToken.split('.');
+            if (parts.length === 3) {
+                const base64Url = parts[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(Buffer.from(base64, 'base64')
+                    .toString('utf8')
+                    .split('')
+                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join(''));
+                const payload = JSON.parse(jsonPayload);
+                const expirationTime = payload.exp * 1000;
+                // If token has more than 1 hour left, use it
+                if (Date.now() < expirationTime - 60 * 60 * 1000) {
+                    return activeMklToken;
+                }
+                console.log('[MKL AUTH] Token is expiring soon (less than 1 hour). Initiating refresh...');
+            }
+        }
+        catch (e) {
+            console.warn('[MKL AUTH] Failed to parse cached JWT payload:', e.message);
+        }
+    }
+    // 2. Fetch new token from MKL login endpoint using email/password
+    try {
+        console.log(`[MKL AUTH] Authenticating with MKL Agro API for user "${MKL_EMAIL}"...`);
+        const loginResponse = await fetch('https://panel.mklagro.com/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: MKL_EMAIL,
+                password: MKL_PASSWORD
+            })
+        });
+        if (!loginResponse.ok) {
+            throw new Error(`Authentication endpoint returned status ${loginResponse.status}`);
+        }
+        const result = await loginResponse.json();
+        if (result.status === 'success' && result.token) {
+            activeMklToken = result.token;
+            console.log('[MKL AUTH] Obtained fresh MKL Agro JWT session token successfully.');
+            return activeMklToken;
+        }
+        else {
+            throw new Error(result.error || 'Invalid login response payload');
+        }
+    }
+    catch (error) {
+        console.error('[MKL AUTH ERROR] Failed to login to MKL Agro:', error.message);
+        throw error;
+    }
+}
+/**
+ * GET /backend/weather-stations/debug-token — Get current active MKL token (for debug/testing)
+ */
+apiRouter.get('/weather-stations/debug-token', authenticateToken, async (req, res) => {
+    res.json({ token: activeMklToken });
+});
+/**
+ * POST /backend/weather-stations/debug-reset-token — Sets token to an invalid signature to test auto-healing (401 retry)
+ */
+apiRouter.post('/weather-stations/debug-reset-token', authenticateToken, async (req, res) => {
+    activeMklToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalidpayloadmock.invalidsignature";
+    console.log('[MKL DEBUG] Token forcefully set to invalid mock token to test 401 recovery');
+    // Also invalidate local caches so the next click/fetch forces a fresh network call to MKL!
+    cachedDevices = null;
+    cachedDevicesTimestamp = 0;
+    Object.keys(sensorDataCache).forEach(key => delete sensorDataCache[key]);
+    res.json({ success: true, token: activeMklToken, message: 'Token set to invalid mock to force 401 auto-healing' });
+});
+/**
+ * GET /backend/weather-stations/devices — Fetch all available weather stations/devices
+ */
+apiRouter.get('/weather-stations/devices', authenticateToken, async (req, res) => {
+    console.log('[DEBUG] GET /backend/weather-stations/devices');
+    try {
+        // Return from cache if still fresh
+        if (cachedDevices && (Date.now() - cachedDevicesTimestamp < DEVICES_CACHE_TTL)) {
+            console.log('[CACHE HIT] Returning cached weather devices list');
+            return res.json(cachedDevices);
+        }
+        let token = await getMklToken();
+        const apiUrl = 'https://panel.mklagro.com/api/device';
+        let mklResponse = await fetch(apiUrl, {
+            headers: {
+                'token': token
+            }
+        });
+        // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+        if (mklResponse.status === 401) {
+            console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+            token = await getMklToken(true); // force session login
+            mklResponse = await fetch(apiUrl, {
+                headers: {
+                    'token': token
+                }
+            });
+        }
+        if (!mklResponse.ok) {
+            console.error('[ERROR] MKL API returned status:', mklResponse.status);
+            const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+            return res.status(status).json({ error: 'Failed to fetch devices from MKL API' });
+        }
+        const mklData = await mklResponse.json();
+        // Save to cache
+        cachedDevices = mklData;
+        cachedDevicesTimestamp = Date.now();
+        console.log('[CACHE MISS] Fetched and cached weather devices list');
+        res.json(mklData);
+    }
+    catch (error) {
+        console.error('[ERROR] GET /backend/weather-stations/devices:', error.message);
+        res.status(500).json({ error: 'Failed to fetch weather devices' });
+    }
+});
 /**
  * GET /backend/weather-stations — Fetch sensor data from MKL Agro API
  */
-app.get('/backend/weather-stations', authenticateToken, async (req, res) => {
+apiRouter.get('/weather-stations', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/weather-stations');
     try {
-        const MKL_TOKEN = process.env.MKL_TOKEN;
-        if (!MKL_TOKEN) {
-            console.error('[ERROR] MKL_TOKEN is not defined in environment variables');
-            return res.status(500).json({ error: 'MKL API token configuration missing' });
-        }
-        // In the future we will get dId dynamically from the frontend. For now, we default to the test sensor
         const dId = req.query.dId || "MKL33E83E0DEABF8CE83E";
+        // Return from cache if still fresh
+        const cachedItem = sensorDataCache[dId];
+        if (cachedItem && (Date.now() - cachedItem.timestamp < SENSOR_CACHE_TTL)) {
+            console.log(`[CACHE HIT] Returning cached sensor data for dId: ${dId}`);
+            return res.json(cachedItem.data);
+        }
+        let token = await getMklToken();
         const apiUrl = `https://panel.mklagro.com/api/data?dId=${dId}&variable=estaciontodas`;
-        const mklResponse = await fetch(apiUrl, {
+        let mklResponse = await fetch(apiUrl, {
             headers: {
-                'token': MKL_TOKEN
+                'token': token
             }
         });
-        if (!mklResponse.ok) {
-            console.error('[ERROR] MKL API returned status:', mklResponse.status);
-            return res.status(mklResponse.status).json({ error: 'Failed to fetch from MKL API' });
-        }
-        const mklData = await mklResponse.json();
-        // MKL API returns historical data. We extract the latest record for the frontend.
-        if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
-            const latestData = mklData.data[mklData.data.length - 1];
-            res.json({
-                status: mklData.status,
-                data: [latestData]
+        // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+        if (mklResponse.status === 401) {
+            console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+            token = await getMklToken(true); // force session login
+            mklResponse = await fetch(apiUrl, {
+                headers: {
+                    'token': token
+                }
             });
         }
-        else {
-            res.json(mklData);
+        if (!mklResponse.ok) {
+            console.error('[ERROR] MKL API returned status:', mklResponse.status);
+            const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+            return res.status(status).json({ error: 'Failed to fetch from MKL API' });
         }
+        const mklData = await mklResponse.json();
+        let finalData = mklData;
+        // MKL API returns historical data. We extract the latest record for the frontend.
+        if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
+            // Sort descending by time to guarantee index 0 is always the absolute latest record
+            const sortedData = [...mklData.data].sort((a, b) => b.time - a.time);
+            const latestData = JSON.parse(JSON.stringify(sortedData[0])); // Clone to avoid mutating shared state
+            // Filter the data array to only calculate min/max of the SAME CALENDAR DAY as the latest record.
+            const latestDateStr = new Date(latestData.time).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+            const todaysRecords = mklData.data.filter((record) => {
+                if (!record.time)
+                    return false;
+                const dStr = new Date(record.time).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+                return dStr === latestDateStr;
+            });
+            // Calculate absolute min/max over the same calendar day returned historical data array
+            if (latestData.value) {
+                // Dew Point helper to calculate dew point per-record
+                const calculateDp = (t, h) => {
+                    if (t === undefined || t === null || h === undefined || h === null || h <= 0)
+                        return null;
+                    const a = 17.27;
+                    const b = 237.7;
+                    const alpha = ((a * t) / (b + t)) + Math.log(h / 100.0);
+                    return (b * alpha) / (a - alpha);
+                };
+                let minTemp = latestData.value.temp1min ?? latestData.value.temp1avg;
+                let maxTemp = latestData.value.temp1max ?? latestData.value.temp1avg;
+                let minHum = (latestData.value.hum1min !== undefined && latestData.value.hum1min > 0) ? latestData.value.hum1min : latestData.value.hum1avg;
+                if (!minHum || minHum <= 0)
+                    minHum = 50; // default fallback
+                let maxHum = latestData.value.hum1max ?? latestData.value.hum1avg;
+                let minPres = (latestData.value.presmin !== undefined && latestData.value.presmin > 0) ? latestData.value.presmin : latestData.value.presavg;
+                if (!minPres || minPres <= 0)
+                    minPres = 1000; // default fallback
+                let maxPres = latestData.value.presmax ?? latestData.value.presavg;
+                let minVel = latestData.value.velmin ?? latestData.value.velavg;
+                let maxVel = latestData.value.velmax ?? latestData.value.velavg;
+                // Initialize Dew Point min/max from the latest reading
+                let latestDp = calculateDp(latestData.value.temp1avg, latestData.value.hum1avg);
+                let minDp = latestDp;
+                let maxDp = latestDp;
+                for (const record of todaysRecords) {
+                    const val = record.value;
+                    if (val) {
+                        // Temperature
+                        if (val.temp1min !== undefined && val.temp1min !== null)
+                            minTemp = Math.min(minTemp, val.temp1min);
+                        if (val.temp1avg !== undefined && val.temp1avg !== null)
+                            minTemp = Math.min(minTemp, val.temp1avg);
+                        if (val.temp1max !== undefined && val.temp1max !== null)
+                            maxTemp = Math.max(maxTemp, val.temp1max);
+                        if (val.temp1avg !== undefined && val.temp1avg !== null)
+                            maxTemp = Math.max(maxTemp, val.temp1avg);
+                        // Humidity (ignoring invalid 0% telemetry drops)
+                        if (val.hum1min !== undefined && val.hum1min !== null && val.hum1min > 0)
+                            minHum = Math.min(minHum, val.hum1min);
+                        if (val.hum1avg !== undefined && val.hum1avg !== null && val.hum1avg > 0)
+                            minHum = Math.min(minHum, val.hum1avg);
+                        if (val.hum1max !== undefined && val.hum1max !== null)
+                            maxHum = Math.max(maxHum, val.hum1max);
+                        if (val.hum1avg !== undefined && val.hum1avg !== null)
+                            maxHum = Math.max(maxHum, val.hum1avg);
+                        // Pressure (ignoring invalid 0 hPa telemetry drops)
+                        if (val.presmin !== undefined && val.presmin !== null && val.presmin > 0)
+                            minPres = Math.min(minPres, val.presmin);
+                        if (val.presavg !== undefined && val.presavg !== null && val.presavg > 0)
+                            minPres = Math.min(minPres, val.presavg);
+                        if (val.presmax !== undefined && val.presmax !== null)
+                            maxPres = Math.max(maxPres, val.presmax);
+                        if (val.presavg !== undefined && val.presavg !== null)
+                            maxPres = Math.max(maxPres, val.presavg);
+                        // Wind Speed
+                        if (val.velmin !== undefined && val.velmin !== null)
+                            minVel = Math.min(minVel, val.velmin);
+                        if (val.velavg !== undefined && val.velavg !== null)
+                            minVel = Math.min(minVel, val.velavg);
+                        if (val.velmax !== undefined && val.velmax !== null)
+                            maxVel = Math.max(maxVel, val.velmax);
+                        if (val.velavg !== undefined && val.velavg !== null)
+                            maxVel = Math.max(maxVel, val.velavg);
+                        // Dew Point (calculated per-record then min/maxed)
+                        const dp = calculateDp(val.temp1avg, val.hum1avg);
+                        if (dp !== null && !isNaN(dp)) {
+                            if (minDp === null || isNaN(minDp)) {
+                                minDp = dp;
+                                maxDp = dp;
+                            }
+                            else {
+                                minDp = Math.min(minDp, dp);
+                                maxDp = Math.max(maxDp, dp);
+                            }
+                        }
+                    }
+                }
+                // Apply global calculated mins and maxes to the latest record
+                latestData.value.temp1min = minTemp;
+                latestData.value.temp1max = maxTemp;
+                latestData.value.hum1min = minHum;
+                latestData.value.hum1max = maxHum;
+                latestData.value.presmin = minPres;
+                latestData.value.presmax = maxPres;
+                latestData.value.velmin = minVel;
+                latestData.value.velmax = maxVel;
+                latestData.value.dpMin = minDp;
+                latestData.value.dpMax = maxDp;
+            }
+            finalData = {
+                status: mklData.status,
+                data: [latestData]
+            };
+        }
+        // Save to cache
+        sensorDataCache[dId] = {
+            data: finalData,
+            timestamp: Date.now()
+        };
+        console.log(`[CACHE MISS] Fetched and cached sensor data for dId: ${dId}`);
+        res.json(finalData);
     }
     catch (error) {
         console.error('[ERROR] GET /backend/weather-stations:', error.message);
