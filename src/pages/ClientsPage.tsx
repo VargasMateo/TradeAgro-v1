@@ -360,7 +360,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                   )}
                 </div>
 
-                {userRole === 'admin' && (
+                {(userRole === 'admin' || userRole === 'profesional') && (
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-2">
                       <Sun className="h-4 w-4 text-amber-500" />

@@ -77,18 +77,22 @@ export default function CreateClientModal({
   const [emailChips, setEmailChips] = useState<string[]>([]);
   const [chipInput, setChipInput] = useState('');
 
-  const [isAdmin] = useState(() => {
+  const [userRole] = useState(() => {
     const storedProfile = localStorage.getItem("userProfile");
     if (storedProfile) {
       try {
         const profile = JSON.parse(storedProfile);
-        return profile.role === 'admin';
+        return profile.role || 'client';
       } catch (e) {
-        return false;
+        return 'client';
       }
     }
-    return false;
+    return 'client';
   });
+
+  const isAdmin = userRole === 'admin';
+  const isProfesional = userRole === 'profesional';
+  const canManageStations = isAdmin || isProfesional;
 
   useEffect(() => {
     if (editingClient) {
@@ -572,25 +576,27 @@ export default function CreateClientModal({
                 </div>
               </div>
 
-              {isAdmin && (
+              {canManageStations && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <input
-                      type="checkbox"
-                      id="isTest"
-                      checked={formData.isTest}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isTest: e.target.checked }))}
-                      className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
-                    />
-                    <div>
-                      <label htmlFor="isTest" className="text-sm font-bold text-slate-900 cursor-pointer block">
-                        Marcar como Usuario de Prueba (Test User)
-                      </label>
-                      <p className="text-[11px] text-slate-500">
-                        Los usuarios de prueba y sus órdenes asociadas solo serán visibles para administradores.
-                      </p>
+                  {isAdmin && (
+                    <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <input
+                        type="checkbox"
+                        id="isTest"
+                        checked={formData.isTest}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isTest: e.target.checked }))}
+                        className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                      />
+                      <div>
+                        <label htmlFor="isTest" className="text-sm font-bold text-slate-900 cursor-pointer block">
+                          Marcar como Usuario de Prueba (Test User)
+                        </label>
+                        <p className="text-[11px] text-slate-500">
+                          Los usuarios de prueba y sus órdenes asociadas solo serán visibles para administradores.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex items-center justify-between p-4 rounded-xl border border-sky-100 bg-sky-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="flex items-center gap-3">

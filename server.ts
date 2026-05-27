@@ -3007,8 +3007,8 @@ apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req: a
   const { hasStations } = req.body;
   console.log(`[DEBUG] PATCH /backend/clients/${id}/stations-toggle - hasStations=${hasStations}`);
 
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ success: false, error: 'Solo administradores pueden modificar esta configuración.' });
+  if (req.user.role !== 'admin' && req.user.role !== 'profesional') {
+    return res.status(403).json({ success: false, error: 'Solo administradores y profesionales pueden modificar esta configuración.' });
   }
 
   try {
