@@ -27,7 +27,15 @@ import { SortableAttachment } from '../components/SortableAttachment';
 import Map from "../components/Map";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { cn } from "../lib/utils";
-import { authenticatedFetch } from "../lib/api";
+import { authenticatedFetch, authenticatedUpload } from "../lib/api";
+
+interface UploadingFile {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  progress: number;
+}
+
 
 export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
@@ -36,12 +44,16 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const [downloadingFiles, setDownloadingFiles] = useState<Record<number, boolean>>({});
   const [attachmentsLoading, setAttachmentsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isPreloadingEdit, setIsPreloadingEdit] = useState(false);
   const [deletingJob, setDeletingJob] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<number | null>(null);
+  const [isDeletingAttachment, setIsDeletingAttachment] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -151,17 +163,29 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
+    const filesArray = Array.from(e.target.files) as File[];
+    const tempFiles: UploadingFile[] = filesArray.map((f, idx) => ({
+      id: `uploading-${Date.now()}-${idx}`,
+      fileName: f.name,
+      fileSize: f.size,
+      progress: 0
+    }));
+
+    setUploadingFiles(tempFiles);
     setIsUploading(true);
+
     try {
       const formData = new FormData();
-      const filesArray = Array.from(e.target.files) as File[];
       filesArray.forEach(file => {
         formData.append('files', file);
       });
 
-      const response = await authenticatedFetch(`/backend/work-orders/${id}/attachments`, {
+      const response = await authenticatedUpload(`/backend/work-orders/${id}/attachments`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        onProgress: (progress) => {
+          setUploadingFiles(prev => prev.map(f => ({ ...f, progress })));
+        }
       });
 
       if (response.ok) {
@@ -173,24 +197,32 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
       console.error('Upload error:', err);
     } finally {
       setIsUploading(false);
+      setUploadingFiles([]);
     }
   };
 
-  const handleDeleteAttachment = async (attachmentId: number) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) return;
+  const handleDeleteAttachment = (attachmentId: number) => {
+    setAttachmentToDelete(attachmentId);
+  };
 
+  const handleConfirmDeleteAttachment = async () => {
+    if (attachmentToDelete === null) return;
+    setIsDeletingAttachment(true);
     try {
-      const response = await authenticatedFetch(`/backend/attachments/${attachmentId}`, {
+      const response = await authenticatedFetch(`/backend/attachments/${attachmentToDelete}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+        setAttachments(prev => prev.filter(a => a.id !== attachmentToDelete));
+        setAttachmentToDelete(null);
       } else {
         alert('Error al eliminar archivo');
       }
     } catch (err) {
       console.error('Delete error:', err);
+    } finally {
+      setIsDeletingAttachment(false);
     }
   };
 
@@ -871,40 +903,75 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                     <div className="h-8 w-8 rounded-lg bg-slate-200" />
                   </div>
                 ))
-              ) : attachments.length === 0 ? (
+              ) : attachments.length === 0 && uploadingFiles.length === 0 ? (
                 <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
               ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={attachments.map(a => a.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {attachments.map((file) => (
-                      <SortableAttachment
-                        key={file.id}
-                        file={file}
-                        userRole={userRole}
-                        currentUser={currentUser}
-                        onView={handleViewFile}
-                        onDownload={handleDownloadFile}
-                        onDelete={handleDeleteAttachment}
-                        onUpdateDescription={handleUpdateDescription}
-                        isDownloading={downloadingFiles[file.id]}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+                <>
+                  {attachments.length > 0 && (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={attachments.map(a => a.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {attachments.map((file) => (
+                          <SortableAttachment
+                            key={file.id}
+                            file={file}
+                            userRole={userRole}
+                            currentUser={currentUser}
+                            onView={handleViewFile}
+                            onDownload={handleDownloadFile}
+                            onDelete={handleDeleteAttachment}
+                            onUpdateDescription={handleUpdateDescription}
+                            isDownloading={downloadingFiles[file.id]}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )}
+                  {uploadingFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex flex-col gap-2 rounded-xl border border-dashed border-[#2e7d32]/20 bg-[#2e7d32]/5 p-3 transition-colors duration-300"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 overflow-hidden flex-1">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2e7d32]/10 text-[#2e7d32] animate-pulse">
+                            <FileText className="h-5 w-5" />
+                          </div>
+                          <div className="overflow-hidden flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-semibold text-slate-700" title={file.fileName}>{file.fileName}</p>
+                              <span className="text-xs font-bold text-[#2e7d32] shrink-0">{file.progress}%</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400">
+                              {file.fileName.includes('.') ? file.fileName.split('.').pop()?.toUpperCase() : 'ARCHIVO'} • {(file.fileSize / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="h-full bg-[#2e7d32] rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${file.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
 
             {userRole !== 'client' && (
               <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
                 <Plus className="h-4 w-4" />
-                {isUploading ? 'Subiendo...' : 'Agregar Archivo'}
+                {isUploading ? (
+                  uploadingFiles.length > 0 ? `Subiendo (${uploadingFiles[0].progress}%)...` : 'Subiendo...'
+                ) : 'Agregar Archivo'}
                 <input
                   type="file"
                   multiple
@@ -957,6 +1024,17 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         title={`¿Eliminar orden ${job.id}?`}
         description="Esta acción eliminará de forma irreversible y permanente esta orden de trabajo, todos sus archivos adjuntos y todas las observaciones del chat asociadas. No se puede deshacer."
         confirmText="Eliminar Orden"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={attachmentToDelete !== null}
+        onClose={() => setAttachmentToDelete(null)}
+        onConfirm={handleConfirmDeleteAttachment}
+        isLoading={isDeletingAttachment}
+        title="¿Eliminar archivo?"
+        description="Esta acción eliminará de forma permanente este archivo de la orden de trabajo. No se puede deshacer."
+        confirmText="Eliminar Archivo"
+        cancelText="Cancelar"
       />
     </div>
   );

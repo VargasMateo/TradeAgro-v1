@@ -36,7 +36,18 @@ function generateFileId(): string {
   return `file-${Date.now()}-${++fileIdCounter}`;
 }
 
-function SortableFileItem({ item, onRemove, isUploading }: { key?: React.Key; item: FileWithId; onRemove: (id: string) => void; isUploading: boolean }) {
+function SortableFileItem({ 
+  item, 
+  onRemove, 
+  isUploading, 
+  uploadProgress 
+}: { 
+  key?: React.Key; 
+  item: FileWithId; 
+  onRemove: (id: string) => void; 
+  isUploading: boolean; 
+  uploadProgress: number | null; 
+}) {
   const {
     attributes,
     listeners,
@@ -58,40 +69,59 @@ function SortableFileItem({ item, onRemove, isUploading }: { key?: React.Key; it
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center justify-between rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm transition-colors",
-        isDragging ? "shadow-lg border-emerald-200 ring-1 ring-emerald-500/20" : ""
+        "flex flex-col gap-1.5 rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm transition-colors",
+        isDragging ? "shadow-lg border-[#2e7d32]/30 ring-1 ring-[#2e7d32]/20" : "",
+        isUploading ? "border-[#2e7d32]/20 bg-[#2e7d32]/5" : ""
       )}
     >
-      <div className="flex items-center gap-2 overflow-hidden">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 overflow-hidden flex-1">
+          {!isUploading && (
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 text-slate-300 hover:text-slate-500 rounded"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-3.5 w-3.5" />
+            </div>
+          )}
+          {isUploading ? (
+            <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#2e7d32]/30 border-t-[#2e7d32]" />
+          ) : (
+            <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
+          )}
+          <span className="truncate text-xs font-medium text-slate-600">{item.file.name}</span>
+          <span className="shrink-0 text-[10px] text-slate-400">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
+        </div>
+        
+        {isUploading && uploadProgress !== null && (
+          <span className="text-xs font-bold text-[#2e7d32] shrink-0 ml-2">
+            {uploadProgress}%
+          </span>
+        )}
+
         {!isUploading && (
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 text-slate-300 hover:text-slate-500 rounded"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(item.id);
+            }}
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
           >
-            <GripVertical className="h-3.5 w-3.5" />
-          </div>
+            <X className="h-3.5 w-3.5" />
+          </button>
         )}
-        {isUploading ? (
-          <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />
-        ) : (
-          <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
-        )}
-        <span className="truncate text-xs font-medium text-slate-600">{item.file.name}</span>
-        <span className="shrink-0 text-[10px] text-slate-400">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
       </div>
-      {!isUploading && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(item.id);
-          }}
-          className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+
+      {isUploading && uploadProgress !== null && (
+        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+          <div 
+            className="h-full bg-[#2e7d32] rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${uploadProgress}%` }}
+          />
+        </div>
       )}
     </div>
   );
@@ -101,7 +131,7 @@ import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder, Service } from "../types/database";
-import { authenticatedFetch } from "../lib/api";
+import { authenticatedFetch, authenticatedUpload } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
@@ -114,6 +144,7 @@ export default function CreateWorkOrderModal() {
   const editJobId = searchParams.get('editJob');
   const [step, setStep] = useState<'form' | 'summary' | 'success'>('form');
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
@@ -397,6 +428,7 @@ export default function CreateWorkOrderModal() {
     setErrors({});
     setSelectedFiles([]);
     setIsSaving(false);
+    setUploadProgress(null);
 
     // Remove newJob and other related params from URL
     const newParams = new URLSearchParams(searchParams);
@@ -601,20 +633,25 @@ export default function CreateWorkOrderModal() {
       // Now upload files if any
       if (selectedFiles.length > 0) {
         setIsUploadingFiles(true);
+        setUploadProgress(0);
         const formDataUpload = new FormData();
         selectedFiles.forEach(item => {
           formDataUpload.append('files', item.file);
         });
 
-        const uploadRes = await authenticatedFetch(`/backend/work-orders/${jobId}/attachments`, {
+        const uploadRes = await authenticatedUpload(`/backend/work-orders/${jobId}/attachments`, {
           method: 'POST',
-          body: formDataUpload
+          body: formDataUpload,
+          onProgress: (progress) => {
+            setUploadProgress(progress);
+          }
         });
 
         if (!uploadRes.ok) {
           console.error('Failed to upload files');
         }
         setIsUploadingFiles(false);
+        setUploadProgress(null);
       }
 
       console.log('Job saved successfully:', result);
@@ -1396,6 +1433,7 @@ export default function CreateWorkOrderModal() {
                                   item={item}
                                   onRemove={handleFileRemove}
                                   isUploading={isUploadingFiles}
+                                  uploadProgress={uploadProgress}
                                 />
                               ))}
                             </div>
@@ -1627,7 +1665,9 @@ export default function CreateWorkOrderModal() {
                     {isSaving ? (
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        {isUploadingFiles ? "SUBIENDO ARCHIVOS..." : "GUARDANDO..."}
+                        {isUploadingFiles ? (
+                          uploadProgress !== null ? `SUBIENDO ARCHIVOS (${uploadProgress}%)...` : "SUBIENDO ARCHIVOS..."
+                        ) : "GUARDANDO..."}
                       </>
                     ) : (
                       <>
