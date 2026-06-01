@@ -138,10 +138,10 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       >
         <div className="flex h-full flex-col">
           {/* Logo Section */}
-          <Link to="/dashboard" className="flex h-24 items-center gap-4 border-b border-slate-100 px-8 transition-opacity hover:opacity-80">
-            <img src={logoIso} alt="TradeAgro" className="h-10 w-auto object-contain" />
+          <Link to="/dashboard" className="flex h-24 items-center gap-3 border-b border-slate-100 px-8 transition-opacity hover:opacity-80 overflow-hidden">
+            <img src={logoIso} alt="TradeAgro" className="h-10 w-auto object-contain shrink-0" />
             {userRole === 'admin' && (
-              <span className="ml-2 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Admin
               </span>
             )}
