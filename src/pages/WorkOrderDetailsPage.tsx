@@ -21,6 +21,9 @@ import {
   Trash2
 } from "lucide-react";
 import React, { ChangeEvent } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableAttachment } from '../components/SortableAttachment';
 import Map from "../components/Map";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { cn } from "../lib/utils";
@@ -30,6 +33,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [downloadingFiles, setDownloadingFiles] = useState<Record<number, boolean>>({});
   const [attachmentsLoading, setAttachmentsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -208,6 +212,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleDownloadFile = async (file: any, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    setDownloadingFiles(prev => ({ ...prev, [file.id]: true }));
     try {
       const response = await authenticatedFetch(`${file.fileUrl}?download=true`);
       if (!response.ok) throw new Error('Failed to download file');
@@ -223,6 +228,42 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     } catch (error) {
       console.error('Error downloading file:', error);
       alert('No se pudo descargar el archivo.');
+    } finally {
+      setDownloadingFiles(prev => ({ ...prev, [file.id]: false }));
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setAttachments((items: any[]) => {
+        const oldIndex = items.findIndex((item: any) => item.id === active.id);
+        const newIndex = items.findIndex((item: any) => item.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        const updates = newItems.map((item: any, index: number) => ({ id: item.id, displayOrder: index }));
+        authenticatedFetch('/backend/attachments/update-meta', {
+          method: 'PUT',
+          body: JSON.stringify({ updates })
+        }).catch(err => console.error('Failed to update order', err));
+        return newItems;
+      });
+    }
+  };
+
+  const handleUpdateDescription = async (id: number, description: string) => {
+    setAttachments(items => items.map(item => item.id === id ? { ...item, description } : item));
+    try {
+      await authenticatedFetch('/backend/attachments/update-meta', {
+        method: 'PUT',
+        body: JSON.stringify({ updates: [{ id, description }] })
+      });
+    } catch (err) {
+      console.error('Failed to update description', err);
     }
   };
 
@@ -833,49 +874,30 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
               ) : attachments.length === 0 ? (
                 <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
               ) : (
-                attachments.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group cursor-pointer"
-                    onClick={(e) => handleViewFile(file, e)}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={attachments.map(a => a.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                        (file.fileType.includes('pdf')) && "bg-red-50 text-red-500",
-                        (file.fileType.includes('image')) && "bg-blue-50 text-blue-500",
-                        (!file.fileType.includes('pdf') && !file.fileType.includes('image')) && "bg-slate-50 text-slate-500",
-                      )}>
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="truncate text-sm font-semibold text-slate-900" title={file.fileName}>{file.fileName}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {file.fileName.includes('.') ? file.fileName.split('.').pop()?.toUpperCase() : 'ARCHIVO'} • {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.uploaderName || 'Sistema'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors cursor-pointer"
-                        onClick={(e) => handleDownloadFile(file, e)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                      {(userRole === 'admin' || (currentUser && currentUser.id === file.uploadedBy)) && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteAttachment(file.id);
-                          }}
-                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
+                    {attachments.map((file) => (
+                      <SortableAttachment
+                        key={file.id}
+                        file={file}
+                        userRole={userRole}
+                        currentUser={currentUser}
+                        onView={handleViewFile}
+                        onDownload={handleDownloadFile}
+                        onDelete={handleDeleteAttachment}
+                        onUpdateDescription={handleUpdateDescription}
+                        isDownloading={downloadingFiles[file.id]}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               )}
             </div>
 

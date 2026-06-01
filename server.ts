@@ -36,7 +36,7 @@ app.use('/backend/test', (req: any, res: any, next: any) => {
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
 });
 
 // Define a router for all API routes
@@ -324,6 +324,18 @@ async function initializeDatabase() {
         await connection.query('ALTER TABLE work_order_attachments ADD COLUMN fileData LONGBLOB');
         await connection.query('ALTER TABLE work_order_attachments MODIFY fileUrl VARCHAR(255) NULL');
         await connection.query('ALTER TABLE work_order_attachments MODIFY fileType VARCHAR(100)');
+      }
+
+      const hasDescription = columns.some((c: any) => c.Field === 'description');
+      if (!hasDescription) {
+        console.log('[INIT] Migrating work_order_attachments: adding description TEXT');
+        await connection.query('ALTER TABLE work_order_attachments ADD COLUMN description TEXT');
+      }
+
+      const hasDisplayOrder = columns.some((c: any) => c.Field === 'displayOrder');
+      if (!hasDisplayOrder) {
+        console.log('[INIT] Migrating work_order_attachments: adding displayOrder INT DEFAULT 0');
+        await connection.query('ALTER TABLE work_order_attachments ADD COLUMN displayOrder INT DEFAULT 0');
       }
     } catch (err) {
       console.log('[INIT] work_order_attachments migration check skipped (table might not exist yet).');
@@ -2422,7 +2434,7 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
     const internalJobId = order.id;
 
     const [rows]: any = await pool.query(
-      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC',
+      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC',
       [internalJobId]
     );
 
@@ -2436,6 +2448,49 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
   } catch (error: any) {
     console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
+  }
+});
+
+/**
+ * Update attachment metadata (description and order)
+ */
+apiRouter.put('/attachments/update-meta', authenticateToken, async (req: any, res) => {
+  const { updates } = req.body;
+  
+  if (!Array.isArray(updates)) {
+    return res.status(400).json({ success: false, error: 'Invalid updates format' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    for (const update of updates) {
+      const { id, description, displayOrder } = update;
+      
+      const sets: string[] = [];
+      const values: any[] = [];
+      if (description !== undefined) {
+        sets.push('description = ?');
+        values.push(description);
+      }
+      if (displayOrder !== undefined) {
+        sets.push('displayOrder = ?');
+        values.push(displayOrder);
+      }
+      
+      if (sets.length > 0) {
+        values.push(id);
+        await connection.query(`UPDATE work_order_attachments SET ${sets.join(', ')} WHERE id = ?`, values);
+      }
+    }
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err: any) {
+    await connection.rollback();
+    console.error('[DATABASE ERROR] PUT /backend/attachments/update-meta:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to update metadata' });
+  } finally {
+    connection.release();
   }
 });
 
