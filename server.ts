@@ -2226,7 +2226,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
 apiRouter.delete('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Hard delete requested by ${req.user.role}`);
-  
+
   if (req.user.role !== 'admin') {
     return res.status(403).json({ success: false, error: 'Acceso denegado. Solo los administradores pueden eliminar órdenes de trabajo.' });
   }
@@ -2383,6 +2383,22 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
 
     const internalJobId = order.id;
 
+    const descriptionsMap = new Map<string, string>();
+    if (req.body.descriptions) {
+      try {
+        const parsed = JSON.parse(req.body.descriptions);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item: any) => {
+            if (item && item.fileName) {
+              descriptionsMap.set(item.fileName, item.description || '');
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing descriptions:', e);
+      }
+    }
+
     const values = (req.files as Express.Multer.File[]).map(file => [
       internalJobId,
       file.originalname,
@@ -2390,11 +2406,12 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
       file.mimetype,
       file.size,
       file.buffer, // Save the actual file data
-      uploadedBy
+      uploadedBy,
+      descriptionsMap.get(file.originalname) || ''
     ]);
 
     await pool.query(
-      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy) VALUES ?',
+      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description) VALUES ?',
       [values]
     );
 
@@ -2456,7 +2473,7 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
  */
 apiRouter.put('/attachments/update-meta', authenticateToken, async (req: any, res) => {
   const { updates } = req.body;
-  
+
   if (!Array.isArray(updates)) {
     return res.status(400).json({ success: false, error: 'Invalid updates format' });
   }
@@ -2466,7 +2483,7 @@ apiRouter.put('/attachments/update-meta', authenticateToken, async (req: any, re
     await connection.beginTransaction();
     for (const update of updates) {
       const { id, description, displayOrder } = update;
-      
+
       const sets: string[] = [];
       const values: any[] = [];
       if (description !== undefined) {
@@ -2477,7 +2494,7 @@ apiRouter.put('/attachments/update-meta', authenticateToken, async (req: any, re
         sets.push('displayOrder = ?');
         values.push(displayOrder);
       }
-      
+
       if (sets.length > 0) {
         values.push(id);
         await connection.query(`UPDATE work_order_attachments SET ${sets.join(', ')} WHERE id = ?`, values);
@@ -3264,7 +3281,7 @@ async function getMklToken(forceRefresh = false): Promise<string> {
         );
         const payload = JSON.parse(jsonPayload);
         const expirationTime = payload.exp * 1000;
-        
+
         // If token has more than 1 hour left, use it
         if (Date.now() < expirationTime - 60 * 60 * 1000) {
           return activeMklToken;
@@ -3321,12 +3338,12 @@ apiRouter.get('/weather-stations/debug-token', authenticateToken, async (req: an
 apiRouter.post('/weather-stations/debug-reset-token', authenticateToken, async (req: any, res: any) => {
   activeMklToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalidpayloadmock.invalidsignature";
   console.log('[MKL DEBUG] Token forcefully set to invalid mock token to test 401 recovery');
-  
+
   // Also invalidate local caches so the next click/fetch forces a fresh network call to MKL!
   cachedDevices = null;
   cachedDevicesTimestamp = 0;
   Object.keys(sensorDataCache).forEach(key => delete sensorDataCache[key]);
-  
+
   res.json({ success: true, token: activeMklToken, message: 'Token set to invalid mock to force 401 auto-healing' });
 });
 
@@ -3344,7 +3361,7 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
 
     let token = await getMklToken();
     const apiUrl = 'https://panel.mklagro.com/api/device';
-    
+
     let mklResponse = await fetch(apiUrl, {
       headers: {
         'token': token
@@ -3369,12 +3386,12 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
     }
 
     const mklData = await mklResponse.json();
-    
+
     // Save to cache
     cachedDevices = mklData;
     cachedDevicesTimestamp = Date.now();
     console.log('[CACHE MISS] Fetched and cached weather devices list');
-    
+
     res.json(mklData);
   } catch (error: any) {
     console.error('[ERROR] GET /backend/weather-stations/devices:', error.message);
@@ -3424,7 +3441,7 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
     }
 
     const mklData = await mklResponse.json();
-    
+
     let finalData = mklData;
     // MKL API returns historical data. We extract the latest record for the frontend.
     if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
@@ -3453,15 +3470,15 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
 
         let minTemp = latestData.value.temp1min ?? latestData.value.temp1avg;
         let maxTemp = latestData.value.temp1max ?? latestData.value.temp1avg;
-        
+
         let minHum = (latestData.value.hum1min !== undefined && latestData.value.hum1min > 0) ? latestData.value.hum1min : latestData.value.hum1avg;
         if (!minHum || minHum <= 0) minHum = 50; // default fallback
         let maxHum = latestData.value.hum1max ?? latestData.value.hum1avg;
-        
+
         let minPres = (latestData.value.presmin !== undefined && latestData.value.presmin > 0) ? latestData.value.presmin : latestData.value.presavg;
         if (!minPres || minPres <= 0) minPres = 1000; // default fallback
         let maxPres = latestData.value.presmax ?? latestData.value.presavg;
-        
+
         let minVel = latestData.value.velmin ?? latestData.value.velavg;
         let maxVel = latestData.value.velmax ?? latestData.value.velavg;
 

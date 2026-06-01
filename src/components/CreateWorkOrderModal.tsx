@@ -29,6 +29,7 @@ import { CSS } from '@dnd-kit/utilities';
 interface FileWithId {
   id: string;
   file: File;
+  description: string;
 }
 
 let fileIdCounter = 0;
@@ -39,12 +40,14 @@ function generateFileId(): string {
 function SortableFileItem({ 
   item, 
   onRemove, 
+  onUpdateDescription,
   isUploading, 
   uploadProgress 
 }: { 
   key?: React.Key; 
   item: FileWithId; 
   onRemove: (id: string) => void; 
+  onUpdateDescription: (id: string, description: string) => void;
   isUploading: boolean; 
   uploadProgress: number | null; 
 }) {
@@ -64,59 +67,93 @@ function SortableFileItem({
     position: 'relative' as const,
   };
 
+  const fileType = item.file.type || '';
+  const fileExtension = item.file.name.includes('.') ? item.file.name.split('.').pop()?.toUpperCase() : 'ARCHIVO';
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex flex-col gap-1.5 rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm transition-colors",
-        isDragging ? "shadow-lg border-[#2e7d32]/30 ring-1 ring-[#2e7d32]/20" : "",
+        "flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition-colors group",
+        isDragging ? "shadow-lg border-[#2e7d32]/30 ring-1 ring-[#2e7d32]/20" : "hover:bg-slate-50",
         isUploading ? "border-[#2e7d32]/20 bg-[#2e7d32]/5" : ""
       )}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 overflow-hidden flex-1">
+        <div className="flex items-center gap-3 overflow-hidden flex-1">
           {!isUploading && (
             <div
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 text-slate-300 hover:text-slate-500 rounded"
+              className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 hover:text-slate-500 rounded"
               onClick={(e) => e.stopPropagation()}
             >
-              <GripVertical className="h-3.5 w-3.5" />
+              <GripVertical className="h-4 w-4" />
             </div>
           )}
-          {isUploading ? (
-            <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#2e7d32]/30 border-t-[#2e7d32]" />
-          ) : (
-            <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
-          )}
-          <span className="truncate text-xs font-medium text-slate-600">{item.file.name}</span>
-          <span className="shrink-0 text-[10px] text-slate-400">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
-        </div>
-        
-        {isUploading && uploadProgress !== null && (
-          <span className="text-xs font-bold text-[#2e7d32] shrink-0 ml-2">
-            {uploadProgress}%
-          </span>
-        )}
 
-        {!isUploading && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(item.id);
-            }}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
+          {isUploading ? (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2e7d32]/10 text-[#2e7d32] animate-pulse">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#2e7d32]/30 border-t-[#2e7d32]" />
+            </div>
+          ) : (
+            <div className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              fileType.includes('pdf') && "bg-red-50 text-red-500",
+              fileType.includes('image') && "bg-blue-50 text-blue-500",
+              (!fileType.includes('pdf') && !fileType.includes('image')) && "bg-slate-50 text-slate-500",
+            )}>
+              <FileText className="h-5 w-5" />
+            </div>
+          )}
+
+          <div className="overflow-hidden flex-1">
+            <p className="truncate text-sm font-semibold text-slate-900" title={item.file.name}>{item.file.name}</p>
+            <p className="text-[10px] text-slate-400">
+              {fileExtension} • {(item.file.size / 1024 / 1024).toFixed(2)} MB
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          {isUploading && uploadProgress !== null && (
+            <span className="text-xs font-bold text-[#2e7d32] shrink-0">
+              {uploadProgress}%
+            </span>
+          )}
+
+          {!isUploading && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(item.id);
+              }}
+              className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Description Input */}
+      {!isUploading && (
+        <div className="pl-8 w-full mt-0.5">
+          <input
+            type="text"
+            placeholder="Añadir descripción..."
+            value={item.description}
+            onChange={(e) => onUpdateDescription(item.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-xs text-slate-600 bg-slate-50 hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-[#2e7d32]/30 rounded-lg px-2 py-1.5 outline-none transition-colors"
+          />
+        </div>
+      )}
+
       {isUploading && uploadProgress !== null && (
-        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-1 pl-8">
           <div 
             className="h-full bg-[#2e7d32] rounded-full transition-all duration-300 ease-out"
             style={{ width: `${uploadProgress}%` }}
@@ -510,7 +547,8 @@ export default function CreateWorkOrderModal() {
       if (validFiles.length > 0) {
         const wrappedFiles: FileWithId[] = validFiles.map(f => ({
           id: generateFileId(),
-          file: f
+          file: f,
+          description: ''
         }));
         setSelectedFiles(prev => [...prev, ...wrappedFiles]);
       }
@@ -522,6 +560,10 @@ export default function CreateWorkOrderModal() {
 
   const handleFileRemove = (id: string) => {
     setSelectedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleUpdateFileDescription = (id: string, description: string) => {
+    setSelectedFiles(prev => prev.map(f => f.id === id ? { ...f, description } : f));
   };
 
   const handleContinue = () => {
@@ -638,6 +680,15 @@ export default function CreateWorkOrderModal() {
         selectedFiles.forEach(item => {
           formDataUpload.append('files', item.file);
         });
+        formDataUpload.append(
+          'descriptions',
+          JSON.stringify(
+            selectedFiles.map(item => ({
+              fileName: item.file.name,
+              description: item.description || ''
+            }))
+          )
+        );
 
         const uploadRes = await authenticatedUpload(`/backend/work-orders/${jobId}/attachments`, {
           method: 'POST',
@@ -1432,6 +1483,7 @@ export default function CreateWorkOrderModal() {
                                   key={item.id}
                                   item={item}
                                   onRemove={handleFileRemove}
+                                  onUpdateDescription={handleUpdateFileDescription}
                                   isUploading={isUploadingFiles}
                                   uploadProgress={uploadProgress}
                                 />
