@@ -110,7 +110,7 @@ export const SortableAttachment: React.FC<SortableAttachmentProps> = ({
           )}
         </div>
       </div>
-      
+
       {/* Description Input */}
       <div className="pl-8 w-full mt-1">
         <input
@@ -120,7 +120,7 @@ export const SortableAttachment: React.FC<SortableAttachmentProps> = ({
           onChange={(e) => setDescription(e.target.value)}
           onBlur={handleBlur}
           onClick={(e) => e.stopPropagation()}
-          className="w-full text-xs text-slate-600 bg-slate-50 hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-emerald-500 rounded px-2 py-1.5 outline-none transition-colors"
+          className="w-full text-xs text-slate-600 bg-slate-50 hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-emerald-500 rounded-lg px-2 py-1.5 outline-none transition-colors"
         />
       </div>
     </div>
