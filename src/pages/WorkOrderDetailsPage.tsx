@@ -811,7 +811,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Paperclip className="h-5 w-5 text-[#2e7d32]" />
-                <h2 className="text-lg font-bold text-slate-900">Adjuntos</h2>
+                <h2 className="text-lg font-bold text-slate-900">Archivos del informe</h2>
               </div>
               <span className="text-xs font-bold text-slate-400">{attachments.length} Archivos</span>
             </div>
