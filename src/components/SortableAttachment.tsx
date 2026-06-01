@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FileText, Download, X, GripVertical } from 'lucide-react';
+import { FileText, Download, X, GripVertical, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface SortableAttachmentProps {
@@ -42,12 +42,15 @@ export const SortableAttachment: React.FC<SortableAttachmentProps> = ({
   };
 
   const [description, setDescription] = useState(file.description || '');
+  const [showSaved, setShowSaved] = useState(false);
 
-  const handleBlur = () => {
+  const handleBlur = useCallback(() => {
     if (description !== (file.description || '')) {
       onUpdateDescription(file.id, description);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 1800);
     }
-  };
+  }, [description, file.description, file.id, onUpdateDescription]);
 
   return (
     <div
@@ -112,7 +115,7 @@ export const SortableAttachment: React.FC<SortableAttachmentProps> = ({
       </div>
 
       {/* Description Input */}
-      <div className="pl-8 w-full mt-1">
+      <div className="pl-8 w-full mt-1 relative">
         <input
           type="text"
           placeholder="Añadir descripción..."
@@ -120,8 +123,16 @@ export const SortableAttachment: React.FC<SortableAttachmentProps> = ({
           onChange={(e) => setDescription(e.target.value)}
           onBlur={handleBlur}
           onClick={(e) => e.stopPropagation()}
-          className="w-full text-xs text-slate-600 bg-slate-50 hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-emerald-500 rounded-lg px-2 py-1.5 outline-none transition-colors"
+          className="w-full text-xs text-slate-600 bg-slate-50 hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-emerald-500 rounded-lg px-2 py-1.5 pr-7 outline-none transition-colors"
         />
+        <div
+          className={cn(
+            "absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-emerald-100 p-0.5 text-emerald-600 transition-all duration-300",
+            showSaved ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none"
+          )}
+        >
+          <Check className="h-3 w-3" />
+        </div>
       </div>
     </div>
   );
