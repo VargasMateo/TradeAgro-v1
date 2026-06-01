@@ -1622,15 +1622,39 @@ export default function CreateWorkOrderModal() {
                         <Paperclip className="h-3 w-3" /> Archivos Adjuntos ({selectedFiles.length})
                       </h5>
                       <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                        {selectedFiles.map((item) => (
-                          <div key={item.id} className="flex items-center gap-3 overflow-hidden rounded-lg bg-white p-2 shadow-sm">
-                            <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
-                            <div className="flex flex-1 items-center justify-between overflow-hidden">
-                              <span className="truncate text-xs font-medium text-slate-600">{item.file.name}</span>
-                              <span className="shrink-0 text-[10px] text-slate-400">{(item.file.size / 1024 / 1024).toFixed(2)} MB</span>
+                        {selectedFiles.map((item) => {
+                          const fileType = item.file.type || '';
+                          const fileExtension = item.file.name.includes('.') ? item.file.name.split('.').pop()?.toUpperCase() : 'ARCHIVO';
+                          return (
+                            <div key={item.id} className="flex flex-col gap-1.5 rounded-lg border border-slate-100 bg-white p-2.5 shadow-sm">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className={cn(
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                  fileType.includes('pdf') && "bg-red-50 text-red-500",
+                                  fileType.includes('image') && "bg-blue-50 text-blue-500",
+                                  (!fileType.includes('pdf') && !fileType.includes('image')) && "bg-slate-50 text-slate-500",
+                                )}>
+                                  <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-1 items-center justify-between overflow-hidden">
+                                  <div className="overflow-hidden pr-2">
+                                    <p className="truncate text-xs font-semibold text-slate-800" title={item.file.name}>{item.file.name}</p>
+                                    <p className="text-[9px] text-slate-400">
+                                      {fileExtension} • {(item.file.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              {item.description && (
+                                <div className="pl-11 pr-2">
+                                  <p className="text-[11px] text-slate-500 bg-slate-50/50 border border-slate-100 rounded-md px-2 py-1 italic">
+                                    {item.description}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
