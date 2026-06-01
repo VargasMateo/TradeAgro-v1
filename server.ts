@@ -2399,6 +2399,13 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
       }
     }
 
+    // Get the current max displayOrder so new files go to the end
+    const [maxOrderRows]: any = await pool.query(
+      'SELECT COALESCE(MAX(displayOrder), -1) as maxOrder FROM work_order_attachments WHERE workOrderId = ?',
+      [internalJobId]
+    );
+    let nextOrder = (maxOrderRows[0]?.maxOrder ?? -1) + 1;
+
     const values = (req.files as Express.Multer.File[]).map(file => [
       internalJobId,
       file.originalname,
@@ -2407,11 +2414,12 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
       file.size,
       file.buffer, // Save the actual file data
       uploadedBy,
-      descriptionsMap.get(file.originalname) || ''
+      descriptionsMap.get(file.originalname) || '',
+      nextOrder++
     ]);
 
     await pool.query(
-      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description) VALUES ?',
+      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description, displayOrder) VALUES ?',
       [values]
     );
 
