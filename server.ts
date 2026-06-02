@@ -238,6 +238,7 @@ async function initializeDatabase() {
         businessName VARCHAR(255),
         phoneNumber VARCHAR(50),
         hasStations BOOLEAN DEFAULT FALSE,
+        hasSprayMonitor BOOLEAN DEFAULT FALSE,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
@@ -481,6 +482,14 @@ async function initializeDatabase() {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasStations migration error:', e.message);
     }
 
+    // Migration: add hasSprayMonitor column to clients if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE clients ADD COLUMN hasSprayMonitor BOOLEAN DEFAULT FALSE AFTER hasStations');
+      console.log('[INIT] Added hasSprayMonitor column to clients');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasSprayMonitor migration error:', e.message);
+    }
+
     // Migration: add notificationEmails column to clients if it doesn't exist
     try {
       await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
@@ -525,7 +534,8 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
       id, displayName, email, role,
       phoneNumber: profPhoneNumber, specialty, // Prof fields
       businessName, cuit, ivaCondition, phoneNumber, // Client fields
-      notificationEmails // Client notification emails
+      notificationEmails, // Client notification emails
+      hasSprayMonitor // Client hasSprayMonitor
     } = req.body;
 
     if (!id) return res.status(400).json({ error: 'User ID is required' });
@@ -546,8 +556,8 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
       );
     } else if (role === 'client') {
       await connection.query(
-        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ? WHERE userId = ?',
-        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, id]
+        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ?, hasSprayMonitor = ? WHERE userId = ?',
+        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, hasSprayMonitor === undefined ? null : !!hasSprayMonitor, id]
       );
     }
 
@@ -557,7 +567,7 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1416,6 +1426,8 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       email,
       phoneNumber,
       notificationEmails,
+      hasStations,
+      hasSprayMonitor,
       isTest,
       fields // Array of fields from the modal
     } = req.body;
@@ -1434,7 +1446,9 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       cuit: cuit,
       ivaCondition: ivaCondition || 'Responsable Inscripto',
       phoneNumber: phoneNumber,
-      notificationEmails: notificationEmails || null
+      notificationEmails: notificationEmails || null,
+      hasStations: hasStations === undefined ? null : !!hasStations,
+      hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor
     };
 
     console.log('[DEBUG] Updating client extension for userId:', userId);
@@ -1525,6 +1539,8 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       email,
       phoneNumber,
       notificationEmails,
+      hasStations,
+      hasSprayMonitor,
       createdBy,
       isTest,
       password, // Optional, can default
@@ -1581,11 +1597,11 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor]
     );
 
     // 3. Insert associated fields if any
@@ -3105,6 +3121,32 @@ apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req: a
   } catch (error: any) {
     console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
     res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+  }
+});
+
+/**
+ * Toggle hasSprayMonitor flag for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/spray-monitor-toggle', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'profesional') {
+    return res.status(403).json({ error: 'Not authorized to toggle spray monitor' });
+  }
+  const id = req.params.id;
+  const { hasSprayMonitor } = req.body;
+  console.log(`[DEBUG] PATCH /backend/clients/${id}/spray-monitor-toggle - hasSprayMonitor=${hasSprayMonitor}`);
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      'UPDATE clients SET hasSprayMonitor = ? WHERE userId = ?',
+      [!!hasSprayMonitor, id]
+    );
+    res.json({ success: true, hasSprayMonitor: !!hasSprayMonitor });
+  } catch (error: any) {
+    console.error('[ERROR] PATCH /backend/clients/:id/spray-monitor-toggle:', error.message);
+    res.status(500).json({ error: 'Failed to toggle spray monitor for client' });
+  } finally {
+    connection.release();
   }
 });
 

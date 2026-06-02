@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
@@ -21,6 +21,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [togglingStations, setTogglingStations] = useState<number | null>(null);
+  const [togglingSprayMonitor, setTogglingSprayMonitor] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -147,6 +148,25 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
       console.error('Error toggling stations:', error);
     } finally {
       setTogglingStations(null);
+    }
+  };
+
+  const handleToggleSprayMonitor = async (client: Client) => {
+    const newValue = !client.hasSprayMonitor;
+    setTogglingSprayMonitor(client.id);
+    try {
+      const response = await authenticatedFetch(`/backend/clients/${client.id}/spray-monitor-toggle`, {
+        method: 'PATCH',
+        body: JSON.stringify({ hasSprayMonitor: newValue })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setClients(prev => prev.map(c => c.id === client.id ? { ...c, hasSprayMonitor: newValue } : c));
+      }
+    } catch (error) {
+      console.error('Error toggling spray monitor:', error);
+    } finally {
+      setTogglingSprayMonitor(null);
     }
   };
 
@@ -361,24 +381,45 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                 </div>
 
                 {(userRole === 'admin' || userRole === 'profesional') && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <Sun className="h-4 w-4 text-amber-500" />
-                      <span className="text-xs font-semibold text-slate-600">Est. Meteorológicas</span>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                    <div className="flex items-center justify-between pb-1">
+                      <div className="flex items-center gap-2">
+                        <Sun className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs font-semibold text-slate-600">Est. Meteorológicas</span>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleToggleStations(client); }}
+                        disabled={togglingStations === client.id}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
+                          client.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
+                        } ${togglingStations === client.id ? 'opacity-50' : ''}`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                            client.hasStations ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleToggleStations(client); }}
-                      disabled={togglingStations === client.id}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
-                        client.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
-                      } ${togglingStations === client.id ? 'opacity-50' : ''}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                          client.hasStations ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Database className="h-4 w-4 text-sky-500" />
+                        <span className="text-xs font-semibold text-slate-600">Mon. Pulverización</span>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleToggleSprayMonitor(client); }}
+                        disabled={togglingSprayMonitor === client.id}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
+                          client.hasSprayMonitor ? 'bg-emerald-500' : 'bg-slate-200'
+                        } ${togglingSprayMonitor === client.id ? 'opacity-50' : ''}`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                            client.hasSprayMonitor ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

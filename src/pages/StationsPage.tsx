@@ -142,6 +142,18 @@ export default function StationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [userProfile] = useState(() => {
+    const stored = localStorage.getItem("userProfile");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
   // Diagnostic states
   const [debugToken, setDebugToken] = useState<string>("");
   const [debugLoading, setDebugLoading] = useState(false);
@@ -189,8 +201,22 @@ export default function StationsPage() {
         const json = await res.json();
         
         if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
-          setDevices(json.data);
-          setSelectedDid(json.data[0].dId);
+          const isClient = userProfile?.role === 'client';
+          
+          const filteredDevices = json.data.filter((device: WeatherDevice) => {
+            const isSprayMonitor = device.name.toLowerCase().includes('monitor de pulverizaci') || device.name.toLowerCase().includes('pulveriz');
+            if (isSprayMonitor && isClient && !userProfile?.hasSprayMonitor) {
+              return false;
+            }
+            return true;
+          });
+
+          if (filteredDevices.length > 0) {
+            setDevices(filteredDevices);
+            setSelectedDid(filteredDevices[0].dId);
+          } else {
+            throw new Error('No hay centrales disponibles para tu perfil');
+          }
         } else {
           throw new Error('No weather devices found');
         }
