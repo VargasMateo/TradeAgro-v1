@@ -1765,8 +1765,9 @@ apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
       console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
     }
 
-    // Hide test work orders for non-admins
-    if (role !== 'admin') {
+    // Hide test work orders for non-admins, EXCEPT when the user is explicitly requesting their own data.
+    // Since clients and professionals only fetch their own data (filtered above), we don't want to hide their own test data from them if they are test users.
+    if (role !== 'admin' && role !== 'client' && role !== 'profesional') {
       query += ` AND u.isTest = 0 AND (p_user.isTest IS NULL OR p_user.isTest = 0)`;
     }
 
