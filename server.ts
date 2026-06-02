@@ -75,6 +75,14 @@ const authenticateToken = (req: any, res: any, next: any) => {
     }
 
     try {
+      // Fetch isTest status from users table
+      const [userRows]: any = await pool.query('SELECT isTest FROM users WHERE id = ?', [user.id]);
+      if (userRows.length > 0) {
+        user.isTest = userRows[0].isTest;
+      } else {
+        user.isTest = 0;
+      }
+
       // Validate in the database if the user has been deleted (soft-delete check)
       // This immediately revokes access for deleted users on their next API request
       if (user.role === 'client') {
@@ -1401,6 +1409,7 @@ apiRouter.get('/health', (req, res) => {
 apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/clients - Fetching active clients');
   const isAdmin = req.user.role === 'admin';
+  const isTestUser = req.user.isTest === 1 || req.user.isTest === true;
   try {
     const [clientRows]: any = await pool.query(`
       SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id, u.isTest,
@@ -1408,7 +1417,7 @@ apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
-      ${isAdmin ? '' : 'AND u.isTest = 0'}
+      ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
     `, [PASSWORD_NOT_SET_PLACEHOLDER]);
     const [fieldRows]: any = await pool.query('SELECT * FROM fields');
 
@@ -3047,6 +3056,7 @@ apiRouter.get('/tokens', authenticateToken, async (req: any, res: any) => {
 apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/profesionales for user:', req.user.email);
   const isAdmin = req.user.role === 'admin';
+  const isTestUser = req.user.isTest === 1 || req.user.isTest === true;
   try {
     let rows;
     if (req.user.role === 'client') {
@@ -3057,7 +3067,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
         WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
-        ${isAdmin ? '' : 'AND u.isTest = 0'}
+        ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER, req.user.id]);
     } else {
@@ -3067,7 +3077,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
-        ${isAdmin ? '' : 'AND u.isTest = 0'}
+        ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER]);
     }
