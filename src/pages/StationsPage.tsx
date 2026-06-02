@@ -142,7 +142,7 @@ export default function StationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [userProfile] = useState(() => {
+  const [userProfile, setUserProfile] = useState(() => {
     const stored = localStorage.getItem("userProfile");
     if (stored) {
       try {
@@ -196,16 +196,35 @@ export default function StationsPage() {
     const fetchDevices = async () => {
       try {
         setLoading(true);
+        
+        // Refresh user profile first
+        let currentProfile = userProfile;
+        try {
+          const profileRes = await authenticatedFetch('/backend/auth/me');
+          if (profileRes.ok) {
+            const profileJson = await profileRes.json();
+            if (profileJson.success && profileJson.user) {
+              const updatedProfile = { ...currentProfile, ...profileJson.user };
+              localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+              setUserProfile(updatedProfile);
+              currentProfile = updatedProfile;
+              window.dispatchEvent(new Event('profile-updated'));
+            }
+          }
+        } catch (e) {
+          console.error("Failed to refresh user profile", e);
+        }
+
         const res = await authenticatedFetch('/backend/weather-stations/devices');
         if (!res.ok) throw new Error('Failed to fetch devices');
         const json = await res.json();
         
         if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
-          const isClient = userProfile?.role === 'client';
+          const isClient = currentProfile?.role === 'client';
           
           const filteredDevices = json.data.filter((device: WeatherDevice) => {
             const isSprayMonitor = device.name.toLowerCase().includes('monitor de pulverizaci') || device.name.toLowerCase().includes('pulveriz');
-            if (isSprayMonitor && isClient && !userProfile?.hasSprayMonitor) {
+            if (isSprayMonitor && isClient && !currentProfile?.hasSprayMonitor) {
               return false;
             }
             return true;

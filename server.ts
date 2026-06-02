@@ -1215,7 +1215,7 @@ apiRouter.post('/login', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1264,9 +1264,12 @@ apiRouter.post('/login', async (req, res) => {
     // Filter out password and null fields to match polymorphic interface
     const userData: any = { ...user };
     delete userData.password;
-    // Ensure hasStations is a proper boolean before null-filter
+    // Ensure booleans are proper booleans before null-filter
     if ('hasStations' in userData) {
       userData.hasStations = !!userData.hasStations;
+    }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
     }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
@@ -1291,7 +1294,7 @@ apiRouter.post('/login-external', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1339,6 +1342,9 @@ apiRouter.post('/login-external', async (req, res) => {
     if ('hasStations' in userData) {
       userData.hasStations = !!userData.hasStations;
     }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
@@ -1346,6 +1352,43 @@ apiRouter.post('/login-external', async (req, res) => {
   } catch (error: any) {
     console.error('[AUTH-EXTERNAL ERROR]:', error.message);
     res.redirect(`/login?error=${encodeURIComponent('Error interno del servidor')}`);
+  }
+});
+
+/**
+ * GET /backend/auth/me — Get current user profile
+ */
+apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const userData: any = { ...rows[0] };
+    if ('hasStations' in userData) {
+      userData.hasStations = !!userData.hasStations;
+    }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+    res.json({ success: true, user: userData });
+  } catch (error: any) {
+    console.error('[AUTH ERROR] /auth/me:', error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
