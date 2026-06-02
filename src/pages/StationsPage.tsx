@@ -288,11 +288,30 @@ export default function StationsPage() {
   const dpMin = val && val.dpMin !== undefined ? formatNumber(val.dpMin, 1) : (val ? formatNumber(calculateDewPoint(val.temp1min, val.hum1min), 1) : '--');
   const dpMax = val && val.dpMax !== undefined ? formatNumber(val.dpMax, 1) : (val ? formatNumber(calculateDewPoint(val.temp1max, val.hum1max), 1) : '--');
 
-  // Parse colors. Convert API color to RGB/rgba if needed or just use it directly.
+  // Parse colors. Map Spanish color names from the API to hex, with a keyword fallback.
   const getDeltaTColorAndLabel = () => {
     const rawLabel = val?.dtq || val?.label || "N/D";
+    const rawColor = val?.dtc || "";
+    
+    console.log("[Delta T Debug] dtc (API Spanish color):", val?.dtc, "| color (API Hex color):", val?.color, "| label (dtq/label):", rawLabel);
+    
+    // Map Spanish color name values from MKL API to valid hex colors
+    const colorMap: Record<string, string> = {
+      'verde': '#10B981',       // Green
+      'verde_claro': '#10B981', // Map light green to our emerald green for consistent styling
+      'amarillo': '#F59E0B',    // Amber/Yellow
+      'naranja': '#F97316',     // Orange
+      'rojo': '#EF4444',        // Red
+    };
+
+    const cleanColorKey = rawColor.toLowerCase().trim();
+    if (colorMap[cleanColorKey]) {
+      return { color: colorMap[cleanColorKey], label: rawLabel };
+    }
+
+    // Fallback: keyword mapping from text labels
     const labelUpper = rawLabel.toUpperCase();
-    let color = val?.dtc || val?.color || "#808080";
+    let color = val?.color || "#808080";
     
     if (
       labelUpper.includes("OPTIMO") || 
