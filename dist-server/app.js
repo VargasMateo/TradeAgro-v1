@@ -30,7 +30,7 @@ app.use('/backend/test', (req, res, next) => {
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
 });
 // Define a router for all API routes
 const apiRouter = express.Router();
@@ -61,6 +61,14 @@ const authenticateToken = (req, res, next) => {
             return res.status(403).json({ success: false, error: 'Token inválido o expirado.' });
         }
         try {
+            // Fetch isTest status from users table
+            const [userRows] = await pool.query('SELECT isTest FROM users WHERE id = ?', [user.id]);
+            if (userRows.length > 0) {
+                user.isTest = userRows[0].isTest;
+            }
+            else {
+                user.isTest = 0;
+            }
             // Validate in the database if the user has been deleted (soft-delete check)
             // This immediately revokes access for deleted users on their next API request
             if (user.role === 'client') {
@@ -198,6 +206,7 @@ async function initializeDatabase() {
         businessName VARCHAR(255),
         phoneNumber VARCHAR(50),
         hasStations BOOLEAN DEFAULT FALSE,
+        hasSprayMonitor BOOLEAN DEFAULT FALSE,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
@@ -281,6 +290,16 @@ async function initializeDatabase() {
                 await connection.query('ALTER TABLE work_order_attachments ADD COLUMN fileData LONGBLOB');
                 await connection.query('ALTER TABLE work_order_attachments MODIFY fileUrl VARCHAR(255) NULL');
                 await connection.query('ALTER TABLE work_order_attachments MODIFY fileType VARCHAR(100)');
+            }
+            const hasDescription = columns.some((c) => c.Field === 'description');
+            if (!hasDescription) {
+                console.log('[INIT] Migrating work_order_attachments: adding description TEXT');
+                await connection.query('ALTER TABLE work_order_attachments ADD COLUMN description TEXT');
+            }
+            const hasDisplayOrder = columns.some((c) => c.Field === 'displayOrder');
+            if (!hasDisplayOrder) {
+                console.log('[INIT] Migrating work_order_attachments: adding displayOrder INT DEFAULT 0');
+                await connection.query('ALTER TABLE work_order_attachments ADD COLUMN displayOrder INT DEFAULT 0');
             }
         }
         catch (err) {
@@ -422,6 +441,15 @@ async function initializeDatabase() {
             if (e.code !== 'ER_DUP_FIELDNAME')
                 console.error('[INIT] hasStations migration error:', e.message);
         }
+        // Migration: add hasSprayMonitor column to clients if it doesn't exist
+        try {
+            await connection.query('ALTER TABLE clients ADD COLUMN hasSprayMonitor BOOLEAN DEFAULT FALSE AFTER hasStations');
+            console.log('[INIT] Added hasSprayMonitor column to clients');
+        }
+        catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME')
+                console.error('[INIT] hasSprayMonitor migration error:', e.message);
+        }
         // Migration: add notificationEmails column to clients if it doesn't exist
         try {
             await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
@@ -463,7 +491,8 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
     try {
         const { id, displayName, email, role, phoneNumber: profPhoneNumber, specialty, // Prof fields
         businessName, cuit, ivaCondition, phoneNumber, // Client fields
-        notificationEmails // Client notification emails
+        notificationEmails, // Client notification emails
+        hasSprayMonitor // Client hasSprayMonitor
          } = req.body;
         if (!id)
             return res.status(400).json({ error: 'User ID is required' });
@@ -475,14 +504,14 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
             await connection.query('UPDATE profesionals SET phoneNumber = ?, specialty = ? WHERE userId = ?', [profPhoneNumber || phoneNumber || null, specialty || null, id]);
         }
         else if (role === 'client') {
-            await connection.query('UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ? WHERE userId = ?', [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, id]);
+            await connection.query('UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ?, hasSprayMonitor = ? WHERE userId = ?', [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, hasSprayMonitor === undefined ? null : !!hasSprayMonitor, id]);
         }
         await connection.commit();
         // Fetch updated user to return
         const [rows] = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1055,7 +1084,7 @@ apiRouter.post('/login', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1093,9 +1122,12 @@ apiRouter.post('/login', async (req, res) => {
         // Filter out password and null fields to match polymorphic interface
         const userData = { ...user };
         delete userData.password;
-        // Ensure hasStations is a proper boolean before null-filter
+        // Ensure booleans are proper booleans before null-filter
         if ('hasStations' in userData) {
             userData.hasStations = !!userData.hasStations;
+        }
+        if ('hasSprayMonitor' in userData) {
+            userData.hasSprayMonitor = !!userData.hasSprayMonitor;
         }
         Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
         res.json({
@@ -1118,7 +1150,7 @@ apiRouter.post('/login-external', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1155,6 +1187,9 @@ apiRouter.post('/login-external', async (req, res) => {
         if ('hasStations' in userData) {
             userData.hasStations = !!userData.hasStations;
         }
+        if ('hasSprayMonitor' in userData) {
+            userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+        }
         Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
         const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
         res.redirect(redirectUrl);
@@ -1162,6 +1197,40 @@ apiRouter.post('/login-external', async (req, res) => {
     catch (error) {
         console.error('[AUTH-EXTERNAL ERROR]:', error.message);
         res.redirect(`/login?error=${encodeURIComponent('Error interno del servidor')}`);
+    }
+});
+/**
+ * GET /backend/auth/me — Get current user profile
+ */
+apiRouter.get('/auth/me', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [rows] = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.id = ?
+    `, [userId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+        const userData = { ...rows[0] };
+        if ('hasStations' in userData) {
+            userData.hasStations = !!userData.hasStations;
+        }
+        if ('hasSprayMonitor' in userData) {
+            userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+        }
+        Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+        res.json({ success: true, user: userData });
+    }
+    catch (error) {
+        console.error('[AUTH ERROR] /auth/me:', error.message);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 // Test endpoint
@@ -1172,6 +1241,7 @@ apiRouter.get('/health', (req, res) => {
 apiRouter.get('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/clients - Fetching active clients');
     const isAdmin = req.user.role === 'admin';
+    const isTestUser = req.user.isTest === 1 || req.user.isTest === true;
     try {
         const [clientRows] = await pool.query(`
       SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id, u.isTest,
@@ -1179,7 +1249,7 @@ apiRouter.get('/clients', authenticateToken, async (req, res) => {
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
-      ${isAdmin ? '' : 'AND u.isTest = 0'}
+      ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
     `, [PASSWORD_NOT_SET_PLACEHOLDER]);
         const [fieldRows] = await pool.query('SELECT * FROM fields');
         // Process fields into a map for easy lookup
@@ -1226,7 +1296,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const userId = req.params.id; // Correct semantic: the id is the userId
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, isTest, fields // Array of fields from the modal
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, isTest, fields // Array of fields from the modal
          } = req.body;
         await connection.beginTransaction();
         // 1. Update user data (Base)
@@ -1237,7 +1307,9 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
             cuit: cuit,
             ivaCondition: ivaCondition || 'Responsable Inscripto',
             phoneNumber: phoneNumber,
-            notificationEmails: notificationEmails || null
+            notificationEmails: notificationEmails || null,
+            hasStations: hasStations === undefined ? null : !!hasStations,
+            hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor
         };
         console.log('[DEBUG] Updating client extension for userId:', userId);
         await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
@@ -1307,7 +1379,7 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
     console.log('[DEBUG] POST /backend/clients - Unified creation initiated');
     const connection = await pool.getConnection();
     try {
-        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, createdBy, isTest, password, // Optional, can default
+        const { displayName, businessName, cuit, ivaCondition, email, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, createdBy, isTest, password, // Optional, can default
         fields // Array of fields from the modal
          } = req.body;
         const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
@@ -1345,10 +1417,10 @@ apiRouter.post('/clients', authenticateToken, async (req, res) => {
         }
         // 2. Create or Update Client extension record
         console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
-        await connection.query(`INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, NULL) 
+        await connection.query(`INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), deletedAt = NULL`, [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null]);
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), deletedAt = NULL`, [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor]);
         // 3. Insert associated fields if any
         if (fields && Array.isArray(fields)) {
             console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
@@ -1464,8 +1536,9 @@ apiRouter.get('/work-orders', authenticateToken, async (req, res) => {
         else {
             console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
         }
-        // Hide test work orders for non-admins
-        if (role !== 'admin') {
+        // Hide test work orders for non-admins, EXCEPT when the user is explicitly requesting their own data.
+        // Since clients and professionals only fetch their own data (filtered above), we don't want to hide their own test data from them if they are test users.
+        if (role !== 'admin' && role !== 'client' && role !== 'profesional') {
             query += ` AND u.isTest = 0 AND (p_user.isTest IS NULL OR p_user.isTest = 0)`;
         }
         query += ` ORDER BY t.createdAt DESC`;
@@ -2026,6 +2099,25 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
             return res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
         }
         const internalJobId = order.id;
+        const descriptionsMap = new Map();
+        if (req.body.descriptions) {
+            try {
+                const parsed = JSON.parse(req.body.descriptions);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach((item) => {
+                        if (item && item.fileName) {
+                            descriptionsMap.set(item.fileName, item.description || '');
+                        }
+                    });
+                }
+            }
+            catch (e) {
+                console.error('Error parsing descriptions:', e);
+            }
+        }
+        // Get the current max displayOrder so new files go to the end
+        const [maxOrderRows] = await pool.query('SELECT COALESCE(MAX(displayOrder), -1) as maxOrder FROM work_order_attachments WHERE workOrderId = ?', [internalJobId]);
+        let nextOrder = (maxOrderRows[0]?.maxOrder ?? -1) + 1;
         const values = req.files.map(file => [
             internalJobId,
             file.originalname,
@@ -2033,9 +2125,11 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
             file.mimetype,
             file.size,
             file.buffer, // Save the actual file data
-            uploadedBy
+            uploadedBy,
+            descriptionsMap.get(file.originalname) || '',
+            nextOrder++
         ]);
-        await pool.query('INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy) VALUES ?', [values]);
+        await pool.query('INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description, displayOrder) VALUES ?', [values]);
         // After insert, we could update the fileUrl to point to the correct ID, 
         // but the GET endpoint will construct it dynamically.
         res.json({ success: true, message: 'Files uploaded successfully' });
@@ -2064,7 +2158,7 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res
             return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
         }
         const internalJobId = order.id;
-        const [rows] = await pool.query('SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC', [internalJobId]);
+        const [rows] = await pool.query('SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC', [internalJobId]);
         // Add the dynamic URL for each attachment
         const attachments = rows.map((row) => ({
             ...row,
@@ -2075,6 +2169,46 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req, res
     catch (error) {
         console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/attachments:`, error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
+    }
+});
+/**
+ * Update attachment metadata (description and order)
+ */
+apiRouter.put('/attachments/update-meta', authenticateToken, async (req, res) => {
+    const { updates } = req.body;
+    if (!Array.isArray(updates)) {
+        return res.status(400).json({ success: false, error: 'Invalid updates format' });
+    }
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        for (const update of updates) {
+            const { id, description, displayOrder } = update;
+            const sets = [];
+            const values = [];
+            if (description !== undefined) {
+                sets.push('description = ?');
+                values.push(description);
+            }
+            if (displayOrder !== undefined) {
+                sets.push('displayOrder = ?');
+                values.push(displayOrder);
+            }
+            if (sets.length > 0) {
+                values.push(id);
+                await connection.query(`UPDATE work_order_attachments SET ${sets.join(', ')} WHERE id = ?`, values);
+            }
+        }
+        await connection.commit();
+        res.json({ success: true });
+    }
+    catch (err) {
+        await connection.rollback();
+        console.error('[DATABASE ERROR] PUT /backend/attachments/update-meta:', err.message);
+        res.status(500).json({ success: false, error: 'Failed to update metadata' });
+    }
+    finally {
+        connection.release();
     }
 });
 /**
@@ -2507,6 +2641,7 @@ apiRouter.get('/tokens', authenticateToken, async (req, res) => {
 apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
     console.log('[DEBUG] GET /backend/profesionales for user:', req.user.email);
     const isAdmin = req.user.role === 'admin';
+    const isTestUser = req.user.isTest === 1 || req.user.isTest === true;
     try {
         let rows;
         if (req.user.role === 'client') {
@@ -2517,7 +2652,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
         WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
-        ${isAdmin ? '' : 'AND u.isTest = 0'}
+        ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER, req.user.id]);
         }
@@ -2528,7 +2663,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req, res) => {
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
-        ${isAdmin ? '' : 'AND u.isTest = 0'}
+        ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER]);
         }
@@ -2611,6 +2746,29 @@ apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req, r
     catch (error) {
         console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
         res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+    }
+});
+/**
+ * Toggle hasSprayMonitor flag for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/spray-monitor-toggle', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'profesional') {
+        return res.status(403).json({ error: 'Not authorized to toggle spray monitor' });
+    }
+    const id = req.params.id;
+    const { hasSprayMonitor } = req.body;
+    console.log(`[DEBUG] PATCH /backend/clients/${id}/spray-monitor-toggle - hasSprayMonitor=${hasSprayMonitor}`);
+    const connection = await pool.getConnection();
+    try {
+        await connection.query('UPDATE clients SET hasSprayMonitor = ? WHERE userId = ?', [!!hasSprayMonitor, id]);
+        res.json({ success: true, hasSprayMonitor: !!hasSprayMonitor });
+    }
+    catch (error) {
+        console.error('[ERROR] PATCH /backend/clients/:id/spray-monitor-toggle:', error.message);
+        res.status(500).json({ error: 'Failed to toggle spray monitor for client' });
+    }
+    finally {
+        connection.release();
     }
 });
 /**
