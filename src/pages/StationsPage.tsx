@@ -9,9 +9,8 @@ import {
   Signal,
   MapPin,
   Clock,
-  Cloud,
   Activity,
-  Settings
+  CloudRain,
 } from "lucide-react";
 import { authenticatedFetch } from "../lib/api";
 
@@ -58,6 +57,7 @@ interface SensorData {
     sen_cel: number;
     lat: number;
     lng: number;
+    rain?: number;
     [key: string]: any;
   };
 }
@@ -342,7 +342,15 @@ export default function StationsPage() {
 
   const { color: deltaColor, label: deltaLabel } = getDeltaTColorAndLabel();
 
-  const selectedDeviceName = devices.find(d => d.dId === selectedDid)?.name || "Nodo Celular";
+  const selectedDevice = devices.find(d => d.dId === selectedDid);
+  const selectedDeviceName = selectedDevice?.name || "Nodo Celular";
+
+  const hasRainSupport = !!(
+    selectedDevice?.name.toLowerCase().includes("pluvio") ||
+    selectedDevice?.name.toLowerCase().includes("pluviometro") ||
+    selectedDevice?.templateName?.toLowerCase().includes("pluvio") ||
+    selectedDevice?.templateName?.toLowerCase().includes("pluviometro")
+  );
 
   return (
     <div className="animate-in fade-in duration-500 pb-10 space-y-6">
@@ -475,8 +483,24 @@ export default function StationsPage() {
             </div>
           </div>
 
+          {/* Rain */}
+          {hasRainSupport && val.rain !== undefined && val.rain !== null && (
+            <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
+                <CloudRain className="h-24 w-24 text-sky-500" />
+              </div>
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <h2 className="text-5xl font-black">{formatNumber(val.rain, 1)} <span className="text-3xl">mm</span></h2>
+                <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">LLUVIA DEL DÍA</p>
+                <div className="mt-3 flex flex-col text-sm font-bold gap-0.5 text-indigo-600/85">
+                  <span>Acumulada desde 00:00</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Dew Point */}
-          <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+          <div className={`col-span-1 ${hasRainSupport && val.rain !== undefined && val.rain !== null ? '' : 'md:col-span-2'} flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up`} style={{ animationDelay: '160ms' }}>
              <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-5">
               <ThermometerSun className="h-24 w-24 text-amber-500" />
             </div>
