@@ -603,9 +603,9 @@ export default function CreateClientModal({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-sky-100 bg-sky-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-500">
                         <Sun className="h-5 w-5" />
                       </div>
                       <div>
