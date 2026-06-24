@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHmac } from 'crypto';
 import nodemailer from 'nodemailer';
 
 // Define __dirname for ES module scope
@@ -54,6 +54,21 @@ const pool = mysql.createPool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// Invite link: HMAC-based stateless token for public work order access
+const INVITE_SECRET = process.env.INVITE_SECRET || JWT_SECRET;
+
+function generateInviteToken(uuid: string): string {
+  return createHmac('sha256', INVITE_SECRET!)
+    .update(uuid)
+    .digest('hex')
+    .substring(0, 16);
+}
+
+function validateInviteToken(uuid: string, token: string): boolean {
+  const expected = generateInviteToken(uuid);
+  return expected === token;
+}
 
 // Middleware to verify JWT
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -824,7 +839,8 @@ async function sendOrderCompletedEmail(orderData: any) {
   }
 
   const appUrl = getAppUrl();
-  const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
+  const inviteToken = generateInviteToken(orderData.uuid || String(orderData.id));
+  const orderUrl = `${appUrl}/order/${orderData.uuid || orderData.id}?token=${inviteToken}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
   const textContent = `¡Tu orden ha sido completada!
@@ -1827,7 +1843,8 @@ async function sendNewOrderEmail(orderData: any) {
   if (!transporter) return;
 
   const appUrl = getAppUrl();
-  const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
+  const inviteToken = generateInviteToken(orderData.uuid || String(orderData.id));
+  const orderUrl = `${appUrl}/order/${orderData.uuid || orderData.id}?token=${inviteToken}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
   const textContent = `Confirmación de Orden #AG-${orderData.id}
@@ -2412,6 +2429,46 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
     res.json(job);
   } catch (error: any) {
     console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}:`, error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get invite token for a work order (authenticated users only)
+ */
+apiRouter.get('/work-orders/:id/invite-token', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  const user = req.user;
+
+  try {
+    const [rows]: any = await pool.query(
+      'SELECT uuid, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+
+    const row = rows[0];
+
+    // Authorization: Admin, assigned professional, or client
+    const isAuthorized =
+      user.role === 'admin' ||
+      user.id === row.clientId ||
+      user.id === row.profesionalId;
+
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para compartir esta orden' });
+    }
+
+    const inviteToken = generateInviteToken(row.uuid);
+    const appUrl = getAppUrl();
+    const inviteUrl = `${appUrl}/order/${row.uuid}?token=${inviteToken}`;
+
+    res.json({ success: true, inviteToken, inviteUrl });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/invite-token:`, error.message);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -3345,6 +3402,126 @@ app.post('/backend/test/reset-data', async (req, res) => {
     res.status(500).json({ error: 'Failed to reset users', details: error.message });
   } finally {
     connection.release();
+  }
+});
+
+// ==========================================
+// PUBLIC ENDPOINTS (no auth required)
+// ==========================================
+
+/**
+ * Public: View a work order via invite link
+ */
+apiRouter.get('/public/work-orders/:uuid', async (req: any, res) => {
+  const { uuid } = req.params;
+  const { token } = req.query;
+
+  if (!token || !validateInviteToken(uuid, token as string)) {
+    return res.status(403).json({ success: false, error: 'Token de invitación inválido' });
+  }
+
+  try {
+    const query = `
+      SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
+             f.lat, f.lng
+      FROM work_orders t
+      LEFT JOIN users u ON t.clientId = u.id
+      LEFT JOIN users p_user ON t.profesionalId = p_user.id
+      LEFT JOIN fields f ON t.fieldId = f.id
+      WHERE t.uuid = ? AND t.deletedAt IS NULL
+    `;
+
+    const [rows]: any = await pool.query(query, [uuid]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+
+    const row = rows[0];
+
+    // Return read-only data (no phone numbers, no sensitive info)
+    const job = {
+      id: row.id,
+      uuid: row.uuid,
+      client: row.clientName || 'Cliente',
+      date: row.date,
+      location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
+      service: row.service || 'Sin servicio',
+      secondaryService: row.secondaryService || null,
+      title: row.title || row.service,
+      fieldName: row.fieldName,
+      lotName: row.lotName,
+      hectares: parseFloat(row.hectares) || 0,
+      amountUsd: parseFloat(row.amountUsd) || 0,
+      campaign: row.campaign,
+      status: row.status,
+      operator: row.professionalName || 'Asignación Pendiente',
+      lat: row.lat,
+      lng: row.lng,
+      iconName: getIconNameForService(row.service),
+      color: getColorForService(row.service),
+      createdAt: row.createdAt,
+    };
+
+    // Also fetch attachments metadata
+    const [attachmentRows]: any = await pool.query(
+      `SELECT id, fileName, fileType, fileSize, displayOrder, description, createdAt
+       FROM work_order_attachments
+       WHERE workOrderId = ?
+       ORDER BY displayOrder ASC, createdAt DESC`,
+      [row.id]
+    );
+
+    const attachments = attachmentRows.map((a: any) => ({
+      ...a,
+      fileUrl: `/backend/public/attachments/${a.id}?token=${token}`
+    }));
+
+    res.json({ ...job, attachments });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /backend/public/work-orders/${uuid}:`, error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * Public: Serve attachment content via invite link
+ */
+apiRouter.get('/public/attachments/:id', async (req: any, res) => {
+  const { id } = req.params;
+  const { token, download } = req.query;
+
+  if (!token) {
+    return res.status(403).json({ error: 'Token requerido' });
+  }
+
+  try {
+    // Fetch attachment + parent work order UUID for token validation
+    const [rows]: any = await pool.query(`
+      SELECT a.fileData, a.fileName, a.fileType, wo.uuid
+      FROM work_order_attachments a
+      JOIN work_orders wo ON a.workOrderId = wo.id
+      WHERE a.id = ? AND wo.deletedAt IS NULL
+    `, [id]);
+
+    if (rows.length === 0 || !rows[0].fileData) {
+      return res.status(404).json({ error: 'Archivo no encontrado' });
+    }
+
+    const { fileData, fileName, fileType, uuid } = rows[0];
+
+    // Validate token against the parent work order's UUID
+    if (!validateInviteToken(uuid, token as string)) {
+      return res.status(403).json({ error: 'Token de invitación inválido' });
+    }
+
+    const disposition = download === 'true' ? 'attachment' : 'inline';
+    res.setHeader('Content-Type', fileType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${fileName}"`);
+    res.send(fileData);
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] GET /backend/public/attachments/:id:', error.message);
+    res.status(500).json({ error: 'Failed to retrieve file content' });
   }
 });
 

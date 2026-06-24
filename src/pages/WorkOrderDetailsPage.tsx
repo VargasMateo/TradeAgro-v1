@@ -413,11 +413,26 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const response = await authenticatedFetch(`/backend/work-orders/${id}/invite-token`);
+      if (response.ok) {
+        const data = await response.json();
+        await navigator.clipboard.writeText(data.inviteUrl);
+      } else {
+        // Fallback to current URL if invite token fails
+        await navigator.clipboard.writeText(window.location.href);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy link:', err);
+      // Fallback to current URL
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (e) {
+        console.error('Clipboard fallback failed:', e);
+      }
     }
   };
 

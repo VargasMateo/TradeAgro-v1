@@ -18,6 +18,7 @@ import StationsPage from "./pages/StationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
 import DbTestPage from "./pages/DbTestPage";
+import PublicWorkOrderPage from "./pages/PublicWorkOrderPage";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("authToken"));
@@ -107,6 +108,17 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/setup-password" element={<SetupPasswordPage />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Public route: invitation link to view work orders without auth
+  if (window.location.pathname.startsWith('/order/')) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/order/:uuid" element={<PublicWorkOrderPage />} />
         </Routes>
       </Router>
     );
