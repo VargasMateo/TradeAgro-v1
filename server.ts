@@ -1778,11 +1778,7 @@ apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
     const params: any[] = [];
 
     // Role-based filtering
-    if (role === 'profesional') {
-      console.log(`[DEBUG_AUTH] Filtering for profesionalId: ${id}`);
-      query += ` AND t.profesionalId = ?`;
-      params.push(id);
-    } else if (role === 'client') {
+    if (role === 'client') {
       console.log(`[DEBUG_AUTH] Filtering for clientId: ${id}`);
       query += ` AND t.clientId = ?`;
       params.push(id);
@@ -2386,11 +2382,11 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
 
     const row = rows[0];
 
-    // Authorization Check: Admin, Assigned Professional, or Client
+    // Authorization Check: Admin, Assigned Professional, Client, or ANY Professional
     const isAuthorized =
       user.role === 'admin' ||
-      user.id === row.clientId ||
-      user.id === row.profesionalId;
+      user.role === 'profesional' ||
+      user.id === row.clientId;
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized WO access attempt by UID ${user.id} to WO ${id}`);

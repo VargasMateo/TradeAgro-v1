@@ -22,6 +22,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(true);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [userName, setUserName] = useState("Admin");
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -60,6 +61,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       if (storedProfile) {
         try {
           const profile = JSON.parse(storedProfile);
+          setCurrentUser(profile);
           const nameToUse = profile.displayName || profile.name || (userRole === 'admin' ? "Admin" : "Usuario");
           // Extract first name
           const firstName = nameToUse.split(' ')[0];
@@ -120,18 +122,24 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     </div>
   );
 
+  const filteredWorkOrders = userRole === 'profesional' && currentUser?.id 
+    ? workOrders.filter(wo => wo.profesionalId === currentUser.id) 
+    : workOrders;
+
+  const hasAnyWorkOrders = filteredWorkOrders.length > 0;
+
   // Calculate real stats
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  const ordersThisMonth = workOrders.filter(wo => {
+  const ordersThisMonth = filteredWorkOrders.filter(wo => {
     if (!wo.date) return false;
     const d = new Date(wo.date);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).length;
 
-  const ordersPending = workOrders.filter(wo => wo.status !== 'Completado').length;
+  const ordersPending = filteredWorkOrders.filter(wo => wo.status !== 'Completado').length;
 
   const dynamicStats = [
     {
@@ -149,8 +157,6 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       bg: "bg-amber-50",
     },
   ];
-
-  const hasAnyWorkOrders = workOrders.length > 0;
 
   return (
     <div className="animate-in fade-in duration-500 grid grid-cols-1 gap-y-6 gap-x-8 lg:grid-cols-2">
@@ -257,7 +263,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       {(isLoadingWorkOrders || hasAnyWorkOrders) && (
         <div className="order-4 lg:col-span-2">
           <UpcomingWorkOrders
-            data={workOrders}
+            data={filteredWorkOrders}
             isLoading={isLoadingWorkOrders}
             userRole={userRole}
           />
