@@ -9,9 +9,8 @@ import {
   Signal,
   MapPin,
   Clock,
-  Cloud,
   Activity,
-  Settings
+  CloudRain,
 } from "lucide-react";
 import { authenticatedFetch } from "../lib/api";
 
@@ -58,6 +57,7 @@ interface SensorData {
     sen_cel: number;
     lat: number;
     lng: number;
+    rain?: number;
     [key: string]: any;
   };
 }
@@ -142,6 +142,18 @@ export default function StationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [userProfile, setUserProfile] = useState(() => {
+    const stored = localStorage.getItem("userProfile");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
   // Diagnostic states
   const [debugToken, setDebugToken] = useState<string>("");
   const [debugLoading, setDebugLoading] = useState(false);
@@ -184,13 +196,46 @@ export default function StationsPage() {
     const fetchDevices = async () => {
       try {
         setLoading(true);
+        
+        // Refresh user profile first
+        let currentProfile = userProfile;
+        try {
+          const profileRes = await authenticatedFetch('/backend/auth/me');
+          if (profileRes.ok) {
+            const profileJson = await profileRes.json();
+            if (profileJson.success && profileJson.user) {
+              const updatedProfile = { ...currentProfile, ...profileJson.user };
+              localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+              setUserProfile(updatedProfile);
+              currentProfile = updatedProfile;
+              window.dispatchEvent(new Event('profile-updated'));
+            }
+          }
+        } catch (e) {
+          console.error("Failed to refresh user profile", e);
+        }
+
         const res = await authenticatedFetch('/backend/weather-stations/devices');
         if (!res.ok) throw new Error('Failed to fetch devices');
         const json = await res.json();
         
         if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
-          setDevices(json.data);
-          setSelectedDid(json.data[0].dId);
+          const isClient = currentProfile?.role === 'client';
+          
+          const filteredDevices = json.data.filter((device: WeatherDevice) => {
+            const isSprayMonitor = device.name.toLowerCase().includes('monitor de pulverizaci') || device.name.toLowerCase().includes('pulveriz');
+            if (isSprayMonitor && isClient && !currentProfile?.hasSprayMonitor) {
+              return false;
+            }
+            return true;
+          });
+
+          if (filteredDevices.length > 0) {
+            setDevices(filteredDevices);
+            setSelectedDid(filteredDevices[0].dId);
+          } else {
+            throw new Error('No hay centrales disponibles para tu perfil');
+          }
         } else {
           throw new Error('No weather devices found');
         }
@@ -243,11 +288,30 @@ export default function StationsPage() {
   const dpMin = val && val.dpMin !== undefined ? formatNumber(val.dpMin, 1) : (val ? formatNumber(calculateDewPoint(val.temp1min, val.hum1min), 1) : '--');
   const dpMax = val && val.dpMax !== undefined ? formatNumber(val.dpMax, 1) : (val ? formatNumber(calculateDewPoint(val.temp1max, val.hum1max), 1) : '--');
 
-  // Parse colors. Convert API color to RGB/rgba if needed or just use it directly.
+  // Parse colors. Map Spanish color names from the API to hex, with a keyword fallback.
   const getDeltaTColorAndLabel = () => {
     const rawLabel = val?.dtq || val?.label || "N/D";
+    const rawColor = val?.dtc || "";
+    
+    console.log("[Delta T Debug] dtc (API Spanish color):", val?.dtc, "| color (API Hex color):", val?.color, "| label (dtq/label):", rawLabel);
+    
+    // Map Spanish color name values from MKL API to valid hex colors
+    const colorMap: Record<string, string> = {
+      'verde': '#10B981',       // Green
+      'verde_claro': '#10B981', // Map light green to our emerald green for consistent styling
+      'amarillo': '#F59E0B',    // Amber/Yellow
+      'naranja': '#F97316',     // Orange
+      'rojo': '#EF4444',        // Red
+    };
+
+    const cleanColorKey = rawColor.toLowerCase().trim();
+    if (colorMap[cleanColorKey]) {
+      return { color: colorMap[cleanColorKey], label: rawLabel };
+    }
+
+    // Fallback: keyword mapping from text labels
     const labelUpper = rawLabel.toUpperCase();
-    let color = val?.dtc || val?.color || "#808080";
+    let color = val?.color || "#808080";
     
     if (
       labelUpper.includes("OPTIMO") || 
@@ -278,7 +342,15 @@ export default function StationsPage() {
 
   const { color: deltaColor, label: deltaLabel } = getDeltaTColorAndLabel();
 
-  const selectedDeviceName = devices.find(d => d.dId === selectedDid)?.name || "Nodo Celular";
+  const selectedDevice = devices.find(d => d.dId === selectedDid);
+  const selectedDeviceName = selectedDevice?.name || "Nodo Celular";
+
+  const hasRainSupport = !!(
+    selectedDevice?.name.toLowerCase().includes("pluvio") ||
+    selectedDevice?.name.toLowerCase().includes("pluviometro") ||
+    selectedDevice?.templateName?.toLowerCase().includes("pluvio") ||
+    selectedDevice?.templateName?.toLowerCase().includes("pluviometro")
+  );
 
   return (
     <div className="animate-in fade-in duration-500 pb-10 space-y-6">
@@ -411,8 +483,24 @@ export default function StationsPage() {
             </div>
           </div>
 
+          {/* Rain */}
+          {hasRainSupport && val.rain !== undefined && val.rain !== null && (
+            <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
+                <CloudRain className="h-24 w-24 text-sky-500" />
+              </div>
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <h2 className="text-5xl font-black">{formatNumber(val.rain, 1)} <span className="text-3xl">mm</span></h2>
+                <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">LLUVIA DEL DÍA</p>
+                <div className="mt-3 flex flex-col text-sm font-bold gap-0.5 text-indigo-600/85">
+                  <span>Acumulada desde 00:00</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Dew Point */}
-          <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+          <div className={`col-span-1 ${hasRainSupport && val.rain !== undefined && val.rain !== null ? '' : 'md:col-span-2'} flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up`} style={{ animationDelay: '160ms' }}>
              <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-5">
               <ThermometerSun className="h-24 w-24 text-amber-500" />
             </div>

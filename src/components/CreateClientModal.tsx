@@ -30,6 +30,7 @@ export default function CreateClientModal({
     notificationEmails: string;
     isTest: boolean;
     hasStations: boolean;
+    hasSprayMonitor: boolean;
     fields: ClientField[];
   }>({
     name: initialName,
@@ -41,6 +42,7 @@ export default function CreateClientModal({
     notificationEmails: '',
     isTest: false,
     hasStations: false,
+    hasSprayMonitor: false,
     fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
   });
 
@@ -111,6 +113,7 @@ export default function CreateClientModal({
         notificationEmails: editingClient.notificationEmails || '',
         isTest: !!editingClient.isTest,
         hasStations: !!editingClient.hasStations,
+        hasSprayMonitor: !!editingClient.hasSprayMonitor,
         fields: (editingClient.fields || []).map(f => ({
           name: f.name || '',
           lat: f.lat,
@@ -130,6 +133,7 @@ export default function CreateClientModal({
         notificationEmails: '',
         isTest: false,
         hasStations: false,
+        hasSprayMonitor: false,
         fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
       });
     }
@@ -283,6 +287,7 @@ export default function CreateClientModal({
         notificationEmails: formData.notificationEmails || null,
         isTest: formData.isTest,
         hasStations: formData.hasStations,
+        hasSprayMonitor: formData.hasSprayMonitor,
         createdBy: currentUserId,
         fields: formData.fields.map(f => ({
           id: f.id,
@@ -598,9 +603,9 @@ export default function CreateClientModal({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-sky-100 bg-sky-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-500">
                         <Sun className="h-5 w-5" />
                       </div>
                       <div>
@@ -622,6 +627,36 @@ export default function CreateClientModal({
                       <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
                           formData.hasStations ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Monitor de Pulverizacion Toggle */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-sky-100 bg-sky-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+                        <Database className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-bold text-slate-900 block">
+                          Habilitar Monitor de Pulverización
+                        </label>
+                        <p className="text-[11px] text-slate-500">
+                          Permite al cliente visualizar y gestionar la central de pulverización.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setFormData(prev => ({ ...prev, hasSprayMonitor: !prev.hasSprayMonitor })); }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shrink-0 ${
+                        formData.hasSprayMonitor ? 'bg-emerald-500' : 'bg-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                          formData.hasSprayMonitor ? 'translate-x-6' : 'translate-x-1'
                         }`}
                       />
                     </button>

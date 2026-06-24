@@ -33,3 +33,59 @@ export const authenticatedFetch = async (url: string, options: RequestInit = {})
 
   return response;
 };
+
+export interface UploadOptions {
+  method?: string;
+  body?: Document | XMLHttpRequestBodyInit | null;
+  onProgress?: (progress: number) => void;
+}
+
+export const authenticatedUpload = (url: string, options: UploadOptions = {}): Promise<Response> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const method = options.method || 'POST';
+    xhr.open(method, url);
+
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (xhr.upload && options.onProgress) {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          options.onProgress?.(percentComplete);
+        }
+      });
+    }
+
+    xhr.onload = () => {
+      const responseBody = xhr.responseText;
+      const response = {
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        statusText: xhr.statusText,
+        text: async () => responseBody,
+        json: async () => JSON.parse(responseBody),
+        blob: async () => new Blob([responseBody]),
+      } as Response;
+
+      if (xhr.status === 401) {
+        console.warn('[AUTH] Authentication error detected (401). Forcing logout.');
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("userProfile");
+        window.location.href = '/?error=' + encodeURIComponent('Tu cuenta se encuentra desactivada o la sesión ha expirado.');
+      }
+
+      resolve(response);
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network request failed'));
+    };
+
+    xhr.send(options.body);
+  });
+};
+

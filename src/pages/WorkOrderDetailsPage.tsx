@@ -21,23 +21,39 @@ import {
   Trash2
 } from "lucide-react";
 import React, { ChangeEvent } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableAttachment } from '../components/SortableAttachment';
 import Map from "../components/Map";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { cn } from "../lib/utils";
-import { authenticatedFetch } from "../lib/api";
+import { authenticatedFetch, authenticatedUpload } from "../lib/api";
+
+interface UploadingFile {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  progress: number;
+}
+
 
 export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [downloadingFiles, setDownloadingFiles] = useState<Record<number, boolean>>({});
   const [attachmentsLoading, setAttachmentsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isPreloadingEdit, setIsPreloadingEdit] = useState(false);
   const [deletingJob, setDeletingJob] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<number | null>(null);
+  const [isDeletingAttachment, setIsDeletingAttachment] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,17 +163,29 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
+    const filesArray = Array.from(e.target.files) as File[];
+    const tempFiles: UploadingFile[] = filesArray.map((f, idx) => ({
+      id: `uploading-${Date.now()}-${idx}`,
+      fileName: f.name,
+      fileSize: f.size,
+      progress: 0
+    }));
+
+    setUploadingFiles(tempFiles);
     setIsUploading(true);
+
     try {
       const formData = new FormData();
-      const filesArray = Array.from(e.target.files) as File[];
       filesArray.forEach(file => {
         formData.append('files', file);
       });
 
-      const response = await authenticatedFetch(`/backend/work-orders/${id}/attachments`, {
+      const response = await authenticatedUpload(`/backend/work-orders/${id}/attachments`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        onProgress: (progress) => {
+          setUploadingFiles(prev => prev.map(f => ({ ...f, progress })));
+        }
       });
 
       if (response.ok) {
@@ -169,24 +197,32 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
       console.error('Upload error:', err);
     } finally {
       setIsUploading(false);
+      setUploadingFiles([]);
     }
   };
 
-  const handleDeleteAttachment = async (attachmentId: number) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) return;
+  const handleDeleteAttachment = (attachmentId: number) => {
+    setAttachmentToDelete(attachmentId);
+  };
 
+  const handleConfirmDeleteAttachment = async () => {
+    if (attachmentToDelete === null) return;
+    setIsDeletingAttachment(true);
     try {
-      const response = await authenticatedFetch(`/backend/attachments/${attachmentId}`, {
+      const response = await authenticatedFetch(`/backend/attachments/${attachmentToDelete}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+        setAttachments(prev => prev.filter(a => a.id !== attachmentToDelete));
+        setAttachmentToDelete(null);
       } else {
         alert('Error al eliminar archivo');
       }
     } catch (err) {
       console.error('Delete error:', err);
+    } finally {
+      setIsDeletingAttachment(false);
     }
   };
 
@@ -208,6 +244,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
   const handleDownloadFile = async (file: any, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    setDownloadingFiles(prev => ({ ...prev, [file.id]: true }));
     try {
       const response = await authenticatedFetch(`${file.fileUrl}?download=true`);
       if (!response.ok) throw new Error('Failed to download file');
@@ -223,6 +260,42 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     } catch (error) {
       console.error('Error downloading file:', error);
       alert('No se pudo descargar el archivo.');
+    } finally {
+      setDownloadingFiles(prev => ({ ...prev, [file.id]: false }));
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setAttachments((items: any[]) => {
+        const oldIndex = items.findIndex((item: any) => item.id === active.id);
+        const newIndex = items.findIndex((item: any) => item.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        const updates = newItems.map((item: any, index: number) => ({ id: item.id, displayOrder: index }));
+        authenticatedFetch('/backend/attachments/update-meta', {
+          method: 'PUT',
+          body: JSON.stringify({ updates })
+        }).catch(err => console.error('Failed to update order', err));
+        return newItems;
+      });
+    }
+  };
+
+  const handleUpdateDescription = async (id: number, description: string) => {
+    setAttachments(items => items.map(item => item.id === id ? { ...item, description } : item));
+    try {
+      await authenticatedFetch('/backend/attachments/update-meta', {
+        method: 'PUT',
+        body: JSON.stringify({ updates: [{ id, description }] })
+      });
+    } catch (err) {
+      console.error('Failed to update description', err);
     }
   };
 
@@ -771,35 +844,37 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             </div>
 
             {/* Input */}
-            <div className="flex items-end gap-2 pt-3 border-t border-slate-100">
-              <textarea
-                rows={1}
-                value={newObservation}
-                onChange={(e) => setNewObservation(e.target.value)}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 72) + 'px';
-                }}
-                placeholder="Escribe una observación..."
-                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 max-h-[4.5rem] overflow-y-auto"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAddObservation();
+            {userRole !== 'client' && (
+              <div className="flex items-end gap-2 pt-3 border-t border-slate-100">
+                <textarea
+                  rows={1}
+                  value={newObservation}
+                  onChange={(e) => setNewObservation(e.target.value)}
+                  onInput={(e) => {
                     const target = e.target as HTMLTextAreaElement;
                     target.style.height = 'auto';
-                  }
-                }}
-              />
-              <button
-                onClick={handleAddObservation}
-                disabled={!newObservation.trim()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2e7d32] text-white transition-colors hover:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
+                    target.style.height = Math.min(target.scrollHeight, 72) + 'px';
+                  }}
+                  placeholder="Escribe una observación..."
+                  className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 max-h-[4.5rem] overflow-y-auto"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleAddObservation();
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleAddObservation}
+                  disabled={!newObservation.trim()}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2e7d32] text-white transition-colors hover:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
 
         </div>
@@ -811,7 +886,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Paperclip className="h-5 w-5 text-[#2e7d32]" />
-                <h2 className="text-lg font-bold text-slate-900">Adjuntos</h2>
+                <h2 className="text-lg font-bold text-slate-900">Archivos del informe</h2>
               </div>
               <span className="text-xs font-bold text-slate-400">{attachments.length} Archivos</span>
             </div>
@@ -830,59 +905,75 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                     <div className="h-8 w-8 rounded-lg bg-slate-200" />
                   </div>
                 ))
-              ) : attachments.length === 0 ? (
+              ) : attachments.length === 0 && uploadingFiles.length === 0 ? (
                 <p className="text-center text-xs text-slate-400 py-4 italic">No hay archivos adjuntos.</p>
               ) : (
-                attachments.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 group cursor-pointer"
-                    onClick={(e) => handleViewFile(file, e)}
-                  >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                        (file.fileType.includes('pdf')) && "bg-red-50 text-red-500",
-                        (file.fileType.includes('image')) && "bg-blue-50 text-blue-500",
-                        (!file.fileType.includes('pdf') && !file.fileType.includes('image')) && "bg-slate-50 text-slate-500",
-                      )}>
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="truncate text-sm font-semibold text-slate-900" title={file.fileName}>{file.fileName}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {file.fileName.includes('.') ? file.fileName.split('.').pop()?.toUpperCase() : 'ARCHIVO'} • {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.uploaderName || 'Sistema'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-[#2e7d32] transition-colors cursor-pointer"
-                        onClick={(e) => handleDownloadFile(file, e)}
+                <>
+                  {attachments.length > 0 && (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={attachments.map(a => a.id)}
+                        strategy={verticalListSortingStrategy}
                       >
-                        <Download className="h-4 w-4" />
-                      </button>
-                      {(userRole === 'admin' || (currentUser && currentUser.id === file.uploadedBy)) && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteAttachment(file.id);
-                          }}
-                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
+                        {attachments.map((file) => (
+                          <SortableAttachment
+                            key={file.id}
+                            file={file}
+                            userRole={userRole}
+                            currentUser={currentUser}
+                            onView={handleViewFile}
+                            onDownload={handleDownloadFile}
+                            onDelete={handleDeleteAttachment}
+                            onUpdateDescription={handleUpdateDescription}
+                            isDownloading={downloadingFiles[file.id]}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )}
+                  {uploadingFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex flex-col gap-2 rounded-xl border border-dashed border-[#2e7d32]/20 bg-[#2e7d32]/5 p-3 transition-colors duration-300"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 overflow-hidden flex-1">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2e7d32]/10 text-[#2e7d32] animate-pulse">
+                            <FileText className="h-5 w-5" />
+                          </div>
+                          <div className="overflow-hidden flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-semibold text-slate-700" title={file.fileName}>{file.fileName}</p>
+                              <span className="text-xs font-bold text-[#2e7d32] shrink-0">{file.progress}%</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400">
+                              {file.fileName.includes('.') ? file.fileName.split('.').pop()?.toUpperCase() : 'ARCHIVO'} • {(file.fileSize / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="h-full bg-[#2e7d32] rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${file.progress}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </>
               )}
             </div>
 
             {userRole !== 'client' && (
               <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 transition-colors hover:border-[#2e7d32] hover:text-[#2e7d32] hover:bg-slate-50">
                 <Plus className="h-4 w-4" />
-                {isUploading ? 'Subiendo...' : 'Agregar Archivo'}
+                {isUploading ? (
+                  uploadingFiles.length > 0 ? `Subiendo (${uploadingFiles[0].progress}%)...` : 'Subiendo...'
+                ) : 'Agregar Archivo'}
                 <input
                   type="file"
                   multiple
@@ -935,6 +1026,17 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         title={`¿Eliminar orden ${job.id}?`}
         description="Esta acción eliminará de forma irreversible y permanente esta orden de trabajo, todos sus archivos adjuntos y todas las observaciones del chat asociadas. No se puede deshacer."
         confirmText="Eliminar Orden"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={attachmentToDelete !== null}
+        onClose={() => setAttachmentToDelete(null)}
+        onConfirm={handleConfirmDeleteAttachment}
+        isLoading={isDeletingAttachment}
+        title="¿Eliminar archivo?"
+        description="Esta acción eliminará de forma permanente este archivo de la orden de trabajo. No se puede deshacer."
+        confirmText="Eliminar Archivo"
+        cancelText="Cancelar"
       />
     </div>
   );

@@ -36,7 +36,7 @@ app.use('/backend/test', (req: any, res: any, next: any) => {
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
 });
 
 // Define a router for all API routes
@@ -75,6 +75,14 @@ const authenticateToken = (req: any, res: any, next: any) => {
     }
 
     try {
+      // Fetch isTest status from users table
+      const [userRows]: any = await pool.query('SELECT isTest FROM users WHERE id = ?', [user.id]);
+      if (userRows.length > 0) {
+        user.isTest = userRows[0].isTest;
+      } else {
+        user.isTest = 0;
+      }
+
       // Validate in the database if the user has been deleted (soft-delete check)
       // This immediately revokes access for deleted users on their next API request
       if (user.role === 'client') {
@@ -238,6 +246,7 @@ async function initializeDatabase() {
         businessName VARCHAR(255),
         phoneNumber VARCHAR(50),
         hasStations BOOLEAN DEFAULT FALSE,
+        hasSprayMonitor BOOLEAN DEFAULT FALSE,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
@@ -324,6 +333,18 @@ async function initializeDatabase() {
         await connection.query('ALTER TABLE work_order_attachments ADD COLUMN fileData LONGBLOB');
         await connection.query('ALTER TABLE work_order_attachments MODIFY fileUrl VARCHAR(255) NULL');
         await connection.query('ALTER TABLE work_order_attachments MODIFY fileType VARCHAR(100)');
+      }
+
+      const hasDescription = columns.some((c: any) => c.Field === 'description');
+      if (!hasDescription) {
+        console.log('[INIT] Migrating work_order_attachments: adding description TEXT');
+        await connection.query('ALTER TABLE work_order_attachments ADD COLUMN description TEXT');
+      }
+
+      const hasDisplayOrder = columns.some((c: any) => c.Field === 'displayOrder');
+      if (!hasDisplayOrder) {
+        console.log('[INIT] Migrating work_order_attachments: adding displayOrder INT DEFAULT 0');
+        await connection.query('ALTER TABLE work_order_attachments ADD COLUMN displayOrder INT DEFAULT 0');
       }
     } catch (err) {
       console.log('[INIT] work_order_attachments migration check skipped (table might not exist yet).');
@@ -469,6 +490,14 @@ async function initializeDatabase() {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasStations migration error:', e.message);
     }
 
+    // Migration: add hasSprayMonitor column to clients if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE clients ADD COLUMN hasSprayMonitor BOOLEAN DEFAULT FALSE AFTER hasStations');
+      console.log('[INIT] Added hasSprayMonitor column to clients');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasSprayMonitor migration error:', e.message);
+    }
+
     // Migration: add notificationEmails column to clients if it doesn't exist
     try {
       await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
@@ -513,7 +542,8 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
       id, displayName, email, role,
       phoneNumber: profPhoneNumber, specialty, // Prof fields
       businessName, cuit, ivaCondition, phoneNumber, // Client fields
-      notificationEmails // Client notification emails
+      notificationEmails, // Client notification emails
+      hasSprayMonitor // Client hasSprayMonitor
     } = req.body;
 
     if (!id) return res.status(400).json({ error: 'User ID is required' });
@@ -534,8 +564,8 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
       );
     } else if (role === 'client') {
       await connection.query(
-        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ? WHERE userId = ?',
-        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, id]
+        'UPDATE clients SET businessName = ?, cuit = ?, ivaCondition = ?, phoneNumber = ?, notificationEmails = ?, hasSprayMonitor = ? WHERE userId = ?',
+        [businessName || null, cuit || null, ivaCondition || 'Responsable Inscripto', phoneNumber || null, notificationEmails || null, hasSprayMonitor === undefined ? null : !!hasSprayMonitor, id]
       );
     }
 
@@ -545,7 +575,7 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1193,7 +1223,7 @@ apiRouter.post('/login', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1242,9 +1272,12 @@ apiRouter.post('/login', async (req, res) => {
     // Filter out password and null fields to match polymorphic interface
     const userData: any = { ...user };
     delete userData.password;
-    // Ensure hasStations is a proper boolean before null-filter
+    // Ensure booleans are proper booleans before null-filter
     if ('hasStations' in userData) {
       userData.hasStations = !!userData.hasStations;
+    }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
     }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
@@ -1269,7 +1302,7 @@ apiRouter.post('/login-external', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1317,6 +1350,9 @@ apiRouter.post('/login-external', async (req, res) => {
     if ('hasStations' in userData) {
       userData.hasStations = !!userData.hasStations;
     }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
@@ -1324,6 +1360,43 @@ apiRouter.post('/login-external', async (req, res) => {
   } catch (error: any) {
     console.error('[AUTH-EXTERNAL ERROR]:', error.message);
     res.redirect(`/login?error=${encodeURIComponent('Error interno del servidor')}`);
+  }
+});
+
+/**
+ * GET /backend/auth/me — Get current user profile
+ */
+apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+             p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
+             p.phoneNumber, p.specialty,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+      FROM users u
+      LEFT JOIN profesionals p ON u.id = p.userId
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const userData: any = { ...rows[0] };
+    if ('hasStations' in userData) {
+      userData.hasStations = !!userData.hasStations;
+    }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+    res.json({ success: true, user: userData });
+  } catch (error: any) {
+    console.error('[AUTH ERROR] /auth/me:', error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -1336,6 +1409,7 @@ apiRouter.get('/health', (req, res) => {
 apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/clients - Fetching active clients');
   const isAdmin = req.user.role === 'admin';
+  const isTestUser = req.user.isTest === 1 || req.user.isTest === true;
   try {
     const [clientRows]: any = await pool.query(`
       SELECT c.*, u.displayName, u.email, u.createdAt, u.createdBy, c.userId as id, u.isTest,
@@ -1343,7 +1417,7 @@ apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
       FROM clients c
       JOIN users u ON c.userId = u.id
       WHERE c.deletedAt IS NULL
-      ${isAdmin ? '' : 'AND u.isTest = 0'}
+      ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
     `, [PASSWORD_NOT_SET_PLACEHOLDER]);
     const [fieldRows]: any = await pool.query('SELECT * FROM fields');
 
@@ -1404,6 +1478,8 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       email,
       phoneNumber,
       notificationEmails,
+      hasStations,
+      hasSprayMonitor,
       isTest,
       fields // Array of fields from the modal
     } = req.body;
@@ -1422,7 +1498,9 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       cuit: cuit,
       ivaCondition: ivaCondition || 'Responsable Inscripto',
       phoneNumber: phoneNumber,
-      notificationEmails: notificationEmails || null
+      notificationEmails: notificationEmails || null,
+      hasStations: hasStations === undefined ? null : !!hasStations,
+      hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor
     };
 
     console.log('[DEBUG] Updating client extension for userId:', userId);
@@ -1513,6 +1591,8 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       email,
       phoneNumber,
       notificationEmails,
+      hasStations,
+      hasSprayMonitor,
       createdBy,
       isTest,
       password, // Optional, can default
@@ -1569,11 +1649,11 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor]
     );
 
     // 3. Insert associated fields if any
@@ -1694,8 +1774,9 @@ apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
       console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
     }
 
-    // Hide test work orders for non-admins
-    if (role !== 'admin') {
+    // Hide test work orders for non-admins, EXCEPT when the user is explicitly requesting their own data.
+    // Since clients and professionals only fetch their own data (filtered above), we don't want to hide their own test data from them if they are test users.
+    if (role !== 'admin' && role !== 'client' && role !== 'profesional') {
       query += ` AND u.isTest = 0 AND (p_user.isTest IS NULL OR p_user.isTest = 0)`;
     }
 
@@ -2214,7 +2295,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
 apiRouter.delete('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /backend/work-orders/${id} - Hard delete requested by ${req.user.role}`);
-  
+
   if (req.user.role !== 'admin') {
     return res.status(403).json({ success: false, error: 'Acceso denegado. Solo los administradores pueden eliminar órdenes de trabajo.' });
   }
@@ -2371,6 +2452,29 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
 
     const internalJobId = order.id;
 
+    const descriptionsMap = new Map<string, string>();
+    if (req.body.descriptions) {
+      try {
+        const parsed = JSON.parse(req.body.descriptions);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item: any) => {
+            if (item && item.fileName) {
+              descriptionsMap.set(item.fileName, item.description || '');
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing descriptions:', e);
+      }
+    }
+
+    // Get the current max displayOrder so new files go to the end
+    const [maxOrderRows]: any = await pool.query(
+      'SELECT COALESCE(MAX(displayOrder), -1) as maxOrder FROM work_order_attachments WHERE workOrderId = ?',
+      [internalJobId]
+    );
+    let nextOrder = (maxOrderRows[0]?.maxOrder ?? -1) + 1;
+
     const values = (req.files as Express.Multer.File[]).map(file => [
       internalJobId,
       file.originalname,
@@ -2378,11 +2482,13 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
       file.mimetype,
       file.size,
       file.buffer, // Save the actual file data
-      uploadedBy
+      uploadedBy,
+      descriptionsMap.get(file.originalname) || '',
+      nextOrder++
     ]);
 
     await pool.query(
-      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy) VALUES ?',
+      'INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description, displayOrder) VALUES ?',
       [values]
     );
 
@@ -2422,7 +2528,7 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
     const internalJobId = order.id;
 
     const [rows]: any = await pool.query(
-      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.createdAt DESC',
+      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC',
       [internalJobId]
     );
 
@@ -2436,6 +2542,49 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
   } catch (error: any) {
     console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/attachments:`, error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch attachments' });
+  }
+});
+
+/**
+ * Update attachment metadata (description and order)
+ */
+apiRouter.put('/attachments/update-meta', authenticateToken, async (req: any, res) => {
+  const { updates } = req.body;
+
+  if (!Array.isArray(updates)) {
+    return res.status(400).json({ success: false, error: 'Invalid updates format' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    for (const update of updates) {
+      const { id, description, displayOrder } = update;
+
+      const sets: string[] = [];
+      const values: any[] = [];
+      if (description !== undefined) {
+        sets.push('description = ?');
+        values.push(description);
+      }
+      if (displayOrder !== undefined) {
+        sets.push('displayOrder = ?');
+        values.push(displayOrder);
+      }
+
+      if (sets.length > 0) {
+        values.push(id);
+        await connection.query(`UPDATE work_order_attachments SET ${sets.join(', ')} WHERE id = ?`, values);
+      }
+    }
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err: any) {
+    await connection.rollback();
+    console.error('[DATABASE ERROR] PUT /backend/attachments/update-meta:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to update metadata' });
+  } finally {
+    connection.release();
   }
 });
 
@@ -2907,6 +3056,7 @@ apiRouter.get('/tokens', authenticateToken, async (req: any, res: any) => {
 apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/profesionales for user:', req.user.email);
   const isAdmin = req.user.role === 'admin';
+  const isTestUser = req.user.isTest === 1 || req.user.isTest === true;
   try {
     let rows;
     if (req.user.role === 'client') {
@@ -2917,7 +3067,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
         JOIN users u ON p.userId = u.id
         JOIN work_orders w ON p.userId = w.profesionalId
         WHERE p.deletedAt IS NULL AND w.clientId = ? AND w.deletedAt IS NULL
-        ${isAdmin ? '' : 'AND u.isTest = 0'}
+        ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER, req.user.id]);
     } else {
@@ -2927,7 +3077,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
         FROM profesionals p
         JOIN users u ON p.userId = u.id
         WHERE p.deletedAt IS NULL
-        ${isAdmin ? '' : 'AND u.isTest = 0'}
+        ${(isAdmin || isTestUser) ? '' : 'AND u.isTest = 0'}
         ORDER BY u.createdAt DESC
       `, [PASSWORD_NOT_SET_PLACEHOLDER]);
     }
@@ -3025,6 +3175,32 @@ apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req: a
   } catch (error: any) {
     console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
     res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+  }
+});
+
+/**
+ * Toggle hasSprayMonitor flag for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/spray-monitor-toggle', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'profesional') {
+    return res.status(403).json({ error: 'Not authorized to toggle spray monitor' });
+  }
+  const id = req.params.id;
+  const { hasSprayMonitor } = req.body;
+  console.log(`[DEBUG] PATCH /backend/clients/${id}/spray-monitor-toggle - hasSprayMonitor=${hasSprayMonitor}`);
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      'UPDATE clients SET hasSprayMonitor = ? WHERE userId = ?',
+      [!!hasSprayMonitor, id]
+    );
+    res.json({ success: true, hasSprayMonitor: !!hasSprayMonitor });
+  } catch (error: any) {
+    console.error('[ERROR] PATCH /backend/clients/:id/spray-monitor-toggle:', error.message);
+    res.status(500).json({ error: 'Failed to toggle spray monitor for client' });
+  } finally {
+    connection.release();
   }
 });
 
@@ -3209,7 +3385,7 @@ async function getMklToken(forceRefresh = false): Promise<string> {
         );
         const payload = JSON.parse(jsonPayload);
         const expirationTime = payload.exp * 1000;
-        
+
         // If token has more than 1 hour left, use it
         if (Date.now() < expirationTime - 60 * 60 * 1000) {
           return activeMklToken;
@@ -3266,12 +3442,12 @@ apiRouter.get('/weather-stations/debug-token', authenticateToken, async (req: an
 apiRouter.post('/weather-stations/debug-reset-token', authenticateToken, async (req: any, res: any) => {
   activeMklToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalidpayloadmock.invalidsignature";
   console.log('[MKL DEBUG] Token forcefully set to invalid mock token to test 401 recovery');
-  
+
   // Also invalidate local caches so the next click/fetch forces a fresh network call to MKL!
   cachedDevices = null;
   cachedDevicesTimestamp = 0;
   Object.keys(sensorDataCache).forEach(key => delete sensorDataCache[key]);
-  
+
   res.json({ success: true, token: activeMklToken, message: 'Token set to invalid mock to force 401 auto-healing' });
 });
 
@@ -3289,7 +3465,7 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
 
     let token = await getMklToken();
     const apiUrl = 'https://panel.mklagro.com/api/device';
-    
+
     let mklResponse = await fetch(apiUrl, {
       headers: {
         'token': token
@@ -3314,12 +3490,12 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
     }
 
     const mklData = await mklResponse.json();
-    
+
     // Save to cache
     cachedDevices = mklData;
     cachedDevicesTimestamp = Date.now();
     console.log('[CACHE MISS] Fetched and cached weather devices list');
-    
+
     res.json(mklData);
   } catch (error: any) {
     console.error('[ERROR] GET /backend/weather-stations/devices:', error.message);
@@ -3369,7 +3545,7 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
     }
 
     const mklData = await mklResponse.json();
-    
+
     let finalData = mklData;
     // MKL API returns historical data. We extract the latest record for the frontend.
     if (mklData && mklData.data && Array.isArray(mklData.data) && mklData.data.length > 0) {
@@ -3398,15 +3574,15 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
 
         let minTemp = latestData.value.temp1min ?? latestData.value.temp1avg;
         let maxTemp = latestData.value.temp1max ?? latestData.value.temp1avg;
-        
+
         let minHum = (latestData.value.hum1min !== undefined && latestData.value.hum1min > 0) ? latestData.value.hum1min : latestData.value.hum1avg;
         if (!minHum || minHum <= 0) minHum = 50; // default fallback
         let maxHum = latestData.value.hum1max ?? latestData.value.hum1avg;
-        
+
         let minPres = (latestData.value.presmin !== undefined && latestData.value.presmin > 0) ? latestData.value.presmin : latestData.value.presavg;
         if (!minPres || minPres <= 0) minPres = 1000; // default fallback
         let maxPres = latestData.value.presmax ?? latestData.value.presavg;
-        
+
         let minVel = latestData.value.velmin ?? latestData.value.velavg;
         let maxVel = latestData.value.velmax ?? latestData.value.velavg;
 

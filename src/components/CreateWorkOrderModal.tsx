@@ -15,17 +15,160 @@ import {
   ArrowLeft,
   DollarSign,
   Paperclip,
-  AlertCircle
+  AlertCircle,
+  GripVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface FileWithId {
+  id: string;
+  file: File;
+  description: string;
+}
+
+let fileIdCounter = 0;
+function generateFileId(): string {
+  return `file-${Date.now()}-${++fileIdCounter}`;
+}
+
+function SortableFileItem({ 
+  item, 
+  onRemove, 
+  onUpdateDescription,
+  isUploading, 
+  uploadProgress 
+}: { 
+  key?: React.Key; 
+  item: FileWithId; 
+  onRemove: (id: string) => void; 
+  onUpdateDescription: (id: string, description: string) => void;
+  isUploading: boolean; 
+  uploadProgress: number | null; 
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    position: 'relative' as const,
+  };
+
+  const fileType = item.file.type || '';
+  const fileExtension = item.file.name.includes('.') ? item.file.name.split('.').pop()?.toUpperCase() : 'ARCHIVO';
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition-colors group",
+        isDragging ? "shadow-lg border-[#2e7d32]/30 ring-1 ring-[#2e7d32]/20" : "hover:bg-slate-50",
+        isUploading ? "border-[#2e7d32]/20 bg-[#2e7d32]/5" : ""
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 overflow-hidden flex-1">
+          {!isUploading && (
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 hover:text-slate-500 rounded"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+          )}
+
+          {isUploading ? (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2e7d32]/10 text-[#2e7d32] animate-pulse">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#2e7d32]/30 border-t-[#2e7d32]" />
+            </div>
+          ) : (
+            <div className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              fileType.includes('pdf') && "bg-red-50 text-red-500",
+              fileType.includes('image') && "bg-blue-50 text-blue-500",
+              (!fileType.includes('pdf') && !fileType.includes('image')) && "bg-slate-50 text-slate-500",
+            )}>
+              <FileText className="h-5 w-5" />
+            </div>
+          )}
+
+          <div className="overflow-hidden flex-1">
+            <p className="truncate text-sm font-semibold text-slate-900" title={item.file.name}>{item.file.name}</p>
+            <p className="text-[10px] text-slate-400">
+              {fileExtension} • {(item.file.size / 1024 / 1024).toFixed(2)} MB
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          {isUploading && uploadProgress !== null && (
+            <span className="text-xs font-bold text-[#2e7d32] shrink-0">
+              {uploadProgress}%
+            </span>
+          )}
+
+          {!isUploading && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(item.id);
+              }}
+              className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Description Input */}
+      {!isUploading && (
+        <div className="pl-8 w-full mt-0.5">
+          <input
+            type="text"
+            placeholder="Añadir descripción..."
+            value={item.description}
+            onChange={(e) => onUpdateDescription(item.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-xs text-slate-600 bg-slate-50 hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-[#2e7d32]/30 rounded-lg px-2 py-1.5 outline-none transition-colors"
+          />
+        </div>
+      )}
+
+      {isUploading && uploadProgress !== null && (
+        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-1 pl-8">
+          <div 
+            className="h-full bg-[#2e7d32] rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${uploadProgress}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 import CreateClientModal from "./CreateClientModal";
 import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder, Service } from "../types/database";
-import { authenticatedFetch } from "../lib/api";
+import { authenticatedFetch, authenticatedUpload } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
@@ -37,6 +180,8 @@ export default function CreateWorkOrderModal() {
   const isOpen = searchParams.get('newJob') === 'true' || searchParams.get('editJob') !== null;
   const editJobId = searchParams.get('editJob');
   const [step, setStep] = useState<'form' | 'summary' | 'success'>('form');
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const [clients, setClients] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
@@ -134,7 +279,23 @@ export default function CreateWorkOrderModal() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileWithId[]>([]);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleFileDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSelectedFiles((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
   const [validationDialog, setValidationDialog] = useState<{
     show: boolean;
     title: string;
@@ -304,6 +465,7 @@ export default function CreateWorkOrderModal() {
     setErrors({});
     setSelectedFiles([]);
     setIsSaving(false);
+    setUploadProgress(null);
 
     // Remove newJob and other related params from URL
     const newParams = new URLSearchParams(searchParams);
@@ -367,7 +529,7 @@ export default function CreateWorkOrderModal() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 20 * 1024 * 1024; // 20MB
       const incomingFiles = Array.from(e.target.files) as File[];
 
       const overlimitFiles = incomingFiles.filter(f => f.size > maxSize);
@@ -377,13 +539,18 @@ export default function CreateWorkOrderModal() {
         setValidationDialog({
           show: true,
           title: 'Archivo demasiado grande',
-          message: `Uno o más archivos superan el límite de 10MB y no serán agregados: ${overlimitFiles.map(f => f.name).join(', ')}`,
+          message: `Uno o más archivos superan el límite de 20MB y no serán agregados: ${overlimitFiles.map(f => f.name).join(', ')}`,
           type: 'error'
         });
       }
 
       if (validFiles.length > 0) {
-        setSelectedFiles(prev => [...prev, ...validFiles]);
+        const wrappedFiles: FileWithId[] = validFiles.map(f => ({
+          id: generateFileId(),
+          file: f,
+          description: ''
+        }));
+        setSelectedFiles(prev => [...prev, ...wrappedFiles]);
       }
 
       // Reset input value to allow selecting same file again if needed
@@ -391,8 +558,12 @@ export default function CreateWorkOrderModal() {
     }
   };
 
-  const handleFileRemove = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleFileRemove = (id: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleUpdateFileDescription = (id: string, description: string) => {
+    setSelectedFiles(prev => prev.map(f => f.id === id ? { ...f, description } : f));
   };
 
   const handleContinue = () => {
@@ -503,19 +674,35 @@ export default function CreateWorkOrderModal() {
 
       // Now upload files if any
       if (selectedFiles.length > 0) {
+        setIsUploadingFiles(true);
+        setUploadProgress(0);
         const formDataUpload = new FormData();
-        selectedFiles.forEach(file => {
-          formDataUpload.append('files', file);
+        selectedFiles.forEach(item => {
+          formDataUpload.append('files', item.file);
         });
+        formDataUpload.append(
+          'descriptions',
+          JSON.stringify(
+            selectedFiles.map(item => ({
+              fileName: item.file.name,
+              description: item.description || ''
+            }))
+          )
+        );
 
-        const uploadRes = await authenticatedFetch(`/backend/work-orders/${jobId}/attachments`, {
+        const uploadRes = await authenticatedUpload(`/backend/work-orders/${jobId}/attachments`, {
           method: 'POST',
-          body: formDataUpload
+          body: formDataUpload,
+          onProgress: (progress) => {
+            setUploadProgress(progress);
+          }
         });
 
         if (!uploadRes.ok) {
           console.error('Failed to upload files');
         }
+        setIsUploadingFiles(false);
+        setUploadProgress(null);
       }
 
       console.log('Job saved successfully:', result);
@@ -723,14 +910,14 @@ export default function CreateWorkOrderModal() {
                                 setShowClientSuggestions(false);
                               }}
                             >
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-bold">{c.name}</span>
-                                  {c.isTest && (
-                                    <span className="inline-flex items-center rounded bg-rose-50 px-1.5 py-0.5 text-[8px] font-extrabold text-rose-600 border border-rose-100 shrink-0">
-                                      TEST
-                                    </span>
-                                  )}
-                                </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold">{c.name}</span>
+                                {c.isTest && (
+                                  <span className="inline-flex items-center rounded bg-rose-50 px-1.5 py-0.5 text-[8px] font-extrabold text-rose-600 border border-rose-100 shrink-0">
+                                    TEST
+                                  </span>
+                                )}
+                              </div>
                               {c.businessName && <span className="text-[10px] text-slate-500">{c.businessName}</span>}
                             </button>
                           ))}
@@ -1277,31 +1464,33 @@ export default function CreateWorkOrderModal() {
                           <UploadCloud className="h-5 w-5" />
                         </div>
                         <p className="text-sm font-medium text-slate-900">Haz clic para subir o arrastra y suelta</p>
-                        <p className="mt-0.5 text-xs text-slate-500">Imágenes, PDF, etc. (Máx. 10MB)</p>
+                        <p className="mt-0.5 text-xs text-slate-500">Imágenes, PDF, etc. (Máx. 20MB)</p>
                       </div>
 
                       {selectedFiles.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {selectedFiles.map((file, idx) => (
-                            <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-2 px-3 shadow-sm">
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
-                                <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
-                                <span className="shrink-0 text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleFileRemove(idx);
-                                }}
-                                className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-red-500"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
+                        <DndContext
+                          sensors={dndSensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleFileDragEnd}
+                        >
+                          <SortableContext
+                            items={selectedFiles.map(f => f.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="mt-3 space-y-2">
+                              {selectedFiles.map((item) => (
+                                <SortableFileItem
+                                  key={item.id}
+                                  item={item}
+                                  onRemove={handleFileRemove}
+                                  onUpdateDescription={handleUpdateFileDescription}
+                                  isUploading={isUploadingFiles}
+                                  uploadProgress={uploadProgress}
+                                />
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </SortableContext>
+                        </DndContext>
                       )}
                     </div>
                   </div>
@@ -1433,15 +1622,39 @@ export default function CreateWorkOrderModal() {
                         <Paperclip className="h-3 w-3" /> Archivos Adjuntos ({selectedFiles.length})
                       </h5>
                       <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                        {selectedFiles.map((file, idx) => (
-                          <div key={idx} className="flex items-center gap-3 overflow-hidden rounded-lg bg-white p-2 shadow-sm">
-                            <FileIcon className="h-4 w-4 shrink-0 text-slate-400" />
-                            <div className="flex flex-1 items-center justify-between overflow-hidden">
-                              <span className="truncate text-xs font-medium text-slate-600">{file.name}</span>
-                              <span className="shrink-0 text-[10px] text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                        {selectedFiles.map((item) => {
+                          const fileType = item.file.type || '';
+                          const fileExtension = item.file.name.includes('.') ? item.file.name.split('.').pop()?.toUpperCase() : 'ARCHIVO';
+                          return (
+                            <div key={item.id} className="flex flex-col gap-1.5 rounded-lg border border-slate-100 bg-white p-2.5 shadow-sm">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className={cn(
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                  fileType.includes('pdf') && "bg-red-50 text-red-500",
+                                  fileType.includes('image') && "bg-blue-50 text-blue-500",
+                                  (!fileType.includes('pdf') && !fileType.includes('image')) && "bg-slate-50 text-slate-500",
+                                )}>
+                                  <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-1 items-center justify-between overflow-hidden">
+                                  <div className="overflow-hidden pr-2">
+                                    <p className="truncate text-xs font-semibold text-slate-800" title={item.file.name}>{item.file.name}</p>
+                                    <p className="text-[9px] text-slate-400">
+                                      {fileExtension} • {(item.file.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              {item.description && (
+                                <div className="pl-11 pr-2">
+                                  <p className="text-[11px] text-slate-500 bg-slate-50/50 border border-slate-100 rounded-md px-2 py-1 italic">
+                                    {item.description}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1528,7 +1741,9 @@ export default function CreateWorkOrderModal() {
                     {isSaving ? (
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        GUARDANDO...
+                        {isUploadingFiles ? (
+                          uploadProgress !== null ? `SUBIENDO ARCHIVOS (${uploadProgress}%)...` : "SUBIENDO ARCHIVOS..."
+                        ) : "GUARDANDO..."}
                       </>
                     ) : (
                       <>

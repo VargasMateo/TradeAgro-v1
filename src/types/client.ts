@@ -17,6 +17,7 @@ export interface Client {
   fields?: ClientField[];
   setupPending?: boolean;
   hasStations?: boolean;
+  hasSprayMonitor?: boolean;
   notificationEmails?: string;
   isTest?: boolean;
   createdAt?: string;
