@@ -861,7 +861,7 @@ Detalles del Servicio:
 - Campo / Lote: ${orderData.location}
 ${orderData.hectares ? `- Superficie: ${orderData.hectares} ha.\n` : ''}- Campaña: ${orderData.campaign}
 
-Ver detalles en el panel:
+Ver orden:
 ${orderUrl}
 
 Si tienes alguna duda, por favor contacta con tu asesor asignado.
@@ -877,12 +877,13 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
 <body style="margin: 0; padding: 0; background-color: #f8fafc;">
   <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
     <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Notificaci&oacute;n de Servicio</p>
+      <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: 50px; margin-bottom: 12px; margin-right: 16px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: white; margin: 0; font-size: 28px; font-weight: 800;\\'>TradeAgro</h1>'" />
+      <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" style="height: 50px; margin-bottom: 12px; display: inline-block; vertical-align: middle;" />
+      <p style="color: white; margin: 8px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
     </div>
     <div style="padding: 32px 24px;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background: #f0fdf4; color: #166534; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 12px; border: 1px solid #bbf7d0;">
+        <div style="display: inline-block; background: #f0fdf4; color: #166534; padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 16px; border: 1px solid #bbf7d0;">
           &#10003; ORDEN FINALIZADA
         </div>
       </div>
@@ -891,30 +892,30 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
         Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con &eacute;xito.
       </p>
 
-      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px;">
-        <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">Detalles del Servicio</h3>
+      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; max-width: 400px; margin-left: auto; margin-right: auto;">
+        <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
         
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Orden:</td>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Orden:</td>
             <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
           </tr>
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Servicio:</td>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Servicio:</td>
             <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
           </tr>
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campo / Lote:</td>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Campo / Lote:</td>
             <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
           </tr>
           ${orderData.hectares ? `
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Superficie:</td>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Superficie:</td>
             <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.hectares} ha.</td>
           </tr>
           ` : ''}
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campa&ntilde;a:</td>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Campa&ntilde;a:</td>
             <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.campaign}</td>
           </tr>
         </table>
@@ -922,7 +923,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
 
       <div style="text-align: center; margin-bottom: 32px;">
         <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-          Ver detalles en el panel
+          Ver orden de trabajo
         </a>
       </div>
 
@@ -943,7 +944,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
       const info = await transporter.sendMail({
         from: fromEmail,
         to: orderData.clientEmail,
-        subject: `Orden #${orderData.id} Completada — TradeAgro`,
+        subject: `Servicios de agricultura digital - Orden completada - ${orderData.location} - ${orderData.service}`,
         text: textContent,
         html: htmlContent,
       });
@@ -965,7 +966,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
         const info = await transporter.sendMail({
           from: fromEmail,
           to: addEmail,
-          subject: `Orden #${orderData.id} Completada — TradeAgro`,
+          subject: `Servicios de agricultura digital - Orden completada - ${orderData.location} - ${orderData.service}`,
           text: textContent,
           html: htmlContent,
         });
@@ -982,7 +983,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
       const info = await transporter.sendMail({
         from: fromEmail,
         to: extraEmail,
-        subject: `Orden #${orderData.id} Completada — TradeAgro`,
+        subject: `Servicios de agricultura digital - Orden completada - ${orderData.location} - ${orderData.service}`,
         text: textContent,
         html: htmlContent,
       });
@@ -1851,46 +1852,79 @@ async function sendNewOrderEmail(orderData: any) {
   const orderUrl = `${appUrl}/order/${orderData.uuid || orderData.id}?token=${inviteToken}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
-  const textContent = `Confirmación de Orden #AG-${orderData.id}
+  const textContent = `¡Tu orden ha sido registrada!
 
-Hola ${orderData.clientName},
+Hola ${orderData.clientName}, se ha registrado correctamente la orden de trabajo #AG-${orderData.id}.
 
-Se ha registrado correctamente la orden de trabajo #AG-${orderData.id}.
-
-Detalles:
+Detalles del Servicio:
+- Orden: #AG-${orderData.id}
 - Servicio: ${orderData.service}
 - Profesional a cargo: ${orderData.profesionalName || 'Pendiente de asignación'}
-
+${orderData.location ? `- Campo / Lote: ${orderData.location}\n` : ''}
 Recibirás otra notificación cuando el trabajo sea completado.
 
 Ver Detalles de la Orden:
 ${orderUrl}
 
-TradeAgro`;
+© ${new Date().getFullYear()} TradeAgro.`;
 
   const htmlContent = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Confirmaci&oacute;n de Orden #AG-${orderData.id}</title>
+  <title>Orden #AG-${orderData.id} Registrada</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f8fafc;">
-  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background: white;">
-    <div style="background: #2e7d32; padding: 24px; text-align: center; color: white;">
-      <h1 style="margin: 0;">TradeAgro</h1>
-      <p style="margin: 4px 0 0; opacity: 0.8;">Confirmaci&oacute;n de Orden</p>
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
+      <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: 50px; margin-bottom: 12px; margin-right: 16px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: white; margin: 0; font-size: 28px; font-weight: 800;\\'>TradeAgro</h1>'" />
+      <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" style="height: 50px; margin-bottom: 12px; display: inline-block; vertical-align: middle;" />
+      <p style="color: white; margin: 8px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
     </div>
-    <div style="padding: 24px;">
-      <h2 style="color: #1e293b;">Hola ${orderData.clientName},</h2>
-      <p style="color: #64748b; line-height: 1.6;">Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.</p>
-      <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 24px 0;">
-        <p style="margin: 0 0 8px;"><strong>Servicio:</strong> ${orderData.service}</p>
-        <p style="margin: 0;"><strong>Profesional a cargo:</strong> ${orderData.profesionalName || 'Pendiente de asignaci&oacute;n'}</p>
+    <div style="padding: 32px 24px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; background: #fffbeb; color: #b45309; padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 16px; border: 1px solid #fde68a;">
+          &#9203; ${(orderData.status || 'PENDIENTE').toUpperCase()}
+        </div>
       </div>
-      <p style="color: #94a3b8; font-size: 13px;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
-      <div style="text-align: center; margin-top: 24px;">
-        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ver Detalles de la Orden</a>
+      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">Hola ${orderData.clientName},</h2>
+      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
+        Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.
+      </p>
+
+      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; max-width: 400px; margin-left: auto; margin-right: auto;">
+        <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Orden:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Servicio:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
+          </tr>
+          ${orderData.location ? `
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Ubicaci&oacute;n:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Profesional:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.profesionalName || 'Pendiente'}</td>
+          </tr>
+        </table>
       </div>
+
+      <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-bottom: 24px;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
+      
+      <div style="text-align: center; margin-bottom: 32px;">
+        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">Ver Detalles de la Orden</a>
+      </div>
+    </div>
+    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
     </div>
   </div>
 </body>
@@ -1902,7 +1936,7 @@ TradeAgro`;
       await transporter.sendMail({
         from: fromEmail,
         to: orderData.clientEmail,
-        subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+        subject: `Servicios de agricultura digital - ${(orderData.status || 'Pendiente').toUpperCase()} - ${orderData.clientName} - ${orderData.service}`,
         text: textContent,
         html: htmlContent
       });
@@ -1924,7 +1958,7 @@ TradeAgro`;
         await transporter.sendMail({
           from: fromEmail,
           to: addEmail,
-          subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+          subject: `Servicios de agricultura digital - ${(orderData.status || 'Pendiente').toUpperCase()} - ${orderData.clientName} - ${orderData.service}`,
           text: textContent,
           html: htmlContent
         });
@@ -1941,7 +1975,7 @@ TradeAgro`;
       await transporter.sendMail({
         from: fromEmail,
         to: extraEmail,
-        subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+        subject: `Servicios de agricultura digital - ${(orderData.status || 'Pendiente').toUpperCase()} - ${orderData.clientName} - ${orderData.service}`,
         text: textContent,
         html: htmlContent
       });
