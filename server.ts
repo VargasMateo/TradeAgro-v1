@@ -323,6 +323,14 @@ async function initializeDatabase() {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] secondaryService migration error:', e.message);
     }
 
+    // Migration: add groupId column if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE work_orders ADD COLUMN groupId VARCHAR(36) DEFAULT NULL AFTER uuid');
+      console.log('[INIT] Added groupId column to work_orders');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] groupId migration error:', e.message);
+    }
+
     console.log('[INIT] Creating work_order_attachments table...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS work_order_attachments (
@@ -2004,7 +2012,8 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       amountUsd: parseFloat(cleanAmount) || 0,
       status: req.body.status || 'Pendiente',
       createdBy: (req as any).user?.id || 0,
-      uuid: randomUUID()
+      uuid: randomUUID(),
+      groupId: req.body.groupId || null
     };
 
     // Explicit audit: ensuring NO description field exists in dbData
@@ -2419,8 +2428,19 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
       iconName: getIconNameForService(row.service),
       color: getColorForService(row.service),
       createdAt: row.createdAt,
-      createdBy: row.createdBy
+      createdBy: row.createdBy,
+      groupId: row.groupId
     };
+
+    if (row.groupId) {
+      const [relatedRows]: any = await pool.query(
+        'SELECT uuid, lotName FROM work_orders WHERE groupId = ? AND uuid != ? AND deletedAt IS NULL',
+        [row.groupId, id]
+      );
+      (job as any).relatedOrders = relatedRows;
+    } else {
+      (job as any).relatedOrders = [];
+    }
 
     res.json(job);
   } catch (error: any) {
@@ -2563,7 +2583,7 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
   try {
     // Resolve UUID to internal numeric ID
     const [woRows]: any = await pool.query(
-      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      'SELECT id, clientId, profesionalId, groupId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
       [id]
     );
     if (woRows.length === 0) {
@@ -2579,11 +2599,20 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
     }
 
     const internalJobId = order.id;
+    const groupId = order.groupId;
 
-    const [rows]: any = await pool.query(
-      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC',
-      [internalJobId]
-    );
+    let rows: any = [];
+    if (groupId) {
+      [rows] = await pool.query(
+        'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId IN (SELECT id FROM work_orders WHERE groupId = ?) ORDER BY a.displayOrder ASC, a.createdAt DESC',
+        [groupId]
+      );
+    } else {
+      [rows] = await pool.query(
+        'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC',
+        [internalJobId]
+      );
+    }
 
     // Add the dynamic URL for each attachment
     const attachments = rows.map((row: any) => ({

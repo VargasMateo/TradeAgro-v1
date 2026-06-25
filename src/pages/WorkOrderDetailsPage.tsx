@@ -332,6 +332,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         observationAuthor: "SISTEMA",
         observationDate: foundWorkOrder.createdAt ? new Date(foundWorkOrder.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : "N/A",
         coordinates: (foundWorkOrder.lat !== null && foundWorkOrder.lng !== null) ? [Number(foundWorkOrder.lat), Number(foundWorkOrder.lng)] : null,
+        relatedOrders: foundWorkOrder.relatedOrders || [],
       });
 
     } catch (err: any) {
@@ -610,6 +611,20 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
             <p className="text-sm text-slate-500">
               Creado el {job.created}
             </p>
+            {job.relatedOrders && job.relatedOrders.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Otros lotes:</span>
+                {job.relatedOrders.map((related: any) => (
+                  <Link
+                    key={related.uuid}
+                    to={`/work-orders/${related.uuid}`}
+                    className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    {related.lotName || 'Lote'}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

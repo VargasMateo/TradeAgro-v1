@@ -270,6 +270,7 @@ export default function CreateWorkOrderModal() {
     status: 'Pendiente',
     campaign: '25/26',
     lot: '',
+    selectedLots: [] as string[],
     number: '',
     amount: '',
     notes: '',
@@ -324,7 +325,7 @@ export default function CreateWorkOrderModal() {
   const fieldSuggestions = Array.from(new Set(fieldNames)).filter((f: any) => f && f.toLowerCase().includes(formData.field.toLowerCase()));
 
   const selectedFieldObj = availableFields.find((f: any) => f.name.trim().toLowerCase() === formData.field.trim().toLowerCase());
-  const lotSuggestions = selectedFieldObj ? (selectedFieldObj.lots || []).filter((l: string) => l.toLowerCase().includes(formData.lot.toLowerCase())) : [];
+  const lotSuggestions = selectedFieldObj ? (selectedFieldObj.lots || []).filter((l: string) => l.toLowerCase().includes(formData.lot.toLowerCase()) && !formData.selectedLots.includes(l)) : [];
 
   useEffect(() => {
     if (errors.lot && selectedFieldObj && selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase())) {
@@ -374,6 +375,7 @@ export default function CreateWorkOrderModal() {
                 status: orderToEdit.status || 'Pendiente',
                 campaign: orderToEdit.campaign || '25/26',
                 lot: orderToEdit.lotName || '',
+                selectedLots: orderToEdit.lotName ? [orderToEdit.lotName] : [],
                 number: orderToEdit.number || '',
                 amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
                 notes: '',
@@ -393,6 +395,8 @@ export default function CreateWorkOrderModal() {
         client: searchParams.get('client') || prev.client,
         date: searchParams.get('date') || new Date().toLocaleDateString('en-CA'),
         field: searchParams.get('field') || prev.field,
+        lot: '',
+        selectedLots: [],
         profesionalId: role === 'admin' ? '' : currentUserId,
         profesional: role === 'admin' ? '' : (user?.displayName || user?.name || '')
       }));
@@ -423,6 +427,7 @@ export default function CreateWorkOrderModal() {
           status: orderToEdit.status || 'Pendiente',
           campaign: orderToEdit.campaign || '25/26',
           lot: orderToEdit.lotName || '',
+          selectedLots: orderToEdit.lotName ? [orderToEdit.lotName] : [],
           number: orderToEdit.number || '',
           amount: orderToEdit.amountUsd !== null ? String(orderToEdit.amountUsd) : '',
           notes: '',
@@ -456,6 +461,7 @@ export default function CreateWorkOrderModal() {
       status: 'Pendiente',
       campaign: '25/26',
       lot: '',
+      selectedLots: [],
       number: '',
       amount: '',
       notes: '',
@@ -573,7 +579,6 @@ export default function CreateWorkOrderModal() {
       { key: 'date', label: 'La fecha es obligatoria' },
       { key: 'title', label: 'El título es obligatorio' },
       { key: 'field', label: 'El campo es obligatorio' },
-      { key: 'lot', label: 'El lote es obligatorio' },
       { key: 'hectares', label: 'Las hectáreas son obligatorias' },
       { key: 'amount', label: 'El importe es obligatorio' },
       { key: 'service', label: 'El servicio es obligatorio' },
@@ -603,8 +608,22 @@ export default function CreateWorkOrderModal() {
     }
 
     // Special validation: ensure a valid lot was selected (must exist in field lots)
-    if (selectedFieldObj && !selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase())) {
-      newErrors.lot = 'Debe seleccionar un lote de la lista o crear uno nuevo';
+    if (editJobId) {
+      if (selectedFieldObj && !selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase())) {
+        newErrors.lot = 'Debe seleccionar un lote de la lista o crear uno nuevo';
+      }
+      if (!formData.lot.trim()) {
+        newErrors.lot = 'El lote es obligatorio';
+      }
+    } else {
+      if (!formData.selectedLots || formData.selectedLots.length === 0) {
+        newErrors.lot = 'Debe seleccionar al menos un lote';
+      } else if (selectedFieldObj) {
+        const invalidLot = formData.selectedLots.find(l => !selectedFieldObj.lots?.some((fl: string) => fl.toLowerCase() === l.toLowerCase()));
+        if (invalidLot) {
+          newErrors.lot = `El lote "${invalidLot}" no existe en el campo seleccionado`;
+        }
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -652,28 +671,54 @@ export default function CreateWorkOrderModal() {
     setErrors({});
     try {
       const isEdit = !!editJobId;
-      const url = isEdit ? `/backend/work-orders/${editJobId}` : '/backend/work-orders';
-      const method = isEdit ? 'PUT' : 'POST';
-
       const storedProfile = localStorage.getItem("userProfile");
       const user = storedProfile ? JSON.parse(storedProfile) : null;
       const createdBy = user?.id || null;
+      
+      let primaryJobId: string | null = null;
 
-      const response = await authenticatedFetch(url, {
-        method,
-        body: JSON.stringify({ ...formData, createdBy })
-      });
+      if (isEdit) {
+        const url = `/backend/work-orders/${editJobId}`;
+        const bodyData = { ...formData, lot: formData.lot || (formData.selectedLots && formData.selectedLots[0]) || '', createdBy };
+        const response = await authenticatedFetch(url, {
+          method: 'PUT',
+          body: JSON.stringify(bodyData)
+        });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.message || 'Failed to save job');
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.message || 'Failed to update job');
+        }
+
+        const result = await response.json();
+        primaryJobId = result.id || editJobId;
+      } else {
+        // Creating new work order(s)
+        const groupId = crypto.randomUUID();
+        const lotsToCreate = formData.selectedLots && formData.selectedLots.length > 0 ? formData.selectedLots : [formData.lot];
+        
+        for (let i = 0; i < lotsToCreate.length; i++) {
+          const singleLot = lotsToCreate[i];
+          const bodyData = { ...formData, lot: singleLot, groupId, createdBy };
+          const response = await authenticatedFetch('/backend/work-orders', {
+            method: 'POST',
+            body: JSON.stringify(bodyData)
+          });
+          
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.message || `Failed to save job for lot ${singleLot}`);
+          }
+          
+          const result = await response.json();
+          if (i === 0) {
+            primaryJobId = result.id;
+          }
+        }
       }
 
-      const result = await response.json();
-      const jobId = result.id;
-
       // Now upload files if any
-      if (selectedFiles.length > 0) {
+      if (selectedFiles.length > 0 && primaryJobId) {
         setIsUploadingFiles(true);
         setUploadProgress(0);
         const formDataUpload = new FormData();
@@ -690,7 +735,7 @@ export default function CreateWorkOrderModal() {
           )
         );
 
-        const uploadRes = await authenticatedUpload(`/backend/work-orders/${jobId}/attachments`, {
+        const uploadRes = await authenticatedUpload(`/backend/work-orders/${primaryJobId}/attachments`, {
           method: 'POST',
           body: formDataUpload,
           onProgress: (progress) => {
@@ -705,12 +750,11 @@ export default function CreateWorkOrderModal() {
         setUploadProgress(null);
       }
 
-      console.log('Job saved successfully:', result);
-
+      console.log('Job(s) saved successfully');
       setStep('success');
     } catch (error: any) {
       console.error('Error saving job:', error);
-      setErrors({ submit: error.message || 'Error al guardar el orden' });
+      setErrors({ submit: error.message || 'Error al guardar la orden' });
     } finally {
       setIsSaving(false);
     }
@@ -1113,14 +1157,28 @@ export default function CreateWorkOrderModal() {
                           handleInputChange(e);
                           setShowLotSuggestions(true);
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && formData.lot.trim() && !editJobId) {
+                            e.preventDefault();
+                            if (selectedFieldObj && selectedFieldObj.lots?.some((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase())) {
+                              const match = selectedFieldObj.lots.find((l: string) => l.toLowerCase() === formData.lot.trim().toLowerCase());
+                              if (match && !formData.selectedLots.includes(match)) {
+                                setFormData(prev => ({ ...prev, selectedLots: [...prev.selectedLots, match], lot: '' }));
+                                setShowLotSuggestions(false);
+                              }
+                            }
+                          }
+                        }}
                         onFocus={() => setShowLotSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowLotSuggestions(false), 200)}
-                        placeholder="Identificador"
+                        placeholder={editJobId ? "Identificador" : "Escribe o selecciona (Enter para agregar)"}
+                        disabled={!!editJobId && formData.selectedLots.length > 0}
                         className={cn(
                           "w-full rounded-xl border bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
                           errors.lot
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                            : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20",
+                          (!!editJobId && formData.selectedLots.length > 0) && "opacity-50 cursor-not-allowed"
                         )}
                       />
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -1134,7 +1192,16 @@ export default function CreateWorkOrderModal() {
                               type="button"
                               className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 cursor-pointer"
                               onClick={() => {
-                                setFormData(prev => ({ ...prev, lot: l }));
+                                if (editJobId) {
+                                  setFormData(prev => ({ ...prev, lot: l, selectedLots: [l] }));
+                                } else {
+                                  setFormData(prev => {
+                                    if (!prev.selectedLots.includes(l)) {
+                                      return { ...prev, selectedLots: [...prev.selectedLots, l], lot: '' };
+                                    }
+                                    return prev;
+                                  });
+                                }
                                 setShowLotSuggestions(false);
                               }}
                             >
@@ -1156,6 +1223,29 @@ export default function CreateWorkOrderModal() {
                         </div>
                       )}
                     </div>
+                    {/* Selected Lots Badges (moved below) */}
+                    {formData.selectedLots.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {formData.selectedLots.map(selLot => (
+                          <div key={selLot} className="flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            {selLot}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedLots: prev.selectedLots.filter(l => l !== selLot),
+                                  lot: editJobId ? '' : prev.lot
+                                }));
+                              }}
+                              className="ml-1 rounded-full p-0.5 hover:bg-emerald-200 text-emerald-600 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {errors.lot && (
                       <p className="text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200 ml-1">
                         {errors.lot}
