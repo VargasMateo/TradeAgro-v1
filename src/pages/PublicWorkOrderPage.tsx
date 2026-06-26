@@ -345,7 +345,7 @@ export default function PublicWorkOrderPage() {
                 Iniciá sesión para ver observaciones, editar y más.
               </p>
               <a
-                href="/"
+                href={`/?redirect=/work-orders/${job.uuid || job.id.replace('#AG-', '')}`}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 transition-colors w-full justify-center"
               >
                 Iniciar sesión

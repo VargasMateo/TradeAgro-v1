@@ -877,8 +877,10 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
 <body style="margin: 0; padding: 0; background-color: #f8fafc;">
   <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
     <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: 50px; margin-bottom: 12px; margin-right: 16px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: white; margin: 0; font-size: 28px; font-weight: 800;\\'>TradeAgro</h1>'" />
-      <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" style="height: 50px; margin-bottom: 12px; display: inline-block; vertical-align: middle;" />
+      <div style="background: white; display: inline-block; padding: 12px 24px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 320px; box-sizing: border-box; text-align: center;">
+        <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: auto; max-height: 45px; max-width: 45%; margin-right: 12px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: #2e7d32; margin: 0; font-size: 20px; font-weight: 800; display: inline-block; vertical-align: middle;\\'>TradeAgro</h1>'" />
+        <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" style="height: auto; max-height: 45px; max-width: 45%; display: inline-block; vertical-align: middle;" />
+      </div>
       <p style="color: white; margin: 8px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
     </div>
     <div style="padding: 32px 24px;">
@@ -892,7 +894,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
         Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con &eacute;xito.
       </p>
 
-      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; max-width: 400px; margin-left: auto; margin-right: auto;">
+      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; width: 100%; max-width: 320px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
         <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
         
         <table style="width: 100%; border-collapse: collapse;">
@@ -923,7 +925,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
 
       <div style="text-align: center; margin-bottom: 32px;">
         <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-          Ver orden de trabajo
+          Ver orden
         </a>
       </div>
 
@@ -1877,8 +1879,10 @@ ${orderUrl}
 <body style="margin: 0; padding: 0; background-color: #f8fafc;">
   <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
     <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: 50px; margin-bottom: 12px; margin-right: 16px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: white; margin: 0; font-size: 28px; font-weight: 800;\\'>TradeAgro</h1>'" />
-      <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" style="height: 50px; margin-bottom: 12px; display: inline-block; vertical-align: middle;" />
+      <div style="background: white; display: inline-block; padding: 12px 24px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 320px; box-sizing: border-box; text-align: center;">
+        <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: auto; max-height: 45px; max-width: 45%; margin-right: 12px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: #2e7d32; margin: 0; font-size: 20px; font-weight: 800; display: inline-block; vertical-align: middle;\\'>TradeAgro</h1>'" />
+        <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" style="height: auto; max-height: 45px; max-width: 45%; display: inline-block; vertical-align: middle;" />
+      </div>
       <p style="color: white; margin: 8px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
     </div>
     <div style="padding: 32px 24px;">
@@ -1892,7 +1896,7 @@ ${orderUrl}
         Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.
       </p>
 
-      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; max-width: 400px; margin-left: auto; margin-right: auto;">
+      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; width: 100%; max-width: 320px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
         <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
         
         <table style="width: 100%; border-collapse: collapse;">
@@ -1920,7 +1924,9 @@ ${orderUrl}
       <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-bottom: 24px;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
       
       <div style="text-align: center; margin-bottom: 32px;">
-        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">Ver Detalles de la Orden</a>
+        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+          Ver orden
+        </a>
       </div>
     </div>
     <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">

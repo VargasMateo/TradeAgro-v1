@@ -148,11 +148,14 @@ export default function App() {
     }} />;
   }
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectPath = urlParams.get('redirect') || '/dashboard';
+
   return (
     <Router>
       <Layout onLogout={handleLogout} userRole={userRole}>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to={redirectPath} replace />} />
           <Route path="/dashboard" element={<DashboardPage userRole={userRole} />} />
           <Route path="/calendar" element={<CalendarPage userRole={userRole} />} />
           <Route path="/work-orders" element={<WorkOrdersPage userRole={userRole} />} />
