@@ -3137,6 +3137,55 @@ apiRouter.post('/test/reset-tokens', async (req, res) => {
 });
 
 /**
+ * TEST EMAILS (Dev only)
+ */
+apiRouter.post('/test/test-emails', async (req, res) => {
+  console.log('[DEBUG] POST /backend/test/test-emails');
+  try {
+    const testEmail = 'vargas.mateo00@gmail.com';
+    const testOrder = {
+      id: 9999,
+      uuid: 'test-uuid-1234-5678',
+      clientName: 'Test Client',
+      service: 'Mapeo Aéreo con Drones',
+      location: 'Campo de Pruebas',
+      profesionalName: 'Test Profesional',
+      date: new Date(),
+      status: 'PENDIENTE',
+      clientEmail: testEmail, // Send to the test email
+      profesionalEmail: testEmail // And also test emails to the pro
+    };
+
+    // Override the emails so it ONLY sends to vargas.mateo00@gmail.com
+    const emailData = {
+      ...testOrder,
+      clientEmail: testEmail,
+      profesionalEmail: testEmail,
+      clientNotificationEmails: '' // don't send to distribution list
+    };
+
+    // Temporarily disable extra recipients for this test
+    const originalExtraRecipients = [...EXTRA_NOTIFICATION_RECIPIENTS];
+    EXTRA_NOTIFICATION_RECIPIENTS.length = 0; // Empty the array temporarily
+
+    try {
+      await sendNewOrderEmail(emailData);
+      
+      const completedData = { ...emailData, status: 'COMPLETADO' };
+      await sendOrderCompletedEmail(completedData);
+
+      res.json({ success: true, message: 'Test emails sent successfully' });
+    } finally {
+      // Restore extra recipients
+      EXTRA_NOTIFICATION_RECIPIENTS.push(...originalExtraRecipients);
+    }
+  } catch (error: any) {
+    console.error('[DEBUG] Test emails failed', error);
+    res.status(500).json({ error: 'Failed to send test emails', details: error.message });
+  }
+});
+
+/**
  * GET /backend/attachments (Dev only / Global)
  */
 apiRouter.get('/attachments', authenticateToken, async (req: any, res: any) => {
