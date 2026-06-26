@@ -316,6 +316,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
         id: `#AG-${foundWorkOrder.id}`,
         internalId: foundWorkOrder.id,
         uuid: foundWorkOrder.uuid,
+        profesionalId: foundWorkOrder.profesionalId,
         status: foundWorkOrder.status,
         created: foundWorkOrder.date ? new Date(foundWorkOrder.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
         updated: "Hace un momento",
@@ -647,7 +648,7 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
                 </>
               )}
             </button>
-            {(userRole === 'profesional' || userRole === 'admin') && (
+            {(userRole === 'admin' || (userRole === 'profesional' && currentUser?.id === job?.profesionalId)) && (
               <button
                 disabled={isPreloadingEdit}
                 onClick={handleEditClick}
