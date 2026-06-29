@@ -968,27 +968,21 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
         <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
         <!-- Main content table -->
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e2e8f0;">
-          <!-- Header with green background -->
+          <!-- Header -->
           <tr>
-            <td align="center" style="background-color: #2e7d32; padding: 32px 24px;">
-              <!-- Logo container -->
+            <td align="center" style="background-color: #f0f0f0; padding: 32px 24px; border-bottom: 1px solid #e2e8f0;">
+              <!-- Logos -->
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td align="center" style="background-color: #ffffff; padding: 12px 24px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td style="padding-right: 12px;" valign="middle">
-                          <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" width="140" height="40" style="display: block; width: 140px; height: auto; max-height: 45px;" />
-                        </td>
-                        <td valign="middle">
-                          <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" width="90" height="30" style="display: block; width: 90px; height: auto; max-height: 35px;" />
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="padding-right: 20px;" valign="middle">
+                    <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" width="200" height="37" style="display: block; width: 200px; height: auto;" />
+                  </td>
+                  <td valign="middle">
+                    <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" width="70" height="55" style="display: block; width: 70px; height: auto;" />
                   </td>
                 </tr>
               </table>
-              <p style="color: white; margin: 16px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
+              <p style="color: #2e7d32; margin: 20px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
             </td>
           </tr>
           <!-- Body -->
@@ -2020,69 +2014,131 @@ ${orderUrl}
 
 © ${new Date().getFullYear()} TradeAgro.`;
 
-  const htmlContent = `<!DOCTYPE html>
-<html>
+  const htmlContent = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Orden #AG-${orderData.id} Registrada</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif !important; }
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc;">
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <div style="background: white; display: inline-block; padding: 12px 24px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 320px; box-sizing: border-box; text-align: center;">
-        <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" style="height: auto; max-height: 45px; max-width: 45%; margin-right: 12px; display: inline-block; vertical-align: middle;" onerror="this.outerHTML='<h1 style=\\'color: #2e7d32; margin: 0; font-size: 20px; font-weight: 800; display: inline-block; vertical-align: middle;\\'>TradeAgro</h1>'" />
-        <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" width="90" height="30" style="height: auto; max-height: 35px; width: 90px; display: inline-block; vertical-align: middle;" />
-      </div>
-      <p style="color: white; margin: 8px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
-    </div>
-    <div style="padding: 32px 24px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background: #fffbeb; color: #b45309; padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 16px; border: 1px solid #fde68a;">
-          &#9203; ${(orderData.status || 'PENDIENTE').toUpperCase()}
-        </div>
-      </div>
-      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">Hola ${orderData.clientName},</h2>
-      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
-        Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.
-      </p>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e2e8f0;">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background-color: #f0f0f0; padding: 32px 24px; border-bottom: 1px solid #e2e8f0;">
+              <!-- Logos -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right: 20px;" valign="middle">
+                    <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" width="200" height="37" style="display: block; width: 200px; height: auto;" />
+                  </td>
+                  <td valign="middle">
+                    <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" width="70" height="55" style="display: block; width: 70px; height: auto;" />
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #2e7d32; margin: 20px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 24px; background-color: #f8fafc;">
+              <!-- Status badge -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background-color: #fffbeb; color: #b45309; padding: 12px 24px; font-weight: 800; font-size: 16px; border: 1px solid #fde68a;">
+                          &#9203; ${(orderData.status || 'PENDIENTE').toUpperCase()}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">Hola ${orderData.clientName},</h2>
+              <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
+                Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.
+              </p>
 
-      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px; width: 100%; max-width: 320px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
-        <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
-        
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Orden:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
+              <!-- Details card -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="400" style="max-width: 400px; width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
+                          <table style="width: 100%; border-collapse: collapse;" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;" width="40%">Orden:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;" width="60%">#AG-${orderData.id}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Servicio:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
+                            </tr>
+                            ${orderData.location ? `
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Ubicaci&oacute;n:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Profesional:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.profesionalName || 'Pendiente'}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 24px 0;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
+
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding-bottom: 32px;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${orderUrl}" style="height:48px;v-text-anchor:middle;width:200px;" arcsize="10%" strokecolor="#2e7d32" fillcolor="#2e7d32">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Segoe UI,Tahoma,sans-serif;font-size:15px;font-weight:bold;">Ver orden</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${orderUrl}" style="display: inline-block; background-color: #2e7d32; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; mso-hide: all;">
+                      Ver orden
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+            </td>
           </tr>
+          <!-- Footer -->
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Servicio:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
-          </tr>
-          ${orderData.location ? `
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Ubicaci&oacute;n:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
-          </tr>
-          ` : ''}
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Profesional:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.profesionalName || 'Pendiente'}</td>
+            <td style="background-color: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
+            </td>
           </tr>
         </table>
-      </div>
-
-      <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-bottom: 24px;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
-      
-      <div style="text-align: center; margin-bottom: 32px;">
-        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-          Ver orden
-        </a>
-      </div>
-    </div>
-    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
-    </div>
-  </div>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
