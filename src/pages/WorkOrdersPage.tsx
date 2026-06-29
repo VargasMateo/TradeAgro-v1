@@ -42,6 +42,14 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
+  
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showOnlyMyOrders, setShowOnlyMyOrders] = useState(true);
+
+  useEffect(() => {
+    const profile = localStorage.getItem("userProfile");
+    if (profile) setCurrentUser(JSON.parse(profile));
+  }, []);
 
   // Filter state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -142,6 +150,13 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
     if (filters.service && !(order.service || '').toLowerCase().includes(filters.service.toLowerCase())) return false;
     if (filters.operator && !((order as any).operator || '').toLowerCase().includes(filters.operator.toLowerCase())) return false;
     if (filters.status && order.status !== filters.status) return false;
+
+    // Custom flag: Professional filtering by their own ID
+    if (userRole === 'profesional' && showOnlyMyOrders && currentUser?.id) {
+      if ((order as any).profesionalId !== currentUser.id) {
+        return false;
+      }
+    }
 
     return true;
   });
@@ -405,7 +420,30 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
           ))}
         </div>
 
-        {/* View Toggle */}
+        {/* Filters and View Toggles */}
+        <div className="flex items-center gap-2">
+          {/* Professional View Toggle */}
+          {userRole === 'profesional' && (
+            <div className="flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-3 py-1.5 shadow-sm">
+              <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+                Mis Órdenes
+              </span>
+              <button
+                onClick={() => setShowOnlyMyOrders(!showOnlyMyOrders)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  showOnlyMyOrders ? 'bg-emerald-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    showOnlyMyOrders ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+
+          {/* View Toggle */}
         <div className="hidden items-center gap-1 rounded-2xl bg-slate-100/50 p-1 md:flex">
           <button
             onClick={() => setViewMode('grid')}
@@ -429,6 +467,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
           </button>
         </div>
       </div>
+    </div>
 
       {/* Mobile Card View (Always Grid) */}
       <div className="grid grid-cols-1 gap-4 md:hidden">

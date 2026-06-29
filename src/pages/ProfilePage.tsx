@@ -340,7 +340,6 @@ export default function ProfilePage({ userRole = 'profesional', onLogout }: Prof
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         </motion.div>

@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHmac } from 'crypto';
 import nodemailer from 'nodemailer';
 
 // Define __dirname for ES module scope
@@ -54,6 +54,21 @@ const pool = mysql.createPool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// Invite link: HMAC-based stateless token for public work order access
+const INVITE_SECRET = process.env.INVITE_SECRET || JWT_SECRET;
+
+function generateInviteToken(uuid: string): string {
+  return createHmac('sha256', INVITE_SECRET!)
+    .update(uuid)
+    .digest('hex')
+    .substring(0, 16);
+}
+
+function validateInviteToken(uuid: string, token: string): boolean {
+  const expected = generateInviteToken(uuid);
+  return expected === token;
+}
 
 // Middleware to verify JWT
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -306,6 +321,14 @@ async function initializeDatabase() {
       console.log('[INIT] Added secondaryService column to work_orders');
     } catch (e: any) {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] secondaryService migration error:', e.message);
+    }
+
+    // Migration: add groupId column if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE work_orders ADD COLUMN groupId VARCHAR(36) DEFAULT NULL AFTER uuid');
+      console.log('[INIT] Added groupId column to work_orders');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] groupId migration error:', e.message);
     }
 
     console.log('[INIT] Creating work_order_attachments table...');
@@ -683,42 +706,82 @@ Este enlace expira en 48 horas.
 
 © ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.`;
 
-  const htmlContent = `<!DOCTYPE html>
-<html>
+  const htmlContent = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bienvenido a TradeAgro</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif !important; }
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc;">
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Sistema de Gesti&oacute;n Agropecuaria</p>
-    </div>
-    <div style="padding: 32px 24px;">
-      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">&iexcl;Hola ${displayName}!</h2>
-      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-        Se ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contrase&ntilde;a haciendo clic en el bot&oacute;n de abajo.
-      </p>
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${setupLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-          Configurar mi Contrase&ntilde;a
-        </a>
-      </div>
-      <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
-        Si el bot&oacute;n no funciona, copie y pegue este enlace en su navegador:
-      </p>
-      <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
-        ${setupLink}
-      </p>
-      <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
-        Este enlace expira en 48 horas.
-      </p>
-    </div>
-    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.</p>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e2e8f0;">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background-color: #2e7d32; padding: 32px 24px;">
+              <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+              <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Sistema de Gesti&oacute;n Agropecuaria</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 24px; background-color: #f8fafc;">
+              <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">&iexcl;Hola ${displayName}!</h2>
+              <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                Se ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contrase&ntilde;a haciendo clic en el bot&oacute;n de abajo.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding: 32px 0;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${setupLink}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="10%" strokecolor="#2e7d32" fillcolor="#2e7d32">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Segoe UI,Tahoma,sans-serif;font-size:15px;font-weight:bold;">Configurar mi Contrase&ntilde;a</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${setupLink}" style="display: inline-block; background-color: #2e7d32; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; mso-hide: all;">
+                      Configurar mi Contrase&ntilde;a
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+                Si el bot&oacute;n no funciona, copie y pegue este enlace en su navegador:
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="color: #2e7d32; font-size: 12px; word-break: break-all; background-color: #f0fdf4; padding: 12px; border: 1px solid #bbf7d0;">
+                    ${setupLink}
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
+                Este enlace expira en 48 horas.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Todos los derechos reservados.</p>
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -761,42 +824,82 @@ Este enlace expira en 48 horas.
 
 © 2026 TradeAgro. Sistema de Gestión Agropecuaria.`;
 
-  const htmlContent = `<!DOCTYPE html>
-<html>
+  const htmlContent = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Restablecer su contrase&ntilde;a</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif !important; }
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc;">
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Restablecimiento de Contrase&ntilde;a</p>
-    </div>
-    <div style="padding: 32px 24px;">
-      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">&iexcl;Hola ${displayName}!</h2>
-      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-        Hemos recibido una solicitud para restablecer la contrase&ntilde;a de su cuenta en TradeAgro. Haga clic en el bot&oacute;n de abajo para elegir una nueva contrase&ntilde;a.
-      </p>
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${resetLink}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-          Restablecer mi Contrase&ntilde;a
-        </a>
-      </div>
-      <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
-        Si no realiz&oacute; esta solicitud, puede ignorar este correo. Su contrase&ntilde;a actual no cambiar&aacute; hasta que acceda al enlace de arriba.
-      </p>
-      <p style="color: #2e7d32; font-size: 12px; word-break: break-all; background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
-        ${resetLink}
-      </p>
-      <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
-        Este enlace expira en 48 horas.
-      </p>
-    </div>
-    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; 2026 TradeAgro. Sistema de Gesti&oacute;n Agropecuaria.</p>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e2e8f0;">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background-color: #2e7d32; padding: 32px 24px;">
+              <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
+              <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Restablecimiento de Contrase&ntilde;a</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 24px; background-color: #f8fafc;">
+              <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px;">&iexcl;Hola ${displayName}!</h2>
+              <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                Hemos recibido una solicitud para restablecer la contrase&ntilde;a de su cuenta en TradeAgro. Haga clic en el bot&oacute;n de abajo para elegir una nueva contrase&ntilde;a.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding: 32px 0;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${resetLink}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="10%" strokecolor="#2e7d32" fillcolor="#2e7d32">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Segoe UI,Tahoma,sans-serif;font-size:15px;font-weight:bold;">Restablecer mi Contrase&ntilde;a</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${resetLink}" style="display: inline-block; background-color: #2e7d32; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; mso-hide: all;">
+                      Restablecer mi Contrase&ntilde;a
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+                Si no realiz&oacute; esta solicitud, puede ignorar este correo. Su contrase&ntilde;a actual no cambiar&aacute; hasta que acceda al enlace de arriba.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="color: #2e7d32; font-size: 12px; word-break: break-all; background-color: #f0fdf4; padding: 12px; border: 1px solid #bbf7d0;">
+                    ${resetLink}
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0; text-align: center;">
+                Este enlace expira en 48 horas.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; 2026 TradeAgro. Sistema de Gesti&oacute;n Agropecuaria.</p>
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -824,7 +927,8 @@ async function sendOrderCompletedEmail(orderData: any) {
   }
 
   const appUrl = getAppUrl();
-  const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
+  const inviteToken = generateInviteToken(orderData.uuid || String(orderData.id));
+  const orderUrl = `${appUrl}/order/${orderData.uuid || orderData.id}?token=${inviteToken}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
   const textContent = `¡Tu orden ha sido completada!
@@ -837,79 +941,146 @@ Detalles del Servicio:
 - Campo / Lote: ${orderData.location}
 ${orderData.hectares ? `- Superficie: ${orderData.hectares} ha.\n` : ''}- Campaña: ${orderData.campaign}
 
-Ver detalles en el panel:
+Ver orden:
 ${orderUrl}
 
 Si tienes alguna duda, por favor contacta con tu asesor asignado.
 
 © ${new Date().getFullYear()} TradeAgro. Este es un mensaje automático, por favor no lo respondas.`;
 
-  const htmlContent = `<!DOCTYPE html>
-<html>
+  const htmlContent = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Orden #${orderData.id} Completada</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif !important; }
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc;">
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">TradeAgro</h1>
-      <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Notificaci&oacute;n de Servicio</p>
-    </div>
-    <div style="padding: 32px 24px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background: #f0fdf4; color: #166534; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 12px; border: 1px solid #bbf7d0;">
-          &#10003; ORDEN FINALIZADA
-        </div>
-      </div>
-      <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">&iexcl;Tu orden ha sido completada!</h2>
-      <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
-        Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con &eacute;xito.
-      </p>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <!-- Outer wrapper table for background -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
+        <!-- Main content table -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e2e8f0;">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background-color: #f0f0f0; padding: 32px 24px; border-bottom: 1px solid #e2e8f0;">
+              <!-- Logos -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right: 20px;" valign="middle">
+                    <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" width="200" height="37" style="display: block; width: 200px; height: auto;" />
+                  </td>
+                  <td valign="middle">
+                    <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" width="70" height="55" style="display: block; width: 70px; height: auto;" />
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #2e7d32; margin: 20px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 24px; background-color: #f8fafc;">
+              <!-- Status badge -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background-color: #f0fdf4; color: #166534; padding: 12px 24px; font-weight: 800; font-size: 16px; border: 1px solid #bbf7d0;">
+                          &#10003; ORDEN FINALIZADA
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">&iexcl;Tu orden ha sido completada!</h2>
+              <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
+                Hola <strong>${orderData.clientName}</strong>, te informamos que el trabajo solicitado ha sido finalizado con &eacute;xito.
+              </p>
 
-      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 32px;">
-        <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">Detalles del Servicio</h3>
-        
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Orden:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">#AG-${orderData.id}</td>
+              <!-- Details card -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="400" style="max-width: 400px; width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
+                          <table style="width: 100%; border-collapse: collapse;" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;" width="40%">Orden:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;" width="60%">#AG-${orderData.id}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Servicio:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Campo / Lote:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
+                            </tr>
+                            ${orderData.hectares ? `
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Superficie:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.hectares} ha.</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Campa&ntilde;a:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.campaign}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 32px;">
+                <tr>
+                  <td align="center" style="padding-bottom: 32px;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${orderUrl}" style="height:48px;v-text-anchor:middle;width:200px;" arcsize="10%" strokecolor="#2e7d32" fillcolor="#2e7d32">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Segoe UI,Tahoma,sans-serif;font-size:15px;font-weight:bold;">Ver orden</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${orderUrl}" style="display: inline-block; background-color: #2e7d32; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; mso-hide: all;">
+                      Ver orden
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; text-align: center;">
+                Si tienes alguna duda, por favor contacta con tu asesor asignado.
+              </p>
+            </td>
           </tr>
+          <!-- Footer -->
           <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Servicio:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campo / Lote:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
-          </tr>
-          ${orderData.hectares ? `
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Superficie:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.hectares} ha.</td>
-          </tr>
-          ` : ''}
-          <tr>
-            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Campa&ntilde;a:</td>
-            <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.campaign}</td>
+            <td style="background-color: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
+            </td>
           </tr>
         </table>
-      </div>
-
-      <div style="text-align: center; margin-bottom: 32px;">
-        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-          Ver detalles en el panel
-        </a>
-      </div>
-
-      <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; text-align: center;">
-        Si tienes alguna duda, por favor contacta con tu asesor asignado.
-      </p>
-    </div>
-    <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
-    </div>
-  </div>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -919,7 +1090,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
       const info = await transporter.sendMail({
         from: fromEmail,
         to: orderData.clientEmail,
-        subject: `Orden #${orderData.id} Completada — TradeAgro`,
+        subject: `Servicios de agricultura digital - Orden completada - ${orderData.location} - ${orderData.service}`,
         text: textContent,
         html: htmlContent,
       });
@@ -941,7 +1112,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
         const info = await transporter.sendMail({
           from: fromEmail,
           to: addEmail,
-          subject: `Orden #${orderData.id} Completada — TradeAgro`,
+          subject: `Servicios de agricultura digital - Orden completada - ${orderData.location} - ${orderData.service}`,
           text: textContent,
           html: htmlContent,
         });
@@ -958,7 +1129,7 @@ Si tienes alguna duda, por favor contacta con tu asesor asignado.
       const info = await transporter.sendMail({
         from: fromEmail,
         to: extraEmail,
-        subject: `Orden #${orderData.id} Completada — TradeAgro`,
+        subject: `Servicios de agricultura digital - Orden completada - ${orderData.location} - ${orderData.service}`,
         text: textContent,
         html: htmlContent,
       });
@@ -1762,11 +1933,7 @@ apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
     const params: any[] = [];
 
     // Role-based filtering
-    if (role === 'profesional') {
-      console.log(`[DEBUG_AUTH] Filtering for profesionalId: ${id}`);
-      query += ` AND t.profesionalId = ?`;
-      params.push(id);
-    } else if (role === 'client') {
+    if (role === 'client') {
       console.log(`[DEBUG_AUTH] Filtering for clientId: ${id}`);
       query += ` AND t.clientId = ?`;
       params.push(id);
@@ -1827,51 +1994,151 @@ async function sendNewOrderEmail(orderData: any) {
   if (!transporter) return;
 
   const appUrl = getAppUrl();
-  const orderUrl = `${appUrl}/work-orders/${orderData.uuid || orderData.id}`;
+  const inviteToken = generateInviteToken(orderData.uuid || String(orderData.id));
+  const orderUrl = `${appUrl}/order/${orderData.uuid || orderData.id}?token=${inviteToken}`;
   const fromEmail = process.env.SMTP_FROM || 'TradeAgro <no-reply@tradeagrosmart.com.ar>';
 
-  const textContent = `Confirmación de Orden #AG-${orderData.id}
+  const textContent = `¡Tu orden ha sido registrada!
 
-Hola ${orderData.clientName},
+Hola ${orderData.clientName}, se ha registrado correctamente la orden de trabajo #AG-${orderData.id}.
 
-Se ha registrado correctamente la orden de trabajo #AG-${orderData.id}.
-
-Detalles:
+Detalles del Servicio:
+- Orden: #AG-${orderData.id}
 - Servicio: ${orderData.service}
 - Profesional a cargo: ${orderData.profesionalName || 'Pendiente de asignación'}
-
+${orderData.location ? `- Campo / Lote: ${orderData.location}\n` : ''}
 Recibirás otra notificación cuando el trabajo sea completado.
 
 Ver Detalles de la Orden:
 ${orderUrl}
 
-TradeAgro`;
+© ${new Date().getFullYear()} TradeAgro.`;
 
-  const htmlContent = `<!DOCTYPE html>
-<html>
+  const htmlContent = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="utf-8">
-  <title>Confirmaci&oacute;n de Orden #AG-${orderData.id}</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orden #AG-${orderData.id} Registrada</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif !important; }
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc;">
-  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background: white;">
-    <div style="background: #2e7d32; padding: 24px; text-align: center; color: white;">
-      <h1 style="margin: 0;">TradeAgro</h1>
-      <p style="margin: 4px 0 0; opacity: 0.8;">Confirmaci&oacute;n de Orden</p>
-    </div>
-    <div style="padding: 24px;">
-      <h2 style="color: #1e293b;">Hola ${orderData.clientName},</h2>
-      <p style="color: #64748b; line-height: 1.6;">Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.</p>
-      <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 24px 0;">
-        <p style="margin: 0 0 8px;"><strong>Servicio:</strong> ${orderData.service}</p>
-        <p style="margin: 0;"><strong>Profesional a cargo:</strong> ${orderData.profesionalName || 'Pendiente de asignaci&oacute;n'}</p>
-      </div>
-      <p style="color: #94a3b8; font-size: 13px;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
-      <div style="text-align: center; margin-top: 24px;">
-        <a href="${orderUrl}" style="display: inline-block; background: #2e7d32; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ver Detalles de la Orden</a>
-      </div>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e2e8f0;">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background-color: #f0f0f0; padding: 32px 24px; border-bottom: 1px solid #e2e8f0;">
+              <!-- Logos -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right: 20px;" valign="middle">
+                    <img src="${appUrl}/tradeagro-drawer.png" alt="TradeAgro" width="200" height="37" style="display: block; width: 200px; height: auto;" />
+                  </td>
+                  <td valign="middle">
+                    <img src="${appUrl}/paralelo-38.png" alt="Paralelo 38" width="70" height="55" style="display: block; width: 70px; height: auto;" />
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #2e7d32; margin: 20px 0 0; font-size: 20px; font-weight: bold;">Notificaci&oacute;n de Servicio</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 24px; background-color: #f8fafc;">
+              <!-- Status badge -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background-color: #fffbeb; color: #b45309; padding: 12px 24px; font-weight: 800; font-size: 16px; border: 1px solid #fde68a;">
+                          &#9203; ${(orderData.status || 'PENDIENTE').toUpperCase()}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <h2 style="color: #1e293b; font-size: 20px; margin: 0 0 8px; text-align: center;">Hola ${orderData.clientName},</h2>
+              <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 32px; text-align: center;">
+                Se ha registrado correctamente la orden de trabajo <strong>#AG-${orderData.id}</strong>.
+              </p>
+
+              <!-- Details card -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="400" style="max-width: 400px; width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <h3 style="color: #1e293b; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; text-align: center;">Detalles del Servicio</h3>
+                          <table style="width: 100%; border-collapse: collapse;" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;" width="40%">Orden:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;" width="60%">#AG-${orderData.id}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Servicio:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.service}</td>
+                            </tr>
+                            ${orderData.location ? `
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Ubicaci&oacute;n:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.location}</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                              <td style="padding: 8px 0; color: #64748b; font-size: 14px; text-align: left;">Profesional:</td>
+                              <td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-weight: 600; text-align: right;">${orderData.profesionalName || 'Pendiente'}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 24px 0;">Recibir&aacute;s otra notificaci&oacute;n cuando el trabajo sea completado.</p>
+
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding-bottom: 32px;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${orderUrl}" style="height:48px;v-text-anchor:middle;width:200px;" arcsize="10%" strokecolor="#2e7d32" fillcolor="#2e7d32">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Segoe UI,Tahoma,sans-serif;font-size:15px;font-weight:bold;">Ver orden</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${orderUrl}" style="display: inline-block; background-color: #2e7d32; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; mso-hide: all;">
+                      Ver orden
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} TradeAgro. Este es un mensaje autom&aacute;tico, por favor no lo respondas.</p>
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -1881,7 +2148,7 @@ TradeAgro`;
       await transporter.sendMail({
         from: fromEmail,
         to: orderData.clientEmail,
-        subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+        subject: `Servicios de agricultura digital - ${(orderData.status || 'Pendiente').toUpperCase()} - ${orderData.clientName} - ${orderData.service}`,
         text: textContent,
         html: htmlContent
       });
@@ -1903,7 +2170,7 @@ TradeAgro`;
         await transporter.sendMail({
           from: fromEmail,
           to: addEmail,
-          subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+          subject: `Servicios de agricultura digital - ${(orderData.status || 'Pendiente').toUpperCase()} - ${orderData.clientName} - ${orderData.service}`,
           text: textContent,
           html: htmlContent
         });
@@ -1920,7 +2187,7 @@ TradeAgro`;
       await transporter.sendMail({
         from: fromEmail,
         to: extraEmail,
-        subject: `Confirmación de Orden #${orderData.id} — TradeAgro`,
+        subject: `Servicios de agricultura digital - ${(orderData.status || 'Pendiente').toUpperCase()} - ${orderData.clientName} - ${orderData.service}`,
         text: textContent,
         html: htmlContent
       });
@@ -1991,7 +2258,8 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       amountUsd: parseFloat(cleanAmount) || 0,
       status: req.body.status || 'Pendiente',
       createdBy: (req as any).user?.id || 0,
-      uuid: randomUUID()
+      uuid: randomUUID(),
+      groupId: req.body.groupId || null
     };
 
     // Explicit audit: ensuring NO description field exists in dbData
@@ -2369,11 +2637,11 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
 
     const row = rows[0];
 
-    // Authorization Check: Admin, Assigned Professional, or Client
+    // Authorization Check: Admin, Assigned Professional, Client, or ANY Professional
     const isAuthorized =
       user.role === 'admin' ||
-      user.id === row.clientId ||
-      user.id === row.profesionalId;
+      user.role === 'profesional' ||
+      user.id === row.clientId;
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized WO access attempt by UID ${user.id} to WO ${id}`);
@@ -2406,12 +2674,63 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
       iconName: getIconNameForService(row.service),
       color: getColorForService(row.service),
       createdAt: row.createdAt,
-      createdBy: row.createdBy
+      createdBy: row.createdBy,
+      groupId: row.groupId
     };
+
+    if (row.groupId) {
+      const [relatedRows]: any = await pool.query(
+        'SELECT uuid, lotName FROM work_orders WHERE groupId = ? AND uuid != ? AND deletedAt IS NULL',
+        [row.groupId, id]
+      );
+      (job as any).relatedOrders = relatedRows;
+    } else {
+      (job as any).relatedOrders = [];
+    }
 
     res.json(job);
   } catch (error: any) {
     console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}:`, error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get invite token for a work order (authenticated users only)
+ */
+apiRouter.get('/work-orders/:id/invite-token', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  const user = req.user;
+
+  try {
+    const [rows]: any = await pool.query(
+      'SELECT uuid, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+
+    const row = rows[0];
+
+    // Authorization: Admin, assigned professional, or client
+    const isAuthorized =
+      user.role === 'admin' ||
+      user.id === row.clientId ||
+      user.id === row.profesionalId;
+
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para compartir esta orden' });
+    }
+
+    const inviteToken = generateInviteToken(row.uuid);
+    const appUrl = getAppUrl();
+    const inviteUrl = `${appUrl}/order/${row.uuid}?token=${inviteToken}`;
+
+    res.json({ success: true, inviteToken, inviteUrl });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /backend/work-orders/${id}/invite-token:`, error.message);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -2510,7 +2829,7 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
   try {
     // Resolve UUID to internal numeric ID
     const [woRows]: any = await pool.query(
-      'SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      'SELECT id, clientId, profesionalId, groupId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
       [id]
     );
     if (woRows.length === 0) {
@@ -2526,11 +2845,20 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
     }
 
     const internalJobId = order.id;
+    const groupId = order.groupId;
 
-    const [rows]: any = await pool.query(
-      'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC',
-      [internalJobId]
-    );
+    let rows: any = [];
+    if (groupId) {
+      [rows] = await pool.query(
+        'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId IN (SELECT id FROM work_orders WHERE groupId = ?) ORDER BY a.displayOrder ASC, a.createdAt DESC',
+        [groupId]
+      );
+    } else {
+      [rows] = await pool.query(
+        'SELECT a.id, workOrderId, fileName, fileType, fileSize, uploadedBy, a.description, a.displayOrder, a.createdAt, u.displayName as uploaderName FROM work_order_attachments a LEFT JOIN users u ON a.uploadedBy = u.id WHERE a.workOrderId = ? ORDER BY a.displayOrder ASC, a.createdAt DESC',
+        [internalJobId]
+      );
+    }
 
     // Add the dynamic URL for each attachment
     const attachments = rows.map((row: any) => ({
@@ -3015,6 +3343,55 @@ apiRouter.post('/test/reset-tokens', async (req, res) => {
 });
 
 /**
+ * TEST EMAILS (Dev only)
+ */
+apiRouter.post('/test/test-emails', async (req, res) => {
+  console.log('[DEBUG] POST /backend/test/test-emails');
+  try {
+    const testEmail = 'vargas.mateo00@gmail.com';
+    const testOrder = {
+      id: 9999,
+      uuid: 'test-uuid-1234-5678',
+      clientName: 'Test Client',
+      service: 'Mapeo Aéreo con Drones',
+      location: 'Campo de Pruebas',
+      profesionalName: 'Test Profesional',
+      date: new Date(),
+      status: 'PENDIENTE',
+      clientEmail: testEmail, // Send to the test email
+      profesionalEmail: testEmail // And also test emails to the pro
+    };
+
+    // Override the emails so it ONLY sends to vargas.mateo00@gmail.com
+    const emailData = {
+      ...testOrder,
+      clientEmail: testEmail,
+      profesionalEmail: testEmail,
+      clientNotificationEmails: '' // don't send to distribution list
+    };
+
+    // Temporarily disable extra recipients for this test
+    const originalExtraRecipients = [...EXTRA_NOTIFICATION_RECIPIENTS];
+    EXTRA_NOTIFICATION_RECIPIENTS.length = 0; // Empty the array temporarily
+
+    try {
+      await sendNewOrderEmail(emailData);
+      
+      const completedData = { ...emailData, status: 'COMPLETADO' };
+      await sendOrderCompletedEmail(completedData);
+
+      res.json({ success: true, message: 'Test emails sent successfully' });
+    } finally {
+      // Restore extra recipients
+      EXTRA_NOTIFICATION_RECIPIENTS.push(...originalExtraRecipients);
+    }
+  } catch (error: any) {
+    console.error('[DEBUG] Test emails failed', error);
+    res.status(500).json({ error: 'Failed to send test emails', details: error.message });
+  }
+});
+
+/**
  * GET /backend/attachments (Dev only / Global)
  */
 apiRouter.get('/attachments', authenticateToken, async (req: any, res: any) => {
@@ -3345,6 +3722,126 @@ app.post('/backend/test/reset-data', async (req, res) => {
     res.status(500).json({ error: 'Failed to reset users', details: error.message });
   } finally {
     connection.release();
+  }
+});
+
+// ==========================================
+// PUBLIC ENDPOINTS (no auth required)
+// ==========================================
+
+/**
+ * Public: View a work order via invite link
+ */
+apiRouter.get('/public/work-orders/:uuid', async (req: any, res) => {
+  const { uuid } = req.params;
+  const { token } = req.query;
+
+  if (!token || !validateInviteToken(uuid, token as string)) {
+    return res.status(403).json({ success: false, error: 'Token de invitación inválido' });
+  }
+
+  try {
+    const query = `
+      SELECT t.*, u.displayName as clientName, p_user.displayName as professionalName,
+             f.lat, f.lng
+      FROM work_orders t
+      LEFT JOIN users u ON t.clientId = u.id
+      LEFT JOIN users p_user ON t.profesionalId = p_user.id
+      LEFT JOIN fields f ON t.fieldId = f.id
+      WHERE t.uuid = ? AND t.deletedAt IS NULL
+    `;
+
+    const [rows]: any = await pool.query(query, [uuid]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+    }
+
+    const row = rows[0];
+
+    // Return read-only data (no phone numbers, no sensitive info)
+    const job = {
+      id: row.id,
+      uuid: row.uuid,
+      client: row.clientName || 'Cliente',
+      date: row.date,
+      location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación pendiente',
+      service: row.service || 'Sin servicio',
+      secondaryService: row.secondaryService || null,
+      title: row.title || row.service,
+      fieldName: row.fieldName,
+      lotName: row.lotName,
+      hectares: parseFloat(row.hectares) || 0,
+      amountUsd: parseFloat(row.amountUsd) || 0,
+      campaign: row.campaign,
+      status: row.status,
+      operator: row.professionalName || 'Asignación Pendiente',
+      lat: row.lat,
+      lng: row.lng,
+      iconName: getIconNameForService(row.service),
+      color: getColorForService(row.service),
+      createdAt: row.createdAt,
+    };
+
+    // Also fetch attachments metadata
+    const [attachmentRows]: any = await pool.query(
+      `SELECT id, fileName, fileType, fileSize, displayOrder, description, createdAt
+       FROM work_order_attachments
+       WHERE workOrderId = ?
+       ORDER BY displayOrder ASC, createdAt DESC`,
+      [row.id]
+    );
+
+    const attachments = attachmentRows.map((a: any) => ({
+      ...a,
+      fileUrl: `/backend/public/attachments/${a.id}?token=${token}`
+    }));
+
+    res.json({ ...job, attachments });
+  } catch (error: any) {
+    console.error(`[DATABASE ERROR] GET /backend/public/work-orders/${uuid}:`, error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * Public: Serve attachment content via invite link
+ */
+apiRouter.get('/public/attachments/:id', async (req: any, res) => {
+  const { id } = req.params;
+  const { token, download } = req.query;
+
+  if (!token) {
+    return res.status(403).json({ error: 'Token requerido' });
+  }
+
+  try {
+    // Fetch attachment + parent work order UUID for token validation
+    const [rows]: any = await pool.query(`
+      SELECT a.fileData, a.fileName, a.fileType, wo.uuid
+      FROM work_order_attachments a
+      JOIN work_orders wo ON a.workOrderId = wo.id
+      WHERE a.id = ? AND wo.deletedAt IS NULL
+    `, [id]);
+
+    if (rows.length === 0 || !rows[0].fileData) {
+      return res.status(404).json({ error: 'Archivo no encontrado' });
+    }
+
+    const { fileData, fileName, fileType, uuid } = rows[0];
+
+    // Validate token against the parent work order's UUID
+    if (!validateInviteToken(uuid, token as string)) {
+      return res.status(403).json({ error: 'Token de invitación inválido' });
+    }
+
+    const disposition = download === 'true' ? 'attachment' : 'inline';
+    res.setHeader('Content-Type', fileType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${fileName}"`);
+    res.send(fileData);
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] GET /backend/public/attachments/:id:', error.message);
+    res.status(500).json({ error: 'Failed to retrieve file content' });
   }
 });
 

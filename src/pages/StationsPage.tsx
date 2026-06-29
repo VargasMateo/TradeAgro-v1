@@ -290,7 +290,7 @@ export default function StationsPage() {
 
   // Parse colors. Map Spanish color names from the API to hex, with a keyword fallback.
   const getDeltaTColorAndLabel = () => {
-    const rawLabel = val?.dtq || val?.label || "N/D";
+    const rawLabel = val?.cond || val?.dtq || val?.label || "N/D";
     const rawColor = val?.dtc || "";
     
     console.log("[Delta T Debug] dtc (API Spanish color):", val?.dtc, "| color (API Hex color):", val?.color, "| label (dtq/label):", rawLabel);

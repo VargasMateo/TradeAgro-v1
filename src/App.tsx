@@ -18,6 +18,7 @@ import StationsPage from "./pages/StationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
 import DbTestPage from "./pages/DbTestPage";
+import PublicWorkOrderPage from "./pages/PublicWorkOrderPage";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("authToken"));
@@ -112,6 +113,17 @@ export default function App() {
     );
   }
 
+  // Public route: invitation link to view work orders without auth
+  if (window.location.pathname.startsWith('/order/')) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/order/:uuid" element={<PublicWorkOrderPage />} />
+        </Routes>
+      </Router>
+    );
+  }
+
   // Intercept external login callback
   if (window.location.pathname === '/login-callback') {
     const params = new URLSearchParams(window.location.search);
@@ -136,11 +148,14 @@ export default function App() {
     }} />;
   }
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectPath = urlParams.get('redirect') || '/dashboard';
+
   return (
     <Router>
       <Layout onLogout={handleLogout} userRole={userRole}>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to={redirectPath} replace />} />
           <Route path="/dashboard" element={<DashboardPage userRole={userRole} />} />
           <Route path="/calendar" element={<CalendarPage userRole={userRole} />} />
           <Route path="/work-orders" element={<WorkOrdersPage userRole={userRole} />} />

@@ -223,6 +223,20 @@ export default function DbTestPage() {
     }
   };
 
+  const handleTestEmails = async () => {
+    try {
+      const response = await authenticatedFetch('/backend/test/test-emails', { method: 'POST' });
+      const data = await response.json();
+      if (response.ok) {
+        setDialog({ show: true, type: 'success', title: 'Éxito', message: 'Correos de prueba enviados correctamente.' });
+      } else {
+        throw new Error(data.error || 'Error al enviar correos');
+      }
+    } catch (err: any) {
+      setDialog({ show: true, type: 'error', title: 'Error', message: err.message });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-10">
       <div className="max-w-7xl mx-auto space-y-10">
@@ -241,6 +255,13 @@ export default function DbTestPage() {
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={handleTestEmails}
+              className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-indigo-600 px-6 py-4 font-black text-white shadow-xl shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-95 cursor-pointer"
+            >
+              <MessageSquare className="h-5 w-5" />
+              <span className="text-xs uppercase tracking-widest">Probar Correos</span>
+            </button>
             <button
               onClick={() => setResetTarget('global')}
               className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-rose-600 px-8 py-4 font-black text-white shadow-xl shadow-rose-200 transition-all hover:bg-rose-700 active:scale-95 cursor-pointer"

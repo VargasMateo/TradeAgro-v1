@@ -102,7 +102,7 @@ export default function UpcomingWorkOrders({
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <ClipboardList className="h-5 w-5 text-emerald-600" /> Próximas Órdenes
+          <ClipboardList className="h-5 w-5 text-emerald-600" /> {userRole === 'profesional' ? 'Tus próximas órdenes' : 'Próximas Órdenes'}
         </h3>
         <Link to="/work-orders" className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1">
           Ver todas <ArrowRight className="h-4 w-4" />
