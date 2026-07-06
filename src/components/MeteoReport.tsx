@@ -522,7 +522,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             <button
               onClick={handleGenerate}
               disabled={loading || !selectedDevice}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#2e7d32] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Generando...</>
@@ -542,276 +542,212 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
       {/* Report */}
       {reportGenerated && dailyData.length > 0 && periodSummary && (
-        <div ref={reportRef} className="space-y-6" id="meteo-report-content">
-          {/* Report Header */}
-          <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div ref={reportRef} className="bg-white shadow-lg border border-slate-200 rounded-xl overflow-hidden print:shadow-none print:border-none print:rounded-none" id="meteo-report-content">
+          {/* Header */}
+          <div className="bg-[#2e7d32] text-white p-6 sm:p-8" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
               <div>
-                <h2 className="text-xl font-bold">Reporte Meteorológico</h2>
-                <p className="text-emerald-100 text-sm mt-1">Estación: {selectedDeviceName}</p>
-                <p className="text-emerald-100/80 text-xs mt-1">{periodSummary.totalRecords.toLocaleString()} mediciones · {dailyData.length} días</p>
+                <h1 className="text-3xl font-bold tracking-tight">TradeAgro</h1>
+                <h2 className="text-xl mt-4 font-semibold text-emerald-50">Reporte meteorológico de aplicación</h2>
+                <p className="text-sm mt-1 text-emerald-100/80">Período: {format(parseISO(startDate), "dd/MM/yyyy")} al {format(parseISO(endDate), "dd/MM/yyyy")} - Central: {selectedDeviceName}</p>
               </div>
-              <div className="text-sm text-emerald-100 flex flex-col items-start sm:items-end gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  {format(parseISO(startDate), "d MMM yyyy", { locale: es })} — {format(parseISO(endDate), "d MMM yyyy", { locale: es })}
-                </div>
-                {/* Download button */}
+              <div className="sm:text-right">
+                <p className="text-sm text-emerald-100">Fecha de reporte: {format(new Date(), "dd/MM/yyyy")}</p>
                 <button
                   onClick={handleDownloadPDF}
                   disabled={isDownloading}
-                  className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed print:hidden backdrop-blur-sm border border-white/10 cursor-pointer"
+                  className="mt-4 inline-flex items-center gap-2 rounded bg-white/20 hover:bg-white/30 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed print:hidden backdrop-blur-sm border border-white/10 cursor-pointer"
                 >
                   <Download className="h-4 w-4" /> 
-                  {isDownloading ? 'Generando PDF...' : 'Descargar PDF'}
+                  {isDownloading ? 'Generando...' : 'Descargar PDF'}
                 </button>
               </div>
             </div>
           </div>
 
-            {/* ═══ SECTION 1: Temperature ═══ */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Thermometer className="h-5 w-5 text-red-500" /> Condiciones Térmicas
-                </h3>
+          <div className="p-6 sm:p-8 space-y-10 text-slate-800">
+            
+            {/* Resumen ejecutivo */}
+            <div className="break-inside-avoid">
+              <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Resumen ejecutivo</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 p-4 border border-slate-100 print:border-none print:bg-transparent print:p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. máx.</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</p>
+                </div>
+                <div className="bg-slate-50 p-4 border border-slate-100 print:border-none print:bg-transparent print:p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. mín.</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMin)} °C</p>
+                </div>
+                <div className="bg-slate-50 p-4 border border-slate-100 print:border-none print:bg-transparent print:p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Lluvia total</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.totalRain)} mm</p>
+                </div>
+                <div className="bg-slate-50 p-4 border border-slate-100 print:border-none print:bg-transparent print:p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Viento máx.</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.windMax)} km/h</p>
+                </div>
+                <div className="bg-slate-50 p-4 border border-slate-100 print:border-none print:bg-transparent print:p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Ráfaga máx.</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.gustMax)} km/h</p>
+                </div>
+                <div className="bg-slate-50 p-4 border border-slate-100 print:border-none print:bg-transparent print:p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. prom.</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempAvg)} °C</p>
+                </div>
               </div>
-              <div className="p-6 space-y-6">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Mínima</p>
-                    <p className="text-3xl font-bold text-blue-700 mt-1">{fmt(periodSummary.tempMin)}°</p>
-                  </div>
-                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Promedio</p>
-                    <p className="text-3xl font-bold text-amber-700 mt-1">{fmt(periodSummary.tempAvg)}°</p>
-                  </div>
-                  <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">Máxima</p>
-                    <p className="text-3xl font-bold text-red-700 mt-1">{fmt(periodSummary.tempMax)}°</p>
-                  </div>
+            </div>
+
+            {/* Conclusiones técnicas */}
+            <div className="break-inside-avoid">
+              <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Conclusiones técnicas</h3>
+              <div className="prose prose-sm prose-slate max-w-none text-slate-700 leading-relaxed text-justify print:text-black">
+                {conclusions.split('\n\n').map((paragraph, i) => (
+                  <p key={i} className="mb-3">{paragraph}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Gráficos principales */}
+            <div className="break-inside-avoid pt-2">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
+              <div className="space-y-8">
+                <div>
+                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Temperatura y Humedad</p>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit="°C" />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                        formatter={(value: number, name: string) => [`${fmt(value)}°C`, name]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
+                      <Line type="monotone" dataKey="tempMax" name="T° Máxima" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="tempAvg" name="T° Promedio" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="tempMin" name="T° Mínima" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
-
-                {/* Temperature Chart */}
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit="°C" />
-                    <Tooltip
-                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                      formatter={(value: number, name: string) => [`${fmt(value)}°C`, name]}
-                    />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Line type="monotone" dataKey="tempMax" name="T° Máxima" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="tempAvg" name="T° Promedio" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="tempMin" name="T° Mínima" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-
-                {/* Hours below threshold */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-xl bg-cyan-50 border border-cyan-100 p-4">
-                    <p className="text-xs font-semibold text-cyan-600 uppercase tracking-wide">Horas con T° ≤ 0°C</p>
-                    <p className="text-2xl font-bold text-cyan-800 mt-1">{fmt(periodSummary.totalHoursBelow0)} hs</p>
-                    <p className="text-xs text-cyan-600 mt-0.5">Riesgo de heladas</p>
-                  </div>
-                  <div className="rounded-xl bg-sky-50 border border-sky-100 p-4">
-                    <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">Horas con T° ≤ 3°C</p>
-                    <p className="text-2xl font-bold text-sky-800 mt-1">{fmt(periodSummary.totalHoursBelow3)} hs</p>
-                    <p className="text-xs text-sky-600 mt-0.5">Temperaturas muy bajas</p>
-                  </div>
+                <div>
+                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas en Delta T Óptimo (2-8°C)</p>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Horas', angle: -90, position: 'insideLeft', style: { fontSize: '11px', fill: '#64748b' } }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                        formatter={(value: number) => [`${fmt(value)} hs`, 'Horas en rango óptimo']}
+                      />
+                      <ReferenceLine y={24} stroke="#e2e8f0" strokeDasharray="3 3" />
+                      <Bar dataKey="dtHoursOptimal" name="Hs óptimas (ΔT 2-8)">
+                        {dailyData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.dtHoursOptimal > 12 ? '#10b981' : entry.dtHoursOptimal > 6 ? '#f59e0b' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
+              </div>
+            </div>
 
-                {/* Daily breakdown table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="text-left py-2 px-2 font-semibold text-slate-600">Día</th>
-                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Hs ≤0°C</th>
-                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Hs ≤3°C</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dailyData.map(d => (
-                        <tr key={d.date} className="border-b border-slate-50 hover:bg-slate-50/50">
-                          <td className="py-1.5 px-2 font-medium text-slate-700">{d.dateLabel}</td>
-                          <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.hoursBelow0)}</td>
-                          <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.hoursBelow3)}</td>
+            {/* Viento y ventana operativa */}
+            <div className="break-inside-avoid pt-2">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
+              <div className="space-y-8">
+                <div>
+                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad y ráfagas de viento</p>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" km/h" />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                        formatter={(value: number, name: string) => [`${fmt(value)} km/h`, name]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
+                      <Line type="monotone" dataKey="windAvg" name="Viento Promedio" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="gustMax" name="Ráfagas (Máx)" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Precipitación diaria</p>
+                  {periodSummary.totalRain > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" mm" />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                          formatter={(value: number) => [`${fmt(value)} mm`, 'Precipitación']}
+                        />
+                        <Bar dataKey="rainTotal" name="Lluvia" fill="#3b82f6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[250px] text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg print:border-none print:text-black">
+                      Sin registros de precipitación en el período
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Rosa de vientos */}
+            <div className="break-inside-avoid pt-2 flex flex-col items-center w-full">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 w-full text-left print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
+              <WindRose data={dailyData} />
+            </div>
+
+            {/* Semáforo diario */}
+            <div className="break-inside-avoid pt-2">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#2e7d32] text-white print:bg-[#2e7d32]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    <tr>
+                      <th className="text-left py-3 px-4 font-semibold">Fecha</th>
+                      <th className="text-right py-3 px-4 font-semibold">Temp. prom (°C)</th>
+                      <th className="text-right py-3 px-4 font-semibold">Delta T prom</th>
+                      <th className="text-right py-3 px-4 font-semibold">Hs en rango 2-8</th>
+                      <th className="text-center py-3 px-4 font-semibold">Condición</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyData.map(d => {
+                      const condition = d.dtHoursOptimal > 12 ? 'Óptima' : d.dtHoursOptimal > 6 ? 'Regular' : 'Mala';
+                      const bgCond = d.dtHoursOptimal > 12 ? 'bg-[#c5e1a5]' : d.dtHoursOptimal > 6 ? 'bg-[#ffe082]' : 'bg-[#ffcdd2]';
+                      const textCond = d.dtHoursOptimal > 12 ? 'text-green-900' : d.dtHoursOptimal > 6 ? 'text-amber-900' : 'text-red-900';
+                      return (
+                        <tr key={d.date} className="border-b border-slate-200 hover:bg-slate-50 print:border-slate-300">
+                          <td className="py-2.5 px-4 font-medium text-slate-700 print:text-black">{d.dateLabel}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.tempAvg)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtAvg)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtHoursOptimal)}</td>
+                          <td className="py-2.5 px-4 text-center">
+                            <span className={`inline-block px-3 py-1 text-xs font-bold rounded ${bgCond} ${textCond}`} style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{condition}</span>
+                          </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </div>
-
-            {/* ═══ SECTION 2: Delta T ═══ */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Droplets className="h-5 w-5 text-purple-500" /> Delta T — Condiciones de Aplicación
-                </h3>
-              </div>
-              <div className="p-6 space-y-6">
-                <p className="text-sm text-slate-500">
-                  Delta T óptimo para pulverización: <span className="font-bold text-emerald-600">2–8 °C</span>.
-                  Valores fuera de este rango indican condiciones desfavorables de aplicación.
-                </p>
-
-                {/* Delta T Bar Chart */}
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Horas', angle: -90, position: 'insideLeft', style: { fontSize: '11px', fill: '#64748b' } }} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                      formatter={(value: number) => [`${fmt(value)} hs`, 'Horas en rango óptimo']}
-                    />
-                    <ReferenceLine y={24} stroke="#e2e8f0" strokeDasharray="3 3" label={{ value: '24h', position: 'right', style: { fontSize: '10px', fill: '#94a3b8' } }} />
-                    <Bar dataKey="dtHoursOptimal" name="Hs óptimas (ΔT 2-8)" radius={[6, 6, 0, 0]}>
-                      {dailyData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.dtHoursOptimal > 12 ? '#10b981' : entry.dtHoursOptimal > 6 ? '#f59e0b' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-
-                {/* DT Summary Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="text-left py-2 px-2 font-semibold text-slate-600">Día</th>
-                        <th className="text-right py-2 px-2 font-semibold text-slate-600">ΔT Promedio</th>
-                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Hs en rango 2-8</th>
-                        <th className="text-center py-2 px-2 font-semibold text-slate-600">Condición</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dailyData.map(d => {
-                        const condition = d.dtHoursOptimal > 12 ? 'Buena' : d.dtHoursOptimal > 6 ? 'Regular' : 'Mala';
-                        const condColor = d.dtHoursOptimal > 12 ? 'bg-emerald-100 text-emerald-700' : d.dtHoursOptimal > 6 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
-                        return (
-                          <tr key={d.date} className="border-b border-slate-50 hover:bg-slate-50/50">
-                            <td className="py-1.5 px-2 font-medium text-slate-700">{d.dateLabel}</td>
-                            <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.dtAvg)}°C</td>
-                            <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.dtHoursOptimal)} hs</td>
-                            <td className="py-1.5 px-2 text-center">
-                              <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${condColor}`}>{condition}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* ═══ SECTION 3: Wind ═══ */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Wind className="h-5 w-5 text-teal-500" /> Viento y Precipitaciones
-                </h3>
-              </div>
-              <div className="p-6 space-y-6">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Mín</p>
-                    <p className="text-2xl font-bold text-teal-800">{fmt(periodSummary.windMin)} <span className="text-sm font-normal">km/h</span></p>
-                  </div>
-                  <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Promedio</p>
-                    <p className="text-2xl font-bold text-teal-800">{fmt(periodSummary.windAvg)} <span className="text-sm font-normal">km/h</span></p>
-                  </div>
-                  <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Máx</p>
-                    <p className="text-2xl font-bold text-teal-800">{fmt(periodSummary.windMax)} <span className="text-sm font-normal">km/h</span></p>
-                  </div>
-                  <div className="rounded-xl bg-orange-50 border border-orange-100 p-4 text-center">
-                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">Ráfaga Máx</p>
-                    <p className="text-2xl font-bold text-orange-800">{fmt(periodSummary.gustMax)} <span className="text-sm font-normal">km/h</span></p>
-                  </div>
-                </div>
-
-                {/* Wind Line Chart */}
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" km/h" />
-                    <Tooltip
-                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                      formatter={(value: number, name: string) => [`${fmt(value)} km/h`, name]}
-                    />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Line type="monotone" dataKey="windAvg" name="Viento Promedio" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="gustMax" name="Ráfagas (Máx)" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-
-                {/* Wind Rose + Precipitation side by side */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-3">Rosa de Vientos</h4>
-                    <WindRose data={dailyData} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-3">Precipitación Diaria</h4>
-                    {periodSummary.totalRain > 0 ? (
-                      <>
-                        <ResponsiveContainer width="100%" height={250}>
-                          <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" mm" />
-                            <Tooltip
-                              contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                              formatter={(value: number) => [`${fmt(value)} mm`, 'Precipitación']}
-                            />
-                            <Bar dataKey="rainTotal" name="Lluvia" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                        <p className="text-center text-sm text-slate-500 mt-2">
-                          Total acumulado: <span className="font-bold text-blue-700">{fmt(periodSummary.totalRain)} mm</span>
-                        </p>
-                      </>
-                    ) : (
-                      <div className="flex items-center justify-center h-[250px] text-slate-400 text-sm">
-                        Sin registros de precipitación en el período
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ═══ SECTION 4: Conclusions ═══ */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-slate-500" /> Conclusiones Técnicas
-                </h3>
-              </div>
-              <div className="p-6">
-                <div className="prose prose-sm prose-slate max-w-none">
-                  {conclusions.split('\n\n').map((paragraph, i) => (
-                    <p key={i} className="text-sm text-slate-700 leading-relaxed mb-3">{paragraph}</p>
-                  ))}
-                </div>
+              <div className="text-xs text-slate-500 mt-4 text-center print:text-black">
+                * Condición basada en la cantidad de horas con Delta T óptimo (2 a 8 °C). Óptima &gt; 12 hs, Regular &gt; 6 hs, Mala ≤ 6 hs.
               </div>
             </div>
 
             {/* Footer */}
-            <div className="text-center text-xs text-slate-400 py-4">
+            <div className="text-center text-xs text-slate-400 py-6 mt-8 border-t border-slate-100 print:text-black print:border-slate-300">
               Generado por TradeAgro · {format(new Date(), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
             </div>
+          </div>
         </div>
       )}
     </div>
