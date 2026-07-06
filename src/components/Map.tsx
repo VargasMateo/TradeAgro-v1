@@ -132,7 +132,8 @@ const MapController = ({ markers }: { markers: any[] }) => {
     const selectedMarker = markers.find(m => m.isSelected);
     
     if (selectedMarker) {
-      map.panTo(selectedMarker.position, {
+      const currentZoom = map.getZoom();
+      map.flyTo(selectedMarker.position, currentZoom, {
         animate: true,
         duration: 1.0
       });
