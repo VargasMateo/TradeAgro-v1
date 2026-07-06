@@ -278,41 +278,17 @@ function WindRose({ data }: { data: DailySummary[] }) {
 
 // ── Main Page ──────────────────────────────────────────────────────
 
-export default function MeteoReportPage() {
-  const [devices, setDevices] = useState<WeatherDevice[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState<string>('');
+export default function MeteoReport({ selectedDevice, selectedDeviceName }: { selectedDevice: string, selectedDeviceName: string }) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [loadingDevices, setLoadingDevices] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string>('');
   const [rawRecords, setRawRecords] = useState<SensorRecord[]>([]);
   const [reportGenerated, setReportGenerated] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  // Load devices
   useEffect(() => {
-    const loadDevices = async () => {
-      try {
-        const res = await authenticatedFetch('/backend/weather-stations/devices');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.status === 'success' && Array.isArray(json.data)) {
-            setDevices(json.data);
-            if (json.data.length > 0) {
-              setSelectedDevice(json.data[0].dId);
-            }
-          }
-        }
-      } catch (e: any) {
-        console.error('Error loading devices:', e);
-      } finally {
-        setLoadingDevices(false);
-      }
-    };
-    loadDevices();
-
     // Set default dates (last 7 days)
     const now = new Date();
     const weekAgo = new Date(now);
@@ -321,7 +297,10 @@ export default function MeteoReportPage() {
     setStartDate(format(weekAgo, 'yyyy-MM-dd'));
   }, []);
 
-  const selectedDeviceName = devices.find(d => d.dId === selectedDevice)?.name || selectedDevice;
+  // Reset report when device changes
+  useEffect(() => {
+    setReportGenerated(false);
+  }, [selectedDevice]);
 
   // Generate report
   const handleGenerate = async () => {
@@ -450,26 +429,7 @@ export default function MeteoReportPage() {
 
       {/* Form */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          {/* Station Selector */}
-          <div className="sm:col-span-2 lg:col-span-1">
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Estación</label>
-            <div className="relative">
-              <select
-                value={selectedDevice}
-                onChange={(e) => setSelectedDevice(e.target.value)}
-                disabled={loadingDevices}
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
-              >
-                {loadingDevices && <option>Cargando...</option>}
-                {devices.map(d => (
-                  <option key={d.dId} value={d.dId}>{d.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
           {/* Start Date */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>

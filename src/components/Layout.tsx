@@ -100,8 +100,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   if (userRole === 'profesional') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
-      { path: "/stations", label: "Est. Meteorológicas", icon: Sun },
-      { path: "/meteo-report", label: "Informe Meteo", icon: FileBarChart }
+      { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
     );
   } else if (userRole === 'client') {
     navItems.push(
@@ -117,7 +116,6 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/profesionales", label: "Profesionales", icon: UserCheck },
       { path: "/stations", label: "Est. Meteorológicas", icon: Sun },
-      { path: "/meteo-report", label: "Informe Meteo", icon: FileBarChart },
       { path: "/db-test", label: "DB Test", icon: Shield },
     );
   }

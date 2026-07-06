@@ -157,6 +157,7 @@ const StationSkeleton = () => (
 );
 
 import Map from "../components/Map";
+import MeteoReport from "../components/MeteoReport";
 
 export default function StationsPage() {
   const [devices, setDevices] = useState<WeatherDevice[]>([]);
@@ -705,6 +706,13 @@ export default function StationsPage() {
         </div>
         </div>
       ) : null}
+
+      {/* Meteo Report Component */}
+      {selectedDid && (
+        <div className="mt-8 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
+          <MeteoReport selectedDevice={selectedDid} selectedDeviceName={selectedDeviceName} />
+        </div>
+      )}
 
     </div>
   );

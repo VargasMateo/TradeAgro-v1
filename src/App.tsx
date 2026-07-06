@@ -17,7 +17,6 @@ import ProfesionalesPage from "./pages/ProfesionalesPage";
 import StationsPage from "./pages/StationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
-import MeteoReportPage from "./pages/MeteoReportPage";
 import DbTestPage from "./pages/DbTestPage";
 import PublicWorkOrderPage from "./pages/PublicWorkOrderPage";
 
@@ -166,7 +165,6 @@ export default function App() {
             <Route path="/clients" element={<ClientsPage userRole={userRole} />} />
           )}
           <Route path="/stations" element={<StationsPage />} />
-          <Route path="/meteo-report" element={<MeteoReportPage />} />
           {(userRole === 'client' || userRole === 'admin') && (
             <Route path="/profesionales" element={<ProfesionalesPage userRole={userRole} />} />
           )}
