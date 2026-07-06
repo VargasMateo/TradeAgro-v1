@@ -92,53 +92,77 @@ const timeAgo = (timestamp: number | undefined) => {
 };
 
 const StationSkeleton = () => (
-  <>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 md:col-span-3">
-        {/* Metric Cards x4 */}
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-52">
-            <div className="relative z-10 flex flex-col items-center text-center w-full animate-pulse">
-              <div className="h-12 w-32 bg-slate-100 rounded-xl mb-3" />
-              <div className="h-4 w-24 bg-slate-50 rounded mb-4" />
-              <div className="h-4 w-20 bg-slate-50 rounded mb-1.5" />
-              <div className="h-4 w-20 bg-slate-50 rounded" />
-            </div>
-          </div>
-        ))}
-
-        {/* Dew Point */}
-        <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-48">
-          <div className="relative z-10 flex flex-col items-center text-center animate-pulse">
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 lg:col-span-2">
+      {/* Metric Cards x4 */}
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-52">
+          <div className="relative z-10 flex flex-col items-center text-center w-full animate-pulse">
             <div className="h-12 w-32 bg-slate-100 rounded-xl mb-3" />
-            <div className="h-4 w-32 bg-slate-50 rounded mb-4" />
-            <div className="flex gap-6">
-              <div className="h-4 w-20 bg-slate-50 rounded" />
-              <div className="h-4 w-20 bg-slate-50 rounded" />
-            </div>
+            <div className="h-4 w-24 bg-slate-50 rounded mb-4" />
+            <div className="h-4 w-20 bg-slate-50 rounded mb-1.5" />
+            <div className="h-4 w-20 bg-slate-50 rounded" />
           </div>
         </div>
+      ))}
 
-        {/* Delta T */}
-        <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-48">
-          <div className="relative z-10 flex flex-col items-center text-center animate-pulse">
-            <div className="h-16 w-40 bg-slate-100 rounded-xl mb-3" />
-            <div className="h-4 w-24 bg-slate-50 rounded mb-4" />
-            <div className="h-8 w-32 bg-slate-100 rounded-full" />
+      {/* Dew Point */}
+      <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-48">
+        <div className="relative z-10 flex flex-col items-center text-center animate-pulse">
+          <div className="h-12 w-32 bg-slate-100 rounded-xl mb-3" />
+          <div className="h-4 w-32 bg-slate-50 rounded mb-4" />
+          <div className="flex gap-6">
+            <div className="h-4 w-20 bg-slate-50 rounded" />
+            <div className="h-4 w-20 bg-slate-50 rounded" />
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-2 h-14 w-full rounded-xl bg-white border border-slate-100 shadow-sm animate-pulse col-span-1 md:col-span-3" />
+      {/* Delta T */}
+      <div className="col-span-1 md:col-span-2 flex flex-col justify-center rounded-2xl bg-white border border-slate-100 p-6 shadow-sm relative overflow-hidden h-48">
+        <div className="relative z-10 flex flex-col items-center text-center animate-pulse">
+          <div className="h-16 w-40 bg-slate-100 rounded-xl mb-3" />
+          <div className="h-4 w-24 bg-slate-50 rounded mb-4" />
+          <div className="h-8 w-32 bg-slate-100 rounded-full" />
+        </div>
+      </div>
+
+      {/* Diagnostics */}
+      <div className="col-span-1 md:col-span-2 lg:col-span-4 mt-4 rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-4 animate-pulse">
+          <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+          <div className="h-4 w-64 bg-slate-100 rounded" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={`flex items-center gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 animate-pulse ${i === 3 ? 'sm:col-span-2' : ''}`}>
+              <div className="h-12 w-12 rounded-xl bg-slate-200 shrink-0" />
+              <div className="flex-1">
+                <div className="h-3 w-24 bg-slate-200 rounded mb-2" />
+                <div className="h-5 w-32 bg-slate-200 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-  </>
+
+    {/* Map Panel Skeleton */}
+    <div className="col-span-1 h-[600px] lg:h-auto min-h-[500px]">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 w-full h-full relative overflow-hidden animate-pulse">
+        <div className="w-full h-full bg-slate-100 rounded-xl" />
+      </div>
+    </div>
+  </div>
 );
+
+import Map from "../components/Map";
 
 export default function StationsPage() {
   const [devices, setDevices] = useState<WeatherDevice[]>([]);
   const [selectedDid, setSelectedDid] = useState<string>("");
   const [data, setData] = useState<SensorData | null>(null);
+  const [allStationsData, setAllStationsData] = useState<Record<string, SensorData>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -250,24 +274,29 @@ export default function StationsPage() {
     fetchDebugToken();
   }, []);
 
-  // 2. Fetch sensor data when selected station changes
+  // 2. Fetch sensor data for ALL devices so we have coordinates for the map
   useEffect(() => {
-    if (!selectedDid) return;
+    if (devices.length === 0) return;
 
-    const fetchData = async () => {
+    const fetchAllData = async () => {
       try {
         setLoading(true);
-        const res = await authenticatedFetch(`/backend/weather-stations?dId=${selectedDid}`);
-        if (!res.ok) throw new Error('Failed to fetch sensor data');
-        const json = await res.json();
+        const results: Record<string, SensorData> = {};
         
-        if (json.status === 'success' && json.data && json.data.length > 0) {
-          setData(json.data[0]);
-          setError(null);
-          fetchDebugToken(); // Refresh token in UI
-        } else {
-          throw new Error('Invalid data format');
-        }
+        // Fetch all devices in parallel
+        await Promise.all(devices.map(async (device) => {
+          const res = await authenticatedFetch(`/backend/weather-stations?dId=${device.dId}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.status === 'success' && json.data && json.data.length > 0) {
+              results[device.dId] = json.data[0];
+            }
+          }
+        }));
+
+        setAllStationsData(results);
+        setError(null);
+        fetchDebugToken(); // Refresh token in UI
       } catch (err: any) {
         console.error(err);
         setError(err.message || 'Error fetching data');
@@ -276,10 +305,17 @@ export default function StationsPage() {
       }
     };
 
-    fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [selectedDid]);
+  }, [devices]);
+
+  // 3. Update active data when selection changes
+  useEffect(() => {
+    if (selectedDid && allStationsData[selectedDid]) {
+      setData(allStationsData[selectedDid]);
+    }
+  }, [selectedDid, allStationsData]);
 
   const val = data?.value;
   const lastUpdate = data ? new Date(data.time).toLocaleString('es-AR') : null;
@@ -352,6 +388,24 @@ export default function StationsPage() {
     selectedDevice?.templateName?.toLowerCase().includes("pluviometro")
   );
 
+  // Prepare map markers
+  const mapMarkers = (Object.values(allStationsData) as SensorData[])
+    .filter(d => d.value?.lat && d.value?.lng)
+    .map(d => {
+      const dev = devices.find(x => x.dId === d.dId);
+      return {
+        id: d.dId,
+        position: [d.value.lat, d.value.lng] as [number, number],
+        label: dev?.name || d.dId,
+        isSelected: d.dId === selectedDid,
+        onClick: () => {
+          setSelectedDid(d.dId);
+          // Scroll to top on mobile
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+    });
+
   return (
     <div className="animate-in fade-in duration-500 pb-10 space-y-6">
       
@@ -418,10 +472,10 @@ export default function StationsPage() {
           </div>
         </div>
       ) : data && val ? (
-        <div key={selectedDid} className={`transition-all duration-300 ease-in-out ${loading ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className={`transition-all duration-300 ease-in-out ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 md:col-span-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 col-span-1 lg:col-span-2">
           
           {/* Temperature */}
           <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-sky-50 border border-sky-100 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '0ms' }}>
@@ -429,7 +483,7 @@ export default function StationsPage() {
               <Thermometer className="h-24 w-24 text-sky-600" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-5xl font-black text-sky-900">{formatNumber(val.temp1avg, 1)}°C</h2>
+              <h2 className="text-4xl font-black text-sky-900">{formatNumber(val.temp1avg, 1)}°C</h2>
               <p className="mt-1 text-sm font-bold tracking-widest text-sky-600/80">TEMPERATURA</p>
               <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
                 <span className="text-sky-700">Min: {formatNumber(val.temp1min, 1)}°C</span>
@@ -444,7 +498,7 @@ export default function StationsPage() {
               <Droplets className="h-24 w-24 text-sky-600" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-5xl font-black">{formatNumber(val.hum1avg, 1)}%</h2>
+              <h2 className="text-4xl font-black">{formatNumber(val.hum1avg, 1)}%</h2>
               <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">HUMEDAD</p>
               <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
                 <span className="text-sky-600">Min: {formatNumber(val.hum1min, 1)}%</span>
@@ -459,7 +513,7 @@ export default function StationsPage() {
               <Gauge className="h-24 w-24 text-slate-600" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-5xl font-black">{formatNumber(val.presavg, 1)}</h2>
+              <h2 className="text-4xl font-black">{formatNumber(val.presavg, 1)}</h2>
               <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">PRESIÓN (hPa)</p>
               <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
                 <span className="text-sky-600">Min: {formatNumber(val.presmin, 1)}</span>
@@ -474,7 +528,7 @@ export default function StationsPage() {
               <Wind className="h-24 w-24 text-sky-500" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-5xl font-black">{formatNumber(val.velavg, 1)} <span className="text-3xl">km/h</span></h2>
+              <h2 className="text-4xl font-black">{formatNumber(val.velavg, 1)} <span className="text-2xl">km/h</span></h2>
               <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">VIENTO {val.dirq || '--'}</p>
               <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
                 <span className="text-sky-600">Min: {formatNumber(val.velmin, 1)}</span>
@@ -490,7 +544,7 @@ export default function StationsPage() {
                 <CloudRain className="h-24 w-24 text-sky-500" />
               </div>
               <div className="relative z-10 flex flex-col items-center text-center">
-                <h2 className="text-5xl font-black">{formatNumber(val.rain, 1)} <span className="text-3xl">mm</span></h2>
+                <h2 className="text-4xl font-black">{formatNumber(val.rain, 1)} <span className="text-2xl">mm</span></h2>
                 <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">LLUVIA DEL DÍA</p>
                 <div className="mt-3 flex flex-col text-sm font-bold gap-0.5 text-indigo-600/85">
                   <span>Acumulada desde 00:00</span>
@@ -505,7 +559,7 @@ export default function StationsPage() {
               <ThermometerSun className="h-24 w-24 text-amber-500" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-5xl font-black">{dpCurrent}°C</h2>
+              <h2 className="text-4xl font-black">{dpCurrent}°C</h2>
               <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">PUNTO DE ROCÍO</p>
               <div className="mt-3 flex flex-row gap-6 text-sm font-bold">
                 <span className="text-sky-600">Min: {dpMin}°C</span>
@@ -527,7 +581,7 @@ export default function StationsPage() {
               <Thermometer className="h-24 w-24" style={{ color: deltaColor !== "#808080" ? deltaColor : "#64748B" }} />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-6xl font-black" style={{ color: deltaColor !== "#808080" ? deltaColor : "#334155" }}>{formatNumber(val.dt, 1)}°C</h2>
+              <h2 className="text-5xl font-black" style={{ color: deltaColor !== "#808080" ? deltaColor : "#334155" }}>{formatNumber(val.dt, 1)}°C</h2>
               <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">DELTA T</p>
               <div className="mt-4 flex items-center gap-2 rounded-full px-4 py-1.5 font-bold text-white shadow-sm" style={{ backgroundColor: deltaColor }}>
                 <Activity className="h-4 w-4" />
@@ -536,17 +590,15 @@ export default function StationsPage() {
             </div>
           </div>
 
-        </div>
-
-        {/* Diagnostics & Device Health Panel */}
-        <div className="col-span-1 md:col-span-3 mt-4 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-4 flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Diagnóstico y Conectividad de la Central
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Diagnostics & Device Health Panel */}
+          <div className="col-span-1 md:col-span-2 lg:col-span-4 mt-4 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
+            <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+              <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-4 flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Diagnóstico y Conectividad de la Central
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               
               {/* Battery Status */}
               <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-slate-50/50 transition-colors">
@@ -620,7 +672,7 @@ export default function StationsPage() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-xs whitespace-nowrap ml-2"
                   >
-                    Ver Mapa
+                    Ver en Google Maps
                   </a>
                 )}
               </div>
@@ -628,6 +680,28 @@ export default function StationsPage() {
             </div>
           </div>
         </div>
+        </div>
+        
+        {/* Map Panel */}
+        <div className="col-span-1 h-[600px] lg:h-auto min-h-[500px] animate-fade-in-up" style={{ animationDelay: '280ms' }}>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 w-full h-full relative overflow-hidden">
+            {/* Added overlay title for the map */}
+            <div className="absolute top-6 left-6 z-[1000] bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-slate-100 pointer-events-none">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-emerald-600" />
+                Mapa de Estaciones
+              </h3>
+            </div>
+            {mapMarkers.length > 0 ? (
+              <Map markers={mapMarkers} />
+            ) : (
+              <div className="w-full h-full bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 text-sm">
+                No hay coordenadas disponibles para las estaciones
+              </div>
+            )}
+          </div>
+        </div>
+
         </div>
         </div>
       ) : null}

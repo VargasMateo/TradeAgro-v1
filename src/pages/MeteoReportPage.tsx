@@ -1,0 +1,799 @@
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import {
+  Thermometer,
+  Wind,
+  Calendar,
+  MapPin,
+  Download,
+  Loader2,
+  ChevronDown,
+  BarChart3,
+  FileText,
+  Droplets,
+} from "lucide-react";
+import { authenticatedFetch } from "../lib/api";
+import { useReactToPrint } from 'react-to-print';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, Cell, ReferenceLine,
+} from "recharts";
+import { format, parseISO, eachDayOfInterval, startOfDay, isSameDay } from "date-fns";
+import { es } from "date-fns/locale";
+
+// ── Types ──────────────────────────────────────────────────────────
+
+interface WeatherDevice {
+  name: string;
+  dId: string;
+  templateName?: string;
+}
+
+interface SensorRecord {
+  _id: string;
+  dId: string;
+  variable: string;
+  time: number;
+  value: {
+    temp1min?: number;
+    temp1max?: number;
+    temp1avg?: number;
+    hum1min?: number;
+    hum1max?: number;
+    hum1avg?: number;
+    presmin?: number;
+    presmax?: number;
+    presavg?: number;
+    velmin?: number;
+    velmax?: number;
+    velavg?: number;
+    dirmin?: number;
+    dirmax?: number;
+    diravg?: number;
+    dir?: number;
+    dirq?: string;
+    rafaga?: number;
+    rafaga_dir?: number;
+    rafaga_dirq?: string;
+    dt?: number;
+    dtq?: string;
+    dtc?: string;
+    cond?: string;
+    label?: string;
+    color?: string;
+    bat?: number;
+    rain?: number;
+    lat?: number;
+    lng?: number;
+    [key: string]: any;
+  };
+}
+
+interface DailySummary {
+  date: string; // YYYY-MM-DD
+  dateLabel: string;
+  tempMin: number;
+  tempMax: number;
+  tempAvg: number;
+  humMin: number;
+  humMax: number;
+  humAvg: number;
+  windMin: number;
+  windMax: number;
+  windAvg: number;
+  gustMax: number;
+  rainTotal: number;
+  dtValues: number[];
+  dtAvg: number;
+  dtHoursOptimal: number; // hours with DT between 2-8
+  hoursBelow0: number;
+  hoursBelow3: number;
+  windDirections: { dir: number; vel: number }[];
+  recordCount: number;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+const fmt = (n: number | undefined | null, d = 1, fallback = '--') => {
+  if (n === undefined || n === null || isNaN(n)) return fallback;
+  return n.toFixed(d);
+};
+
+const calculateDeltaT = (temp: number | undefined | null, hum: number | undefined | null): number | null => {
+  if (temp === undefined || temp === null || hum === undefined || hum === null || hum <= 0) return null;
+  const a = 17.27;
+  const b = 237.7;
+  const alpha = ((a * temp) / (b + temp)) + Math.log(hum / 100.0);
+  const dewPoint = (b * alpha) / (a - alpha);
+  return temp - dewPoint;
+};
+
+const WIND_DIRECTIONS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+
+const degreeToCardinal = (deg: number): string => {
+  const index = Math.round(deg / 22.5) % 16;
+  return WIND_DIRECTIONS[index];
+};
+
+// Estimate recording interval from data (~30s per record, 120 records/hr)
+const RECORDS_PER_HOUR = 120;
+const HOURS_PER_RECORD = 1 / RECORDS_PER_HOUR;
+
+// ── Data Processing ────────────────────────────────────────────────
+
+function processDailyData(records: SensorRecord[], startDate: string, endDate: string): DailySummary[] {
+  const days = eachDayOfInterval({
+    start: parseISO(startDate),
+    end: parseISO(endDate),
+  });
+
+  return days.map(day => {
+    const dayRecords = records.filter(r => isSameDay(new Date(r.time), day));
+
+    const temps = dayRecords.map(r => r.value.temp1avg).filter((v): v is number => v !== undefined && v !== null);
+    const tempsMin = dayRecords.map(r => r.value.temp1min).filter((v): v is number => v !== undefined && v !== null);
+    const tempsMax = dayRecords.map(r => r.value.temp1max).filter((v): v is number => v !== undefined && v !== null);
+    const hums = dayRecords.map(r => r.value.hum1avg).filter((v): v is number => v !== undefined && v !== null && v > 0);
+    const vels = dayRecords.map(r => r.value.velavg).filter((v): v is number => v !== undefined && v !== null);
+    const gusts = dayRecords.map(r => r.value.rafaga ?? r.value.velmax).filter((v): v is number => v !== undefined && v !== null);
+
+    const allTemps = [...temps, ...tempsMin, ...tempsMax];
+
+    // Hours with temp ≤0 and ≤3
+    const hoursBelow0 = dayRecords.filter(r => {
+      const t = r.value.temp1avg ?? r.value.temp1min;
+      return t !== undefined && t !== null && t <= 0;
+    }).length * HOURS_PER_RECORD;
+
+    const hoursBelow3 = dayRecords.filter(r => {
+      const t = r.value.temp1avg ?? r.value.temp1min;
+      return t !== undefined && t !== null && t <= 3;
+    }).length * HOURS_PER_RECORD;
+
+    // Delta T calculations
+    const dtValues = dayRecords
+      .map(r => calculateDeltaT(r.value.temp1avg, r.value.hum1avg))
+      .filter((v): v is number => v !== null && !isNaN(v));
+
+    const dtHoursOptimal = dayRecords.filter(r => {
+      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
+      return dt !== null && dt >= 2 && dt <= 8;
+    }).length * HOURS_PER_RECORD;
+
+    // Wind directions
+    const windDirections = dayRecords
+      .filter(r => r.value.diravg !== undefined && r.value.velavg !== undefined)
+      .map(r => ({ dir: r.value.diravg!, vel: r.value.velavg! }));
+
+    // Rain
+    const rains = dayRecords.map(r => r.value.rain).filter((v): v is number => v !== undefined && v !== null);
+    const rainTotal = rains.reduce((sum, v) => sum + v, 0);
+
+    return {
+      date: format(day, 'yyyy-MM-dd'),
+      dateLabel: format(day, 'dd/MM', { locale: es }),
+      tempMin: tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : 0),
+      tempMax: tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : 0),
+      tempAvg: temps.length > 0 ? temps.reduce((s, v) => s + v, 0) / temps.length : 0,
+      humMin: hums.length > 0 ? Math.min(...hums) : 0,
+      humMax: hums.length > 0 ? Math.max(...hums) : 0,
+      humAvg: hums.length > 0 ? hums.reduce((s, v) => s + v, 0) / hums.length : 0,
+      windMin: vels.length > 0 ? Math.min(...vels) : 0,
+      windMax: vels.length > 0 ? Math.max(...vels) : 0,
+      windAvg: vels.length > 0 ? vels.reduce((s, v) => s + v, 0) / vels.length : 0,
+      gustMax: gusts.length > 0 ? Math.max(...gusts) : 0,
+      rainTotal,
+      dtValues,
+      dtAvg: dtValues.length > 0 ? dtValues.reduce((s, v) => s + v, 0) / dtValues.length : 0,
+      dtHoursOptimal,
+      hoursBelow0,
+      hoursBelow3,
+      windDirections,
+      recordCount: dayRecords.length,
+    };
+  }).filter(d => d.recordCount > 0);
+}
+
+// ── Wind Rose Component ────────────────────────────────────────────
+
+function WindRose({ data }: { data: DailySummary[] }) {
+  // Aggregate all wind direction records
+  const allDirs = data.flatMap(d => d.windDirections);
+  if (allDirs.length === 0) {
+    return <div className="flex items-center justify-center h-64 text-slate-400">Sin datos de dirección de viento</div>;
+  }
+
+  // Build 16-sector buckets
+  const sectors = WIND_DIRECTIONS.map((label, i) => {
+    const minDeg = i * 22.5 - 11.25;
+    const maxDeg = i * 22.5 + 11.25;
+    const matching = allDirs.filter(d => {
+      let deg = d.dir % 360;
+      if (i === 0) return deg >= 348.75 || deg < 11.25;
+      return deg >= minDeg && deg < maxDeg;
+    });
+    const count = matching.length;
+    const avgVel = matching.length > 0 ? matching.reduce((s, d) => s + d.vel, 0) / matching.length : 0;
+    return { label, count, avgVel, percentage: (count / allDirs.length) * 100 };
+  });
+
+  const maxPct = Math.max(...sectors.map(s => s.percentage), 1);
+
+  const cx = 140, cy = 140, maxR = 110;
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 280 280" className="w-full max-w-[320px]">
+        {/* Grid circles */}
+        {[0.25, 0.5, 0.75, 1].map(frac => (
+          <circle key={frac} cx={cx} cy={cy} r={maxR * frac} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
+        ))}
+        {/* Grid labels */}
+        {[0.25, 0.5, 0.75, 1].map(frac => (
+          <text key={`lbl-${frac}`} x={cx + 4} y={cy - maxR * frac + 4} fill="#94a3b8" fontSize="8" fontFamily="sans-serif">
+            {(maxPct * frac).toFixed(0)}%
+          </text>
+        ))}
+        {/* Sector wedges */}
+        {sectors.map((sector, i) => {
+          const angle = (i * 22.5 - 90) * (Math.PI / 180);
+          const r = (sector.percentage / maxPct) * maxR;
+          const x2 = cx + Math.cos(angle) * r;
+          const y2 = cy + Math.sin(angle) * r;
+
+          // Color by average velocity
+          const velColor = sector.avgVel < 5 ? '#10b981' :
+            sector.avgVel < 15 ? '#f59e0b' :
+            sector.avgVel < 25 ? '#f97316' : '#ef4444';
+
+          return (
+            <g key={sector.label}>
+              <line x1={cx} y1={cy} x2={x2} y2={y2} stroke={velColor} strokeWidth="8" strokeLinecap="round" opacity="0.8" />
+              {/* Label */}
+              {(() => {
+                const labelR = maxR + 15;
+                const lx = cx + Math.cos(angle) * labelR;
+                const ly = cy + Math.sin(angle) * labelR;
+                return (
+                  <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
+                    fill={sector.count > 0 ? '#334155' : '#cbd5e1'} fontSize="10" fontWeight={sector.count > 0 ? '600' : '400'} fontFamily="sans-serif">
+                    {sector.label}
+                  </text>
+                );
+              })()}
+            </g>
+          );
+        })}
+        <circle cx={cx} cy={cy} r="3" fill="#334155" />
+      </svg>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 mt-3 justify-center text-xs">
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500" /> &lt;5 km/h</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-500" /> 5-15 km/h</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> 15-25 km/h</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500" /> &gt;25 km/h</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────
+
+export default function MeteoReportPage() {
+  const [devices, setDevices] = useState<WeatherDevice[]>([]);
+  const [selectedDevice, setSelectedDevice] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [loadingDevices, setLoadingDevices] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [rawRecords, setRawRecords] = useState<SensorRecord[]>([]);
+  const [reportGenerated, setReportGenerated] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  // Load devices
+  useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        const res = await authenticatedFetch('/backend/weather-stations/devices');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.status === 'success' && Array.isArray(json.data)) {
+            setDevices(json.data);
+            if (json.data.length > 0) {
+              setSelectedDevice(json.data[0].dId);
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error('Error loading devices:', e);
+      } finally {
+        setLoadingDevices(false);
+      }
+    };
+    loadDevices();
+
+    // Set default dates (last 7 days)
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    setEndDate(format(now, 'yyyy-MM-dd'));
+    setStartDate(format(weekAgo, 'yyyy-MM-dd'));
+  }, []);
+
+  const selectedDeviceName = devices.find(d => d.dId === selectedDevice)?.name || selectedDevice;
+
+  // Generate report
+  const handleGenerate = async () => {
+    if (!selectedDevice || !startDate || !endDate) {
+      setError('Completá todos los campos');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setReportGenerated(false);
+
+    try {
+      const res = await authenticatedFetch(
+        `/backend/weather-stations/historical?dId=${encodeURIComponent(selectedDevice)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+      );
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${(await res.json()).error || 'Error desconocido'}`);
+      }
+      const data = await res.json();
+      const records = data?.data || [];
+      if (records.length === 0) {
+        setError('No se encontraron datos para el rango seleccionado.');
+        return;
+      }
+      setRawRecords(records);
+      setReportGenerated(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al generar el informe');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Process data
+  const dailyData = useMemo(() => {
+    if (rawRecords.length === 0) return [];
+    return processDailyData(rawRecords, startDate, endDate);
+  }, [rawRecords, startDate, endDate]);
+
+  // Period aggregates
+  const periodSummary = useMemo(() => {
+    if (dailyData.length === 0) return null;
+    return {
+      tempMin: Math.min(...dailyData.map(d => d.tempMin)),
+      tempMax: Math.max(...dailyData.map(d => d.tempMax)),
+      tempAvg: dailyData.reduce((s, d) => s + d.tempAvg, 0) / dailyData.length,
+      windMin: Math.min(...dailyData.map(d => d.windMin)),
+      windMax: Math.max(...dailyData.map(d => d.windMax)),
+      windAvg: dailyData.reduce((s, d) => s + d.windAvg, 0) / dailyData.length,
+      gustMax: Math.max(...dailyData.map(d => d.gustMax)),
+      totalHoursBelow0: dailyData.reduce((s, d) => s + d.hoursBelow0, 0),
+      totalHoursBelow3: dailyData.reduce((s, d) => s + d.hoursBelow3, 0),
+      totalRain: dailyData.reduce((s, d) => s + d.rainTotal, 0),
+      totalRecords: rawRecords.length,
+    };
+  }, [dailyData, rawRecords]);
+
+  // PDF download using react-to-print
+  const handleDownloadPDF = useReactToPrint({
+    contentRef: reportRef,
+    documentTitle: `informe-meteo-${selectedDeviceName.replace(/[^a-z0-9]/gi, '_')}-${startDate}-${endDate}`,
+    onBeforePrint: () => {
+      setIsDownloading(true);
+      return Promise.resolve();
+    },
+    onAfterPrint: () => {
+      setIsDownloading(false);
+    },
+    onPrintError: (error) => {
+      console.error('Print error:', error);
+      alert('Error de impresión: ' + error);
+      setIsDownloading(false);
+    }
+  });
+
+  // ── Conclusions ──────────────────────────────────────────────────
+
+  const conclusions = useMemo(() => {
+    if (!periodSummary || dailyData.length === 0) return '';
+    const lines: string[] = [];
+
+    // Temperature
+    lines.push(`Durante el período analizado (${format(parseISO(startDate), "d 'de' MMMM", { locale: es })} al ${format(parseISO(endDate), "d 'de' MMMM 'de' yyyy", { locale: es })}), se registraron ${rawRecords.length.toLocaleString()} mediciones correspondientes a ${dailyData.length} días con datos.`);
+
+    lines.push(`La temperatura máxima del período fue de ${fmt(periodSummary.tempMax)}°C, con una mínima absoluta de ${fmt(periodSummary.tempMin)}°C y una temperatura promedio de ${fmt(periodSummary.tempAvg)}°C.`);
+
+    if (periodSummary.totalHoursBelow0 > 0) {
+      lines.push(`Se acumularon ${fmt(periodSummary.totalHoursBelow0)} horas con temperaturas ≤0°C (heladas) y ${fmt(periodSummary.totalHoursBelow3)} horas con temperaturas ≤3°C.`);
+    } else if (periodSummary.totalHoursBelow3 > 0) {
+      lines.push(`No se registraron heladas (0°C), aunque se acumularon ${fmt(periodSummary.totalHoursBelow3)} horas con temperaturas ≤3°C.`);
+    } else {
+      lines.push(`No se registraron temperaturas por debajo de los 3°C durante el período.`);
+    }
+
+    // Wind
+    lines.push(`En cuanto al viento, la velocidad máxima registrada fue de ${fmt(periodSummary.windMax)} km/h con ráfagas de hasta ${fmt(periodSummary.gustMax)} km/h. La velocidad promedio del período fue de ${fmt(periodSummary.windAvg)} km/h.`);
+
+    // Delta T
+    const totalOptimalHours = dailyData.reduce((s, d) => s + d.dtHoursOptimal, 0);
+    const totalPossibleHours = dailyData.reduce((s, d) => s + d.recordCount * HOURS_PER_RECORD, 0);
+    const optPct = totalPossibleHours > 0 ? (totalOptimalHours / totalPossibleHours) * 100 : 0;
+    lines.push(`Respecto a las condiciones de aplicación (Delta T), se registraron ${fmt(totalOptimalHours)} horas dentro del rango óptimo (2-8), lo que representa el ${fmt(optPct, 0)}% del tiempo total monitoreado.`);
+
+    // Rain
+    if (periodSummary.totalRain > 0) {
+      lines.push(`La precipitación acumulada en el período fue de ${fmt(periodSummary.totalRain)} mm.`);
+    }
+
+    return lines.join('\n\n');
+  }, [periodSummary, dailyData, startDate, endDate, rawRecords]);
+
+  // ── Render ───────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="h-7 w-7 text-emerald-600" />
+            Informe Meteorológico
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Generá reportes de datos históricos de tus estaciones</p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          {/* Station Selector */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Estación</label>
+            <div className="relative">
+              <select
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+                disabled={loadingDevices}
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
+              >
+                {loadingDevices && <option>Cargando...</option>}
+                {devices.map(d => (
+                  <option key={d.dId} value={d.dId}>{d.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Start Date */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hasta</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            />
+          </div>
+
+          {/* Generate Button */}
+          <div>
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !selectedDevice}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generando...</>
+              ) : (
+                <><BarChart3 className="h-4 w-4" /> Generar Informe</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+      </div>
+
+      {/* Report */}
+      {reportGenerated && dailyData.length > 0 && periodSummary && (
+        <>
+          {/* Download button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="flex items-center gap-2 rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-900 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4" /> 
+              {isDownloading ? 'Generando PDF...' : 'Descargar PDF'}
+            </button>
+          </div>
+
+          <div ref={reportRef} className="space-y-6" id="meteo-report-content">
+            {/* Report Header */}
+            <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">Reporte Meteorológico</h2>
+                  <p className="text-emerald-100 text-sm mt-1">Estación: {selectedDeviceName}</p>
+                </div>
+                <div className="text-right text-sm text-emerald-100">
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <Calendar className="h-4 w-4" />
+                    {format(parseISO(startDate), "d MMM yyyy", { locale: es })} — {format(parseISO(endDate), "d MMM yyyy", { locale: es })}
+                  </div>
+                  <p className="mt-1">{periodSummary.totalRecords.toLocaleString()} mediciones · {dailyData.length} días</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ SECTION 1: Temperature ═══ */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Thermometer className="h-5 w-5 text-red-500" /> Condiciones Térmicas
+                </h3>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Mínima</p>
+                    <p className="text-3xl font-bold text-blue-700 mt-1">{fmt(periodSummary.tempMin)}°</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Promedio</p>
+                    <p className="text-3xl font-bold text-amber-700 mt-1">{fmt(periodSummary.tempAvg)}°</p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">Máxima</p>
+                    <p className="text-3xl font-bold text-red-700 mt-1">{fmt(periodSummary.tempMax)}°</p>
+                  </div>
+                </div>
+
+                {/* Temperature Chart */}
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit="°C" />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                      formatter={(value: number, name: string) => [`${fmt(value)}°C`, name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Line type="monotone" dataKey="tempMax" name="T° Máxima" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="tempAvg" name="T° Promedio" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="tempMin" name="T° Mínima" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+
+                {/* Hours below threshold */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-xl bg-cyan-50 border border-cyan-100 p-4">
+                    <p className="text-xs font-semibold text-cyan-600 uppercase tracking-wide">Horas con T° ≤ 0°C</p>
+                    <p className="text-2xl font-bold text-cyan-800 mt-1">{fmt(periodSummary.totalHoursBelow0)} hs</p>
+                    <p className="text-xs text-cyan-600 mt-0.5">Riesgo de heladas</p>
+                  </div>
+                  <div className="rounded-xl bg-sky-50 border border-sky-100 p-4">
+                    <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">Horas con T° ≤ 3°C</p>
+                    <p className="text-2xl font-bold text-sky-800 mt-1">{fmt(periodSummary.totalHoursBelow3)} hs</p>
+                    <p className="text-xs text-sky-600 mt-0.5">Temperaturas muy bajas</p>
+                  </div>
+                </div>
+
+                {/* Daily breakdown table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-2 font-semibold text-slate-600">Día</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Hs ≤0°C</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Hs ≤3°C</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyData.map(d => (
+                        <tr key={d.date} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="py-1.5 px-2 font-medium text-slate-700">{d.dateLabel}</td>
+                          <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.hoursBelow0)}</td>
+                          <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.hoursBelow3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ SECTION 2: Delta T ═══ */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Droplets className="h-5 w-5 text-purple-500" /> Delta T — Condiciones de Aplicación
+                </h3>
+              </div>
+              <div className="p-6 space-y-6">
+                <p className="text-sm text-slate-500">
+                  Delta T óptimo para pulverización: <span className="font-bold text-emerald-600">2–8 °C</span>.
+                  Valores fuera de este rango indican condiciones desfavorables de aplicación.
+                </p>
+
+                {/* Delta T Bar Chart */}
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Horas', angle: -90, position: 'insideLeft', style: { fontSize: '11px', fill: '#64748b' } }} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                      formatter={(value: number) => [`${fmt(value)} hs`, 'Horas en rango óptimo']}
+                    />
+                    <ReferenceLine y={24} stroke="#e2e8f0" strokeDasharray="3 3" label={{ value: '24h', position: 'right', style: { fontSize: '10px', fill: '#94a3b8' } }} />
+                    <Bar dataKey="dtHoursOptimal" name="Hs óptimas (ΔT 2-8)" radius={[6, 6, 0, 0]}>
+                      {dailyData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.dtHoursOptimal > 12 ? '#10b981' : entry.dtHoursOptimal > 6 ? '#f59e0b' : '#ef4444'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+
+                {/* DT Summary Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-2 font-semibold text-slate-600">Día</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">ΔT Promedio</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Hs en rango 2-8</th>
+                        <th className="text-center py-2 px-2 font-semibold text-slate-600">Condición</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyData.map(d => {
+                        const condition = d.dtHoursOptimal > 12 ? 'Buena' : d.dtHoursOptimal > 6 ? 'Regular' : 'Mala';
+                        const condColor = d.dtHoursOptimal > 12 ? 'bg-emerald-100 text-emerald-700' : d.dtHoursOptimal > 6 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+                        return (
+                          <tr key={d.date} className="border-b border-slate-50 hover:bg-slate-50/50">
+                            <td className="py-1.5 px-2 font-medium text-slate-700">{d.dateLabel}</td>
+                            <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.dtAvg)}°C</td>
+                            <td className="py-1.5 px-2 text-right text-slate-600">{fmt(d.dtHoursOptimal)} hs</td>
+                            <td className="py-1.5 px-2 text-center">
+                              <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${condColor}`}>{condition}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ SECTION 3: Wind ═══ */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Wind className="h-5 w-5 text-teal-500" /> Viento y Precipitaciones
+                </h3>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Mín</p>
+                    <p className="text-2xl font-bold text-teal-800">{fmt(periodSummary.windMin)} <span className="text-sm font-normal">km/h</span></p>
+                  </div>
+                  <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Promedio</p>
+                    <p className="text-2xl font-bold text-teal-800">{fmt(periodSummary.windAvg)} <span className="text-sm font-normal">km/h</span></p>
+                  </div>
+                  <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Máx</p>
+                    <p className="text-2xl font-bold text-teal-800">{fmt(periodSummary.windMax)} <span className="text-sm font-normal">km/h</span></p>
+                  </div>
+                  <div className="rounded-xl bg-orange-50 border border-orange-100 p-4 text-center">
+                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">Ráfaga Máx</p>
+                    <p className="text-2xl font-bold text-orange-800">{fmt(periodSummary.gustMax)} <span className="text-sm font-normal">km/h</span></p>
+                  </div>
+                </div>
+
+                {/* Wind Line Chart */}
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" km/h" />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                      formatter={(value: number, name: string) => [`${fmt(value)} km/h`, name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Line type="monotone" dataKey="windAvg" name="Viento Promedio" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="gustMax" name="Ráfagas (Máx)" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+
+                {/* Wind Rose + Precipitation side by side */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-700 mb-3">Rosa de Vientos</h4>
+                    <WindRose data={dailyData} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-700 mb-3">Precipitación Diaria</h4>
+                    {periodSummary.totalRain > 0 ? (
+                      <>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
+                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" mm" />
+                            <Tooltip
+                              contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                              formatter={(value: number) => [`${fmt(value)} mm`, 'Precipitación']}
+                            />
+                            <Bar dataKey="rainTotal" name="Lluvia" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <p className="text-center text-sm text-slate-500 mt-2">
+                          Total acumulado: <span className="font-bold text-blue-700">{fmt(periodSummary.totalRain)} mm</span>
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center h-[250px] text-slate-400 text-sm">
+                        Sin registros de precipitación en el período
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ SECTION 4: Conclusions ═══ */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-slate-500" /> Conclusiones Técnicas
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="prose prose-sm prose-slate max-w-none">
+                  {conclusions.split('\n\n').map((paragraph, i) => (
+                    <p key={i} className="text-sm text-slate-700 leading-relaxed mb-3">{paragraph}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-slate-400 py-4">
+              Generado por TradeAgro · {format(new Date(), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

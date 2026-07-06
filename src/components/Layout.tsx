@@ -8,7 +8,8 @@ import {
   UserCheck,
   Shield,
   ClipboardList,
-  Sun
+  Sun,
+  FileBarChart
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
@@ -99,7 +100,8 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   if (userRole === 'profesional') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
-      { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
+      { path: "/stations", label: "Est. Meteorológicas", icon: Sun },
+      { path: "/meteo-report", label: "Informe Meteo", icon: FileBarChart }
     );
   } else if (userRole === 'client') {
     navItems.push(
@@ -115,6 +117,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/profesionales", label: "Profesionales", icon: UserCheck },
       { path: "/stations", label: "Est. Meteorológicas", icon: Sun },
+      { path: "/meteo-report", label: "Informe Meteo", icon: FileBarChart },
       { path: "/db-test", label: "DB Test", icon: Shield },
     );
   }

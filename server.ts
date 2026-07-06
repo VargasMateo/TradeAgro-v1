@@ -4162,6 +4162,61 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
   }
 });
 
+/**
+ * GET /backend/weather-stations/historical — Fetch historical sensor data by date range from MKL Agro API
+ * Uses the MKL /api/get-data-date endpoint with startDate + endDate (ISO 8601)
+ * Max 10,000 records per query.
+ */
+apiRouter.get('/weather-stations/historical', authenticateToken, async (req: any, res: any) => {
+  console.log('[DEBUG] GET /backend/weather-stations/historical');
+  try {
+    const dId = req.query.dId;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const variable = req.query.variable || 'estaciontodas';
+    const specificField = req.query.specificField;
+
+    if (!dId || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Missing required parameters: dId, startDate, endDate' });
+    }
+
+    let token = await getMklToken();
+    let apiUrl = `https://panel.mklagro.com/api/get-data-date?dId=${encodeURIComponent(dId)}&variable=${encodeURIComponent(variable)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+    if (specificField) {
+      apiUrl += `&specificField=${encodeURIComponent(specificField)}`;
+    }
+
+    console.log(`[MKL API] Fetching historical data: ${startDate} → ${endDate} for device ${dId}`);
+
+    let mklResponse = await fetch(apiUrl, {
+      headers: { 'token': token }
+    });
+
+    // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
+    if (mklResponse.status === 401) {
+      console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+      token = await getMklToken(true);
+      mklResponse = await fetch(apiUrl, {
+        headers: { 'token': token }
+      });
+    }
+
+    if (!mklResponse.ok) {
+      console.error('[ERROR] MKL API returned status:', mklResponse.status);
+      const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+      return res.status(status).json({ error: 'Failed to fetch historical data from MKL API' });
+    }
+
+    const mklData = await mklResponse.json();
+    console.log(`[MKL API] Historical data: ${mklData?.data?.length || 0} records returned`);
+
+    res.json(mklData);
+  } catch (error: any) {
+    console.error('[ERROR] GET /backend/weather-stations/historical:', error.message);
+    res.status(500).json({ error: 'Failed to fetch historical weather data' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);
 });
