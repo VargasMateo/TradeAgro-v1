@@ -154,7 +154,7 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
       <style>{popupStyles}</style>
       <MapContainer 
         center={center} 
-        zoom={13} 
+        zoom={8} 
         scrollWheelZoom={false} 
         zoomControl={false}
         style={{ height: '100%', width: '100%', borderRadius: '1rem' }}
