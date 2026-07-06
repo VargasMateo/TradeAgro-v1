@@ -435,7 +435,12 @@ export default function StationsPage() {
         </div>
 
         {/* Station Selector Dropdown */}
-        {devices.length > 0 && (
+        {loading && devices.length === 0 ? (
+          <div className="flex flex-col gap-1.5 w-full md:w-auto md:min-w-[280px]">
+            <div className="h-3 w-32 bg-slate-200 rounded animate-pulse" />
+            <div className="h-11 w-full rounded-xl bg-slate-100 animate-pulse border border-slate-100" />
+          </div>
+        ) : devices.length > 0 ? (
           <div className="flex flex-col gap-1.5 w-full md:w-auto md:min-w-[280px]">
             <label htmlFor="station-selector" className="text-xs font-bold text-slate-400 tracking-wider uppercase">
               Seleccionar Central
@@ -460,7 +465,7 @@ export default function StationsPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {loading && !data ? (
