@@ -193,69 +193,132 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
   }).filter(d => d.recordCount > 0);
 }
 
+function getWedgePath(cx: number, cy: number, rInner: number, rOuter: number, startAngle: number, endAngle: number) {
+  const startRad = (startAngle - 90) * Math.PI / 180;
+  const endRad = (endAngle - 90) * Math.PI / 180;
+  
+  const x1_inner = cx + rInner * Math.cos(startRad);
+  const y1_inner = cy + rInner * Math.sin(startRad);
+  const x2_inner = cx + rInner * Math.cos(endRad);
+  const y2_inner = cy + rInner * Math.sin(endRad);
+  
+  const x1_outer = cx + rOuter * Math.cos(startRad);
+  const y1_outer = cy + rOuter * Math.sin(startRad);
+  const x2_outer = cx + rOuter * Math.cos(endRad);
+  const y2_outer = cy + rOuter * Math.sin(endRad);
+  
+  const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+  
+  if (rInner === 0) {
+    return `M ${cx} ${cy} L ${x1_outer} ${y1_outer} A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${x2_outer} ${y2_outer} Z`;
+  }
+  
+  return `M ${x1_inner} ${y1_inner} L ${x1_outer} ${y1_outer} A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${x2_outer} ${y2_outer} L ${x2_inner} ${y2_inner} A ${rInner} ${rInner} 0 ${largeArcFlag} 0 ${x1_inner} ${y1_inner} Z`;
+}
+
 // ── Wind Rose Component ────────────────────────────────────────────
 
 function WindRose({ data }: { data: DailySummary[] }) {
-  // Aggregate all wind direction records
   const allDirs = data.flatMap(d => d.windDirections);
   if (allDirs.length === 0) {
     return <div className="flex items-center justify-center h-64 text-slate-400">Sin datos de dirección de viento</div>;
   }
 
-  // Build 16-sector buckets
-  const sectors = WIND_DIRECTIONS.map((label, i) => {
-    const minDeg = i * 22.5 - 11.25;
-    const maxDeg = i * 22.5 + 11.25;
+  const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+  const total = allDirs.length;
+
+  const sectors = DIRECTIONS.map((label, i) => {
+    // 8 sectors, each 45 degrees. N is 0.
+    const minDeg = i * 45 - 22.5;
+    const maxDeg = i * 45 + 22.5;
     const matching = allDirs.filter(d => {
       let deg = d.dir % 360;
-      if (i === 0) return deg >= 348.75 || deg < 11.25;
+      if (i === 0) return deg >= 337.5 || deg < 22.5;
       return deg >= minDeg && deg < maxDeg;
     });
-    const count = matching.length;
-    const avgVel = matching.length > 0 ? matching.reduce((s, d) => s + d.vel, 0) / matching.length : 0;
-    return { label, count, avgVel, percentage: (count / allDirs.length) * 100 };
+
+    // Count by velocity buckets
+    const b1 = matching.filter(d => d.vel < 5).length;
+    const b2 = matching.filter(d => d.vel >= 5 && d.vel < 10).length;
+    const b3 = matching.filter(d => d.vel >= 10 && d.vel < 15).length;
+    const b4 = matching.filter(d => d.vel >= 15 && d.vel < 20).length;
+    const b5 = matching.filter(d => d.vel >= 20).length;
+
+    // Percentages of the TOTAL records, not just this sector's records
+    return {
+      label,
+      totalCount: matching.length,
+      percentage: (matching.length / total) * 100,
+      buckets: [
+        { count: b1, pct: (b1 / total) * 100, color: '#d4d4d8' }, // <5 km/h
+        { count: b2, pct: (b2 / total) * 100, color: '#84cc16' }, // 5-10 km/h
+        { count: b3, pct: (b3 / total) * 100, color: '#4d7c0f' }, // 10-15 km/h
+        { count: b4, pct: (b4 / total) * 100, color: '#f97316' }, // 15-20 km/h
+        { count: b5, pct: (b5 / total) * 100, color: '#ef4444' }  // >20 km/h
+      ]
+    };
   });
 
   const maxPct = Math.max(...sectors.map(s => s.percentage), 1);
+  
+  // Calculate grid rings (round maxPct up to nearest nice number if wanted, but using maxPct is fine)
+  // Let's create 4 rings
+  const ringStep = maxPct / 4;
+  const rings = [ringStep, ringStep * 2, ringStep * 3, maxPct];
 
   const cx = 140, cy = 140, maxR = 110;
 
   return (
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 280 280" className="w-full max-w-[320px]">
-        {/* Grid circles */}
-        {[0.25, 0.5, 0.75, 1].map(frac => (
-          <circle key={frac} cx={cx} cy={cy} r={maxR * frac} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
-        ))}
-        {/* Grid labels */}
-        {[0.25, 0.5, 0.75, 1].map(frac => (
-          <text key={`lbl-${frac}`} x={cx + 4} y={cy - maxR * frac + 4} fill="#94a3b8" fontSize="8" fontFamily="sans-serif">
-            {(maxPct * frac).toFixed(0)}%
-          </text>
-        ))}
+        {/* Grid circles and crosshairs */}
+        {[0, 45, 90, 135].map(deg => {
+          const rad = deg * Math.PI / 180;
+          return (
+            <line key={deg} x1={cx - maxR * Math.cos(rad)} y1={cy - maxR * Math.sin(rad)} x2={cx + maxR * Math.cos(rad)} y2={cy + maxR * Math.sin(rad)} stroke="#f1f5f9" strokeWidth="1" />
+          );
+        })}
+        {rings.map((ringPct, i) => {
+          const r = (ringPct / maxPct) * maxR;
+          return (
+            <g key={i}>
+              <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth="1" />
+              <text x={cx + 4} y={cy - r + 4} fill="#94a3b8" fontSize="8" fontFamily="sans-serif">
+                {ringPct.toFixed(0)}%
+              </text>
+            </g>
+          );
+        })}
+        
         {/* Sector wedges */}
         {sectors.map((sector, i) => {
-          const angle = (i * 22.5 - 90) * (Math.PI / 180);
-          const r = (sector.percentage / maxPct) * maxR;
-          const x2 = cx + Math.cos(angle) * r;
-          const y2 = cy + Math.sin(angle) * r;
-
-          // Color by average velocity
-          const velColor = sector.avgVel < 5 ? '#10b981' :
-            sector.avgVel < 15 ? '#f59e0b' :
-            sector.avgVel < 25 ? '#f97316' : '#ef4444';
-
+          if (sector.totalCount === 0) return null;
+          
+          const startAngle = i * 45 - 20; // 40 degrees width (leaving 5 degrees gap)
+          const endAngle = i * 45 + 20;
+          
+          let currentR = 0;
+          
           return (
             <g key={sector.label}>
-              <line x1={cx} y1={cy} x2={x2} y2={y2} stroke={velColor} strokeWidth="8" strokeLinecap="round" opacity="0.8" />
-              {/* Label */}
+              {sector.buckets.map((b, bi) => {
+                if (b.pct === 0) return null;
+                const nextR = currentR + (b.pct / maxPct) * maxR;
+                const path = getWedgePath(cx, cy, currentR, nextR, startAngle, endAngle);
+                currentR = nextR; // update for next stacked bucket
+                return (
+                  <path key={bi} d={path} fill={b.color} stroke="white" strokeWidth="0.5" />
+                );
+              })}
+              {/* Direction Label */}
               {(() => {
+                const angle = (i * 45 - 90) * (Math.PI / 180);
                 const labelR = maxR + 15;
                 const lx = cx + Math.cos(angle) * labelR;
                 const ly = cy + Math.sin(angle) * labelR;
                 return (
                   <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
-                    fill={sector.count > 0 ? '#334155' : '#cbd5e1'} fontSize="10" fontWeight={sector.count > 0 ? '600' : '400'} fontFamily="sans-serif">
+                    fill="#334155" fontSize="10" fontWeight="600" fontFamily="sans-serif">
                     {sector.label}
                   </text>
                 );
@@ -263,14 +326,16 @@ function WindRose({ data }: { data: DailySummary[] }) {
             </g>
           );
         })}
-        <circle cx={cx} cy={cy} r="3" fill="#334155" />
+        
+        <circle cx={cx} cy={cy} r="2" fill="#334155" />
       </svg>
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-3 justify-center text-xs">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500" /> &lt;5 km/h</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-500" /> 5-15 km/h</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> 15-25 km/h</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500" /> &gt;25 km/h</span>
+      <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs text-slate-600">
+        <span className="flex items-center gap-1.5"><span className="w-4 h-2 bg-[#d4d4d8]" /> &lt;5 km/h</span>
+        <span className="flex items-center gap-1.5"><span className="w-4 h-2 bg-[#84cc16]" /> 5-10 km/h</span>
+        <span className="flex items-center gap-1.5"><span className="w-4 h-2 bg-[#4d7c0f]" /> 10-15 km/h</span>
+        <span className="flex items-center gap-1.5"><span className="w-4 h-2 bg-[#f97316]" /> 15-20 km/h</span>
+        <span className="flex items-center gap-1.5"><span className="w-4 h-2 bg-[#ef4444]" /> &gt;20 km/h</span>
       </div>
     </div>
   );
@@ -477,36 +542,32 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
       {/* Report */}
       {reportGenerated && dailyData.length > 0 && periodSummary && (
-        <>
-          {/* Download button */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isDownloading}
-              className="flex items-center gap-2 rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-900 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="h-4 w-4" /> 
-              {isDownloading ? 'Generando PDF...' : 'Descargar PDF'}
-            </button>
-          </div>
-
-          <div ref={reportRef} className="space-y-6" id="meteo-report-content">
-            {/* Report Header */}
-            <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-bold">Reporte Meteorológico</h2>
-                  <p className="text-emerald-100 text-sm mt-1">Estación: {selectedDeviceName}</p>
+        <div ref={reportRef} className="space-y-6" id="meteo-report-content">
+          {/* Report Header */}
+          <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold">Reporte Meteorológico</h2>
+                <p className="text-emerald-100 text-sm mt-1">Estación: {selectedDeviceName}</p>
+                <p className="text-emerald-100/80 text-xs mt-1">{periodSummary.totalRecords.toLocaleString()} mediciones · {dailyData.length} días</p>
+              </div>
+              <div className="text-sm text-emerald-100 flex flex-col items-start sm:items-end gap-3">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  {format(parseISO(startDate), "d MMM yyyy", { locale: es })} — {format(parseISO(endDate), "d MMM yyyy", { locale: es })}
                 </div>
-                <div className="text-right text-sm text-emerald-100">
-                  <div className="flex items-center gap-1.5 justify-end">
-                    <Calendar className="h-4 w-4" />
-                    {format(parseISO(startDate), "d MMM yyyy", { locale: es })} — {format(parseISO(endDate), "d MMM yyyy", { locale: es })}
-                  </div>
-                  <p className="mt-1">{periodSummary.totalRecords.toLocaleString()} mediciones · {dailyData.length} días</p>
-                </div>
+                {/* Download button */}
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloading}
+                  className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed print:hidden backdrop-blur-sm border border-white/10 cursor-pointer"
+                >
+                  <Download className="h-4 w-4" /> 
+                  {isDownloading ? 'Generando PDF...' : 'Descargar PDF'}
+                </button>
               </div>
             </div>
+          </div>
 
             {/* ═══ SECTION 1: Temperature ═══ */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -751,8 +812,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             <div className="text-center text-xs text-slate-400 py-4">
               Generado por TradeAgro · {format(new Date(), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
             </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
