@@ -522,7 +522,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             <button
               onClick={handleGenerate}
               disabled={loading || !selectedDevice}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#2e7d32] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Generando...</>
@@ -610,7 +610,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
             {/* Gráficos principales */}
             <div className="break-inside-avoid pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
               <div className="space-y-8">
                 <div>
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Temperatura y Humedad</p>
@@ -655,7 +655,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
             {/* Viento y ventana operativa */}
             <div className="break-inside-avoid pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
               <div className="space-y-8">
                 <div>
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad y ráfagas de viento</p>
@@ -699,14 +699,16 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Rosa de vientos */}
-            <div className="break-inside-avoid pt-2 flex flex-col items-center w-full">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 w-full text-left print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
-              <WindRose data={dailyData} />
+            <div className="break-inside-avoid pt-2">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
+              <div className="flex flex-col items-center w-full">
+                <WindRose data={dailyData} />
+              </div>
             </div>
 
             {/* Semáforo diario */}
             <div className="break-inside-avoid pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white px-4 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-[#2e7d32] text-white print:bg-[#2e7d32]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
