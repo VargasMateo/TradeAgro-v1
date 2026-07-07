@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Database, Sun, Check, Loader2 } from 'lucide-react';
+import { X, Search, Database, Sun, Check, Loader2, Save } from 'lucide-react';
 import { authenticatedFetch } from '../lib/api';
 
 interface StationsConfigModalProps {
@@ -201,10 +201,14 @@ export default function StationsConfigModal({ isOpen, onClose, client, onSave }:
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 rounded-xl bg-[#0A6C35] px-6 py-2 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:grayscale disabled:scale-100 cursor-pointer"
           >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Guardar Cambios
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            GUARDAR CAMBIOS
           </button>
         </div>
       </div>
