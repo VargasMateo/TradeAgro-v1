@@ -15,7 +15,7 @@ import { authenticatedFetch } from "../lib/api";
 import { useReactToPrint } from 'react-to-print';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, Cell, ReferenceLine,
+  BarChart, Bar, Cell, ReferenceLine, ComposedChart, Area, ReferenceArea
 } from "recharts";
 import { format, parseISO, eachDayOfInterval, startOfDay, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
@@ -178,6 +178,10 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
       dateLabel: format(day, 'dd/MM', { locale: es }),
       tempMin: tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : 0),
       tempMax: tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : 0),
+      tempRange: [
+        tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : 0),
+        tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : 0)
+      ],
       tempAvg: temps.length > 0 ? temps.reduce((s, v) => s + v, 0) / temps.length : 0,
       humMin: hums.length > 0 ? Math.min(...hums) : 0,
       humMax: hums.length > 0 ? Math.max(...hums) : 0,
@@ -429,6 +433,35 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       greenDays: dailyData.filter(d => d.dtHoursOptimal >= 4).length,
     };
   }, [dailyData, rawRecords]);
+
+  // Downsampled Delta T for chart
+  const deltaTData = useMemo(() => {
+    if (rawRecords.length === 0) return [];
+    const hourly = [];
+    let currentKey = '';
+    
+    for (const r of rawRecords) {
+      const date = new Date(r.time);
+      const key = `${date.getDate()}-${date.getHours()}`;
+      
+      // Take first valid record of each hour
+      if (r.value.temp1avg !== undefined && r.value.hum1avg !== undefined && r.value.hum1avg > 0) {
+        if (key !== currentKey) {
+          const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
+          if (dt !== null) {
+            hourly.push({
+              time: date.getTime(),
+              dateLabel: format(date, 'yyyy-MM-dd HH:mm'),
+              dateAxis: format(date, 'yyyy-MM-dd'),
+              dt: dt
+            });
+            currentKey = key;
+          }
+        }
+      }
+    }
+    return hourly;
+  }, [rawRecords]);
 
   // Predominant wind calculation
   const predominantWind = useMemo(() => {
@@ -694,45 +727,72 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             {/* Gráficos principales */}
             <div className="break-inside-avoid pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
-              <div className="space-y-8">
-                <div>
-                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Temperatura y Humedad</p>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <div className="space-y-12">
+                
+                {/* Temperatura Max y Min */}
+                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0">
+                  <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Temperatura máxima y mínima diaria</p>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <ComposedChart data={dailyData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit="°C" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} angle={-45} textAnchor="end" tickMargin={10} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Temperatura (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: -5 }} />
                       <Tooltip
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                        formatter={(value: number, name: string) => [`${fmt(value)}°C`, name]}
+                        formatter={(value: number, name: string) => [`${fmt(value)}°C`, name === 'tempMax' ? 'Temp. máxima diaria' : name === 'tempMin' ? 'Temp. mínima diaria' : name]}
+                        labelFormatter={(label) => `Fecha: ${label}`}
                       />
-                      <Legend wrapperStyle={{ fontSize: '12px' }} />
-                      <Line type="monotone" dataKey="tempMax" name="T° Máxima" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="tempAvg" name="T° Promedio" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="tempMin" name="T° Mínima" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
+                      <Legend wrapperStyle={{ fontSize: '12px', top: -10 }} verticalAlign="top" 
+                        payload={[
+                          { value: 'Temp. máxima diaria', type: 'line', color: '#dc2626' },
+                          { value: 'Temp. mínima diaria', type: 'line', color: '#2563eb' }
+                        ]}
+                      />
+                      <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+                      
+                      <Area type="monotone" dataKey="tempRange" stroke="none" fill="#f1f5f9" fillOpacity={0.6} />
+                      <Line type="monotone" dataKey="tempMax" name="Temp. máxima diaria" stroke="#dc2626" strokeWidth={2} dot={{ r: 4, fill: '#dc2626' }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="tempMin" name="Temp. mínima diaria" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 6 }} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
-                <div>
-                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas en Delta T Óptimo (2-8°C)</p>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+
+                {/* Delta T */}
+                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0">
+                  <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Delta T durante el periodo</p>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <ComposedChart data={deltaTData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Horas', angle: -90, position: 'insideLeft', style: { fontSize: '11px', fill: '#64748b' } }} />
+                      <XAxis 
+                        dataKey="dateAxis" 
+                        tick={{ fontSize: 11, fill: '#64748b' }} 
+                        angle={-45} 
+                        textAnchor="end" 
+                        tickMargin={10} 
+                        interval="preserveStartEnd"
+                        minTickGap={30}
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Delta T (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: -5 }} />
                       <Tooltip
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                        formatter={(value: number) => [`${fmt(value)} hs`, 'Horas en rango óptimo']}
+                        formatter={(value: number) => [`${fmt(value)}°C`, 'Delta T']}
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.dateLabel || label}
                       />
-                      <ReferenceLine y={24} stroke="#e2e8f0" strokeDasharray="3 3" />
-                      <Bar dataKey="dtHoursOptimal" name="Hs óptimas (ΔT 2-8)">
-                        {dailyData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.dtHoursOptimal > 12 ? '#10b981' : entry.dtHoursOptimal > 6 ? '#f59e0b' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
+                      <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
+                        payload={[
+                          { value: 'Delta T', type: 'line', color: '#65a30d' },
+                          { value: 'Rango optimo 2-8 °C', type: 'rect', color: '#dcfce7' }
+                        ]}
+                      />
+                      <ReferenceArea y1={2} y2={8} {...{ fill: "#dcfce7", fillOpacity: 0.6 } as any} />
+                      <ReferenceLine y={2} stroke="#65a30d" strokeDasharray="3 3" strokeWidth={1} />
+                      <ReferenceLine y={8} stroke="#65a30d" strokeDasharray="3 3" strokeWidth={1} />
+                      
+                      <Line type="monotone" dataKey="dt" name="Delta T" stroke="#65a30d" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
+
               </div>
             </div>
 
