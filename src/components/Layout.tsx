@@ -32,11 +32,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           name: parsed.displayName || parsed.name || "Usuario",
           email: parsed.email || "",
           hasStations: !!parsed.hasStations,
+          allowedStations: parsed.allowedStations,
           avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
         };
       } catch (e) { /* fall through */ }
     }
-    return { name: "Usuario", email: "", hasStations: false, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+    return { name: "Usuario", email: "", hasStations: false, allowedStations: null, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
   };
 
   const [userProfile, setUserProfile] = useState(getInitialProfile);
@@ -51,6 +52,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
             name: parsed.displayName || parsed.name || "Usuario",
             email: parsed.email || "",
             hasStations: !!parsed.hasStations,
+            allowedStations: parsed.allowedStations,
             avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
         } catch (e) {
@@ -106,7 +108,8 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     navItems.push(
       { path: "/profesionales", label: "Profesionales", icon: UserCheck }
     );
-    if (userProfile.hasStations) {
+    const userHasAccessToStations = userProfile.hasStations && (!Array.isArray(userProfile.allowedStations) || userProfile.allowedStations.length > 0);
+    if (userHasAccessToStations) {
       navItems.push(
         { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
       );
