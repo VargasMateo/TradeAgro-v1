@@ -87,7 +87,7 @@ interface DailySummary {
   dtHoursOptimal: number; // hours with DT between 2-8
   hoursBelow0: number;
   hoursBelow3: number;
-  windDirections: { dir: number; vel: number }[];
+  windDirections: { dir: number; vel: number; gust: number }[];
   recordCount: number;
 }
 
@@ -162,7 +162,11 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
     // Wind directions
     const windDirections = dayRecords
       .filter(r => r.value.diravg !== undefined && r.value.velavg !== undefined)
-      .map(r => ({ dir: r.value.diravg!, vel: r.value.velavg! }));
+      .map(r => ({ 
+        dir: r.value.diravg!, 
+        vel: r.value.velavg!,
+        gust: r.value.rafaga ?? r.value.velmax ?? r.value.velavg!
+      }));
 
     // Rain
     const rains = dayRecords.map(r => r.value.rain).filter((v): v is number => v !== undefined && v !== null);
@@ -422,6 +426,44 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       totalRecords: rawRecords.length,
     };
   }, [dailyData, rawRecords]);
+
+  // Predominant wind calculation
+  const predominantWind = useMemo(() => {
+    if (dailyData.length === 0) return null;
+    const allDirs = dailyData.flatMap(d => d.windDirections);
+    if (allDirs.length === 0) return null;
+
+    const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+    const total = allDirs.length;
+
+    let maxCount = -1;
+    let predominant = null;
+
+    DIRECTIONS.forEach((label, i) => {
+      const minDeg = i * 45 - 22.5;
+      const maxDeg = i * 45 + 22.5;
+      const matching = allDirs.filter(d => {
+        let deg = d.dir % 360;
+        if (i === 0) return deg >= 337.5 || deg < 22.5;
+        return deg >= minDeg && deg < maxDeg;
+      });
+
+      if (matching.length > maxCount) {
+        maxCount = matching.length;
+        const vels = matching.map(m => m.vel);
+        const gusts = matching.map(m => m.gust);
+        
+        predominant = {
+          label,
+          percentage: (matching.length / total) * 100,
+          avgVel: vels.length > 0 ? vels.reduce((a, b) => a + b, 0) / vels.length : 0,
+          maxGust: gusts.length > 0 ? Math.max(...gusts) : 0,
+        };
+      }
+    });
+
+    return predominant;
+  }, [dailyData]);
 
   // PDF download using react-to-print
   const handleDownloadPDF = useReactToPrint({
@@ -701,8 +743,23 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             {/* Rosa de vientos */}
             <div className="break-inside-avoid pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
-              <div className="flex flex-col items-center w-full">
-                <WindRose data={dailyData} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center w-full">
+                <div className="flex flex-col items-center">
+                  <WindRose data={dailyData} />
+                </div>
+                {predominantWind && (
+                  <div className="text-sm text-slate-700 space-y-4 print:text-black mt-6 md:mt-0 max-w-md">
+                    <div className="space-y-1">
+                      <p>Dirección predominante: {predominantWind.label}</p>
+                      <p>Frecuencia: {predominantWind.percentage.toFixed(0)}% del periodo ponderado por tiempo.</p>
+                      <p>Velocidad media en esa dirección: {predominantWind.avgVel.toFixed(1)} km/h.</p>
+                      <p>Ráfaga máxima asociada: {predominantWind.maxGust.toFixed(1)} km/h.</p>
+                    </div>
+                    <p className="leading-relaxed">
+                      La rosa presenta la frecuencia por punto cardinal y clasifica las velocidades promedio por rango. Los sectores más extensos representan mayor persistencia de viento desde esa dirección.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
