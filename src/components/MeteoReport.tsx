@@ -709,15 +709,15 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             {/* Semáforo diario */}
             <div className="break-inside-avoid pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
-              <div className="overflow-x-auto rounded-xl border border-slate-300 print:border-slate-400 print:rounded-xl">
-                <table className="w-full text-sm">
-                  <thead className="bg-[#2e7d32] text-white print:bg-[#2e7d32]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              <div className="overflow-x-auto rounded-xl border border-slate-200 print:border-slate-300 print:rounded-xl">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 print:bg-slate-100 print:text-black print:border-slate-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                     <tr>
-                      <th className="text-left py-3 px-4 font-semibold border border-slate-300 print:border-slate-400">Fecha</th>
-                      <th className="text-right py-3 px-4 font-semibold border border-slate-300 print:border-slate-400">Temp. prom (°C)</th>
-                      <th className="text-right py-3 px-4 font-semibold border border-slate-300 print:border-slate-400">Delta T prom</th>
-                      <th className="text-right py-3 px-4 font-semibold border border-slate-300 print:border-slate-400">Hs en rango 2-8</th>
-                      <th className="text-center py-3 px-4 font-semibold border border-slate-300 print:border-slate-400">Condición</th>
+                      <th className="py-3 px-4 font-semibold">Fecha</th>
+                      <th className="text-right py-3 px-4 font-semibold">Temp. prom (°C)</th>
+                      <th className="text-right py-3 px-4 font-semibold">Delta T prom</th>
+                      <th className="text-right py-3 px-4 font-semibold">Hs en rango 2-8</th>
+                      <th className="text-center py-3 px-4 font-semibold">Condición</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -726,12 +726,12 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                       const bgCond = d.dtHoursOptimal > 12 ? 'bg-[#c5e1a5]' : d.dtHoursOptimal > 6 ? 'bg-[#ffe082]' : 'bg-[#ffcdd2]';
                       const textCond = d.dtHoursOptimal > 12 ? 'text-green-900' : d.dtHoursOptimal > 6 ? 'text-amber-900' : 'text-red-900';
                       return (
-                        <tr key={d.date} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-4 font-medium text-slate-700 print:text-black border border-slate-300 print:border-slate-400">{d.dateLabel}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black border border-slate-300 print:border-slate-400">{fmt(d.tempAvg)}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black border border-slate-300 print:border-slate-400">{fmt(d.dtAvg)}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black border border-slate-300 print:border-slate-400">{fmt(d.dtHoursOptimal)}</td>
-                          <td className="py-2.5 px-4 text-center border border-slate-300 print:border-slate-400">
+                        <tr key={d.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-200">
+                          <td className="py-2.5 px-4 font-medium text-slate-700 print:text-black">{d.dateLabel}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.tempAvg)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtAvg)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtHoursOptimal)}</td>
+                          <td className="py-2.5 px-4 text-center">
                             <span className={`inline-block px-3 py-1 text-xs font-bold rounded ${bgCond} ${textCond}`} style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{condition}</span>
                           </td>
                         </tr>
