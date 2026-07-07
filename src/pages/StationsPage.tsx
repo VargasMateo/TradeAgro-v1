@@ -259,7 +259,7 @@ export default function StationsPage() {
               }
             }
             return true;
-          });
+          }).sort((a: WeatherDevice, b: WeatherDevice) => a.name.localeCompare(b.name));
 
           if (filteredDevices.length > 0) {
             setDevices(filteredDevices);
