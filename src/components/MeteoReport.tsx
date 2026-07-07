@@ -156,7 +156,8 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
 
     const dtHoursOptimal = dayRecords.filter(r => {
       const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
-      return dt !== null && dt >= 2 && dt <= 8;
+      const gust = r.value.rafaga ?? r.value.velmax ?? r.value.velavg ?? 0;
+      return dt !== null && dt >= 2 && dt <= 8 && gust < 15;
     }).length * HOURS_PER_RECORD;
 
     // Wind directions
@@ -425,7 +426,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       totalHoursBelow3: dailyData.reduce((s, d) => s + d.hoursBelow3, 0),
       totalRain: dailyData.reduce((s, d) => s + d.rainTotal, 0),
       totalRecords: rawRecords.length,
-      greenDays: dailyData.filter(d => d.dtHoursOptimal > 12).length,
+      greenDays: dailyData.filter(d => d.dtHoursOptimal >= 4).length,
     };
   }, [dailyData, rawRecords]);
 
@@ -487,39 +488,70 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
   // ── Conclusions ──────────────────────────────────────────────────
 
-  const conclusions = useMemo(() => {
-    if (!periodSummary || dailyData.length === 0) return '';
-    const lines: string[] = [];
+  const conclusionsBullets = useMemo(() => {
+    if (!periodSummary || dailyData.length === 0) return [];
+    const bullets: string[] = [];
 
-    // Temperature
-    lines.push(`Durante el período analizado (${format(parseISO(startDate), "d 'de' MMMM", { locale: es })} al ${format(parseISO(endDate), "d 'de' MMMM 'de' yyyy", { locale: es })}), se registraron ${rawRecords.length.toLocaleString()} mediciones correspondientes a ${dailyData.length} días con datos.`);
+    // 1. Mejores ventanas
+    const greenDays = dailyData.filter(d => d.dtHoursOptimal >= 4);
+    if (greenDays.length > 0) {
+      const ranges: string[] = [];
+      let start = greenDays[0];
+      let prev = greenDays[0];
 
-    lines.push(`La temperatura máxima del período fue de ${fmt(periodSummary.tempMax)}°C, con una mínima absoluta de ${fmt(periodSummary.tempMin)}°C y una temperatura promedio de ${fmt(periodSummary.tempAvg)}°C.`);
+      const formatRange = (s: DailySummary, e: DailySummary) => {
+        if (s.date === e.date) return format(parseISO(s.date), 'dd/MM');
+        const sDate = parseISO(s.date);
+        const eDate = parseISO(e.date);
+        if (sDate.getMonth() === eDate.getMonth()) {
+          return `${format(sDate, 'dd')}-${format(eDate, 'dd/MM')}`;
+        }
+        return `${format(sDate, 'dd/MM')}-${format(eDate, 'dd/MM')}`;
+      };
 
-    if (periodSummary.totalHoursBelow0 > 0) {
-      lines.push(`Se acumularon ${fmt(periodSummary.totalHoursBelow0)} horas con temperaturas ≤0°C (heladas) y ${fmt(periodSummary.totalHoursBelow3)} horas con temperaturas ≤3°C.`);
-    } else if (periodSummary.totalHoursBelow3 > 0) {
-      lines.push(`No se registraron heladas (0°C), aunque se acumularon ${fmt(periodSummary.totalHoursBelow3)} horas con temperaturas ≤3°C.`);
+      for (let i = 1; i < greenDays.length; i++) {
+        const curr = greenDays[i];
+        const prevDate = parseISO(prev.date);
+        const currDate = parseISO(curr.date);
+        const diffDays = Math.round(Math.abs(currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)); 
+
+        if (diffDays === 1) {
+          prev = curr;
+        } else {
+          ranges.push(formatRange(start, prev));
+          start = curr;
+          prev = curr;
+        }
+      }
+      ranges.push(formatRange(start, prev));
+      
+      const rangesStr = ranges.length > 1 ? ranges.slice(0, -1).join(', ') + ' y ' + ranges[ranges.length - 1] : ranges[0];
+      bullets.push(`Las mejores ventanas de aplicación se concentraron en ${rangesStr}, combinando Delta T entre 2 y 8 °C con ráfagas menores a 15 km/h.`);
     } else {
-      lines.push(`No se registraron temperaturas por debajo de los 3°C durante el período.`);
+      bullets.push(`No se registraron ventanas de aplicación óptimas (Delta T entre 2 y 8 °C con ráfagas menores a 15 km/h) durante el período.`);
     }
 
-    // Wind
-    lines.push(`En cuanto al viento, la velocidad máxima registrada fue de ${fmt(periodSummary.windMax)} km/h con ráfagas de hasta ${fmt(periodSummary.gustMax)} km/h. La velocidad promedio del período fue de ${fmt(periodSummary.windAvg)} km/h.`);
-
-    // Delta T
-    const totalOptimalHours = dailyData.reduce((s, d) => s + d.dtHoursOptimal, 0);
-    const totalPossibleHours = dailyData.reduce((s, d) => s + d.recordCount * HOURS_PER_RECORD, 0);
-    const optPct = totalPossibleHours > 0 ? (totalOptimalHours / totalPossibleHours) * 100 : 0;
-    lines.push(`Respecto a las condiciones de aplicación (Delta T), se registraron ${fmt(totalOptimalHours)} horas dentro del rango óptimo (2-8), lo que representa el ${fmt(optPct, 0)}% del tiempo total monitoreado.`);
-
-    // Rain
-    if (periodSummary.totalRain > 0) {
-      lines.push(`La precipitación acumulada en el período fue de ${fmt(periodSummary.totalRain)} mm.`);
+    // 2. Direccion predominante
+    if (predominantWind) {
+      bullets.push(`La dirección predominante del viento fue ${predominantWind.label}, con una frecuencia estimada de ${predominantWind.percentage.toFixed(0)}% del periodo, velocidad media asociada de ${predominantWind.avgVel.toFixed(1)} km/h y ráfaga máxima asociada de ${predominantWind.maxGust.toFixed(1)} km/h.`);
     }
 
-    return lines.join('\n\n');
-  }, [periodSummary, dailyData, startDate, endDate, rawRecords]);
+    // 3. Horas bajo cero
+    if (periodSummary.totalHoursBelow0 > 0) {
+      bullets.push(`Se acumularon aproximadamente ${periodSummary.totalHoursBelow0.toFixed(1)} horas con temperatura bajo cero, lo que indica ocurrencia de condiciones frías con potencial de helada en sectores bajos.`);
+    }
+
+    // 4. Rafagas superaron 20 km/h en X dias
+    const daysWithHighGusts = dailyData.filter(d => d.gustMax > 20).length;
+    if (daysWithHighGusts > 0) {
+      bullets.push(`Las ráfagas superaron los 20 km/h en ${daysWithHighGusts} días del periodo, por lo que el viento fue una limitante operativa puntual para aplicaciones de calidad.`);
+    }
+
+    // 5. Recomendación general
+    bullets.push(`Para aplicaciones fitosanitarias se recomienda priorizar las jornadas marcadas en verde y validar en campo al momento de aplicar, especialmente por cambios rápidos de viento y humedad.`);
+
+    return bullets;
+  }, [periodSummary, dailyData, predominantWind]);
 
   // ── Render ───────────────────────────────────────────────────────
 
@@ -566,7 +598,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             <button
               onClick={handleGenerate}
               disabled={loading || !selectedDevice}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#2e7d32] px-6 py-3 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Generando...</>
@@ -647,13 +679,16 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Conclusiones técnicas */}
-            <div className="break-inside-avoid">
+            <div className="break-inside-avoid mt-8">
               <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Conclusiones técnicas</h3>
-              <div className="prose prose-sm prose-slate max-w-none text-slate-700 leading-relaxed text-justify print:text-black">
-                {conclusions.split('\n\n').map((paragraph, i) => (
-                  <p key={i} className="mb-3">{paragraph}</p>
+              <ul className="list-disc pl-5 space-y-2 text-sm text-slate-700 leading-relaxed print:text-black">
+                {conclusionsBullets.map((bullet, i) => (
+                  <li key={i}>{bullet}</li>
                 ))}
-              </div>
+              </ul>
+              <p className="text-xs text-slate-500 mt-4 print:text-black">
+                Criterio de semáforo: verde = 4 h o más con Delta T 2-8 °C y ráfagas menores a 15 km/h; amarillo = ventana parcial o condición limitada; rojo = ventana insuficiente.
+              </p>
             </div>
 
             {/* Gráficos principales */}
@@ -785,9 +820,11 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                   </thead>
                   <tbody>
                     {dailyData.map(d => {
-                      const condition = d.dtHoursOptimal > 12 ? 'Óptima' : d.dtHoursOptimal > 6 ? 'Regular' : 'Mala';
-                      const bgCond = d.dtHoursOptimal > 12 ? 'bg-[#c5e1a5]' : d.dtHoursOptimal > 6 ? 'bg-[#ffe082]' : 'bg-[#ffcdd2]';
-                      const textCond = d.dtHoursOptimal > 12 ? 'text-green-900' : d.dtHoursOptimal > 6 ? 'text-amber-900' : 'text-red-900';
+                      const isVerde = d.dtHoursOptimal >= 4;
+                      const isAmarillo = d.dtHoursOptimal > 0 && d.dtHoursOptimal < 4;
+                      const condition = isVerde ? 'Óptima' : isAmarillo ? 'Regular' : 'Mala';
+                      const bgCond = isVerde ? 'bg-[#c5e1a5]' : isAmarillo ? 'bg-[#ffe082]' : 'bg-[#ffcdd2]';
+                      const textCond = isVerde ? 'text-green-900' : isAmarillo ? 'text-amber-900' : 'text-red-900';
                       return (
                         <tr key={d.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-200">
                           <td className="py-2.5 px-4 font-medium text-slate-700 print:text-black">{d.dateLabel}</td>
@@ -804,7 +841,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 </table>
               </div>
               <div className="text-xs text-slate-500 mt-4 text-center print:text-black">
-                * Condición basada en la cantidad de horas con Delta T óptimo (2 a 8 °C). Óptima &gt; 12 hs, Regular &gt; 6 hs, Mala ≤ 6 hs.
+                * Condición basada en la cantidad de horas con Delta T (2 a 8 °C) y ráfagas menores a 15 km/h. Óptima ≥ 4 hs, Regular 1-3 hs, Mala = 0 hs.
               </div>
             </div>
 
