@@ -416,6 +416,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       tempMin: Math.min(...dailyData.map(d => d.tempMin)),
       tempMax: Math.max(...dailyData.map(d => d.tempMax)),
       tempAvg: dailyData.reduce((s, d) => s + d.tempAvg, 0) / dailyData.length,
+      dtAvg: dailyData.reduce((s, d) => s + d.dtAvg, 0) / dailyData.length,
       windMin: Math.min(...dailyData.map(d => d.windMin)),
       windMax: Math.max(...dailyData.map(d => d.windMax)),
       windAvg: dailyData.reduce((s, d) => s + d.windAvg, 0) / dailyData.length,
@@ -424,6 +425,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       totalHoursBelow3: dailyData.reduce((s, d) => s + d.hoursBelow3, 0),
       totalRain: dailyData.reduce((s, d) => s + d.rainTotal, 0),
       totalRecords: rawRecords.length,
+      greenDays: dailyData.filter(d => d.dtHoursOptimal > 12).length,
     };
   }, [dailyData, rawRecords]);
 
@@ -612,31 +614,35 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             {/* Resumen ejecutivo */}
             <div className="break-inside-avoid">
               <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Resumen ejecutivo</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. mín.</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMin)} °C</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. máx.</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Lluvia total</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.totalRain)} mm</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Viento máx.</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.windMax)} km/h</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Ráfaga máx.</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.gustMax)} km/h</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. prom.</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempAvg)} °C</p>
-                </div>
+              <div className="overflow-x-auto rounded-lg border border-slate-200 print:border-slate-300">
+                <table className="w-full text-sm text-left">
+                  <tbody>
+                    <tr className="border-b border-slate-200 print:border-slate-300">
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. min</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.tempMin)} °C</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. max</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</td>
+                    </tr>
+                    <tr className="border-b border-slate-200 print:border-slate-300">
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Delta T prom.</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.dtAvg)} °C</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento prom.</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{fmt(periodSummary.windAvg)} km/h</td>
+                    </tr>
+                    <tr className="border-b border-slate-200 print:border-slate-300">
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Ráfaga max.</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.gustMax)} km/h</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Dir. predominante</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{predominantWind ? `${predominantWind.label} (${predominantWind.percentage.toFixed(0)}%)` : '--'}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Horas bajo 0 °C</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.totalHoursBelow0)} h</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días verdes</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{periodSummary.greenDays}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
