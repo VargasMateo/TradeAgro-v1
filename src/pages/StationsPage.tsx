@@ -253,6 +253,11 @@ export default function StationsPage() {
             if (isSprayMonitor && isClient && !currentProfile?.hasSprayMonitor) {
               return false;
             }
+            if (isClient && Array.isArray(currentProfile?.allowedStations)) {
+              if (!currentProfile.allowedStations.includes(device.dId)) {
+                return false;
+              }
+            }
             return true;
           });
 

@@ -5,6 +5,7 @@ import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import StationsConfigModal from "../components/StationsConfigModal";
 import { Client, ClientField } from "../types/client";
 import { authenticatedFetch } from "../lib/api";
 
@@ -20,8 +21,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [togglingStations, setTogglingStations] = useState<number | null>(null);
-  const [togglingSprayMonitor, setTogglingSprayMonitor] = useState<number | null>(null);
+  const [configuringStationsFor, setConfiguringStationsFor] = useState<Client | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -132,41 +132,20 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
     fetchClients();
   };
 
-  const handleToggleStations = async (client: Client) => {
-    const newValue = !client.hasStations;
-    setTogglingStations(client.id);
+  const handleSaveStationsConfig = async (clientId: number, allowedStations: string[] | null) => {
     try {
-      const response = await authenticatedFetch(`/backend/clients/${client.id}/stations-toggle`, {
+      const response = await authenticatedFetch(`/backend/clients/${clientId}/allowed-stations`, {
         method: 'PATCH',
-        body: JSON.stringify({ hasStations: newValue })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowedStations }),
       });
       const data = await response.json();
-      if (data.success) {
-        setClients(prev => prev.map(c => c.id === client.id ? { ...c, hasStations: newValue } : c));
-      }
+      if (!data.success) throw new Error(data.error);
+      
+      setClients(clients.map(c => c.id === clientId ? { ...c, allowedStations: data.allowedStations } : c));
     } catch (error) {
-      console.error('Error toggling stations:', error);
-    } finally {
-      setTogglingStations(null);
-    }
-  };
-
-  const handleToggleSprayMonitor = async (client: Client) => {
-    const newValue = !client.hasSprayMonitor;
-    setTogglingSprayMonitor(client.id);
-    try {
-      const response = await authenticatedFetch(`/backend/clients/${client.id}/spray-monitor-toggle`, {
-        method: 'PATCH',
-        body: JSON.stringify({ hasSprayMonitor: newValue })
-      });
-      const data = await response.json();
-      if (data.success) {
-        setClients(prev => prev.map(c => c.id === client.id ? { ...c, hasSprayMonitor: newValue } : c));
-      }
-    } catch (error) {
-      console.error('Error toggling spray monitor:', error);
-    } finally {
-      setTogglingSprayMonitor(null);
+      console.error('Error updating allowed stations:', error);
+      alert('Error al actualizar los equipos permitidos');
     }
   };
 
@@ -382,42 +361,12 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
 
                 {(userRole === 'admin' || userRole === 'profesional') && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
-                    <div className="flex items-center justify-between pb-1">
-                      <div className="flex items-center gap-2">
-                        <Sun className="h-4 w-4 text-amber-500" />
-                        <span className="text-xs font-semibold text-slate-600">Est. Meteorológicas</span>
-                      </div>
+                    <div className="mt-2 flex justify-end">
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleToggleStations(client); }}
-                        disabled={togglingStations === client.id}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
-                          client.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
-                        } ${togglingStations === client.id ? 'opacity-50' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setConfiguringStationsFor(client); }}
+                        className="text-xs font-semibold text-[#0A6C35] hover:underline cursor-pointer"
                       >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                            client.hasStations ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Database className="h-4 w-4 text-sky-500" />
-                        <span className="text-xs font-semibold text-slate-600">Mon. Pulverización</span>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleToggleSprayMonitor(client); }}
-                        disabled={togglingSprayMonitor === client.id}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
-                          client.hasSprayMonitor ? 'bg-emerald-500' : 'bg-slate-200'
-                        } ${togglingSprayMonitor === client.id ? 'opacity-50' : ''}`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                            client.hasSprayMonitor ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
+                        Configurar centrales habilitadas
                       </button>
                     </div>
                   </div>
@@ -453,7 +402,14 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
         }}
         onConfirm={confirmDelete}
         title="Eliminar Cliente"
-        description={`¿Estás seguro de que deseas eliminar a "${clientToDelete?.name}"? Esta acción no se puede deshacer.`}
+        description={`¿Está seguro que desea eliminar a ${clientToDelete?.businessName || clientToDelete?.name}? Esta acción no se puede deshacer.`}
+      />
+
+      <StationsConfigModal
+        isOpen={!!configuringStationsFor}
+        onClose={() => setConfiguringStationsFor(null)}
+        client={configuringStationsFor}
+        onSave={handleSaveStationsConfig}
       />
     </div>
   );

@@ -262,6 +262,7 @@ async function initializeDatabase() {
         phoneNumber VARCHAR(50),
         hasStations BOOLEAN DEFAULT FALSE,
         hasSprayMonitor BOOLEAN DEFAULT FALSE,
+        allowedStations JSON DEFAULT NULL,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
@@ -521,6 +522,14 @@ async function initializeDatabase() {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasSprayMonitor migration error:', e.message);
     }
 
+    // Migration: add allowedStations column to clients if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE clients ADD COLUMN allowedStations JSON DEFAULT NULL AFTER hasSprayMonitor');
+      console.log('[INIT] Added allowedStations column to clients');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] allowedStations migration error:', e.message);
+    }
+
     // Migration: add notificationEmails column to clients if it doesn't exist
     try {
       await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
@@ -598,7 +607,7 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor, c.allowedStations
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1394,7 +1403,7 @@ apiRouter.post('/login', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1450,6 +1459,9 @@ apiRouter.post('/login', async (req, res) => {
     if ('hasSprayMonitor' in userData) {
       userData.hasSprayMonitor = !!userData.hasSprayMonitor;
     }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     res.json({
@@ -1473,7 +1485,7 @@ apiRouter.post('/login-external', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1524,6 +1536,9 @@ apiRouter.post('/login-external', async (req, res) => {
     if ('hasSprayMonitor' in userData) {
       userData.hasSprayMonitor = !!userData.hasSprayMonitor;
     }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
@@ -1544,7 +1559,7 @@ apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1561,6 +1576,9 @@ apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
     }
     if ('hasSprayMonitor' in userData) {
       userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
     }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
@@ -1616,6 +1634,8 @@ apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
       ...row,
       setupPending: !!row.setupPending,
       hasStations: !!row.hasStations,
+      hasSprayMonitor: !!row.hasSprayMonitor,
+      allowedStations: typeof row.allowedStations === 'string' ? JSON.parse(row.allowedStations) : (row.allowedStations || null),
       isTest: !!row.isTest,
       // Mapping for frontend compatibility
       name: row.displayName,
@@ -1651,6 +1671,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       notificationEmails,
       hasStations,
       hasSprayMonitor,
+      allowedStations,
       isTest,
       fields // Array of fields from the modal
     } = req.body;
@@ -1671,7 +1692,8 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       phoneNumber: phoneNumber,
       notificationEmails: notificationEmails || null,
       hasStations: hasStations === undefined ? null : !!hasStations,
-      hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor
+      hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor,
+      allowedStations: allowedStations ? JSON.stringify(allowedStations) : null
     };
 
     console.log('[DEBUG] Updating client extension for userId:', userId);
@@ -1764,6 +1786,7 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       notificationEmails,
       hasStations,
       hasSprayMonitor,
+      allowedStations,
       createdBy,
       isTest,
       password, // Optional, can default
@@ -1820,11 +1843,11 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, allowedStations, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), allowedStations = VALUES(allowedStations), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor, allowedStations ? JSON.stringify(allowedStations) : null]
     );
 
     // 3. Insert associated fields if any
@@ -3552,6 +3575,36 @@ apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req: a
   } catch (error: any) {
     console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
     res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+  }
+});
+
+/**
+ * Update allowedStations for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/allowed-stations', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  const { allowedStations } = req.body;
+  console.log(`[DEBUG] PATCH /backend/clients/${id}/allowed-stations - length=${allowedStations?.length}`);
+
+  if (req.user.role !== 'admin' && req.user.role !== 'profesional') {
+    return res.status(403).json({ success: false, error: 'Solo administradores y profesionales pueden modificar esta configuración.' });
+  }
+
+  try {
+    const jsonStr = allowedStations ? JSON.stringify(allowedStations) : null;
+    const [result]: any = await pool.query(
+      'UPDATE clients SET allowedStations = ? WHERE userId = ?',
+      [jsonStr, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Client not found' });
+    }
+
+    res.json({ success: true, allowedStations });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] PATCH /clients/:id/allowed-stations:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to update allowed stations', details: error.message });
   }
 });
 

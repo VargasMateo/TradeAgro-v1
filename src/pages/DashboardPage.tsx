@@ -97,6 +97,11 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             if (isSprayMonitor && isClient && !profile?.hasSprayMonitor) {
               return false;
             }
+            if (isClient && Array.isArray(profile?.allowedStations)) {
+              if (!profile.allowedStations.includes(device.dId)) {
+                return false;
+              }
+            }
             return true;
           });
 
