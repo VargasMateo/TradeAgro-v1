@@ -114,13 +114,20 @@ const degreeToCardinal = (deg: number): string => {
   return WIND_DIRECTIONS[index];
 };
 
-// Estimate recording interval from data (~30s per record, 120 records/hr)
-const RECORDS_PER_HOUR = 120;
-const HOURS_PER_RECORD = 1 / RECORDS_PER_HOUR;
-
 // ── Data Processing ────────────────────────────────────────────────
 
 function processDailyData(records: SensorRecord[], startDate: string, endDate: string): DailySummary[] {
+  let dynamicHoursPerRecord = 1 / 120; // default 30s
+  if (records.length >= 2) {
+    const diffs = [];
+    for (let i = 1; i < Math.min(records.length, 100); i++) {
+      diffs.push(Math.abs(records[i].time - records[i - 1].time) / (1000 * 60 * 60));
+    }
+    diffs.sort((a, b) => a - b);
+    const median = diffs[Math.floor(diffs.length / 2)];
+    if (median > 0) dynamicHoursPerRecord = median;
+  }
+
   const days = eachDayOfInterval({
     start: parseISO(startDate),
     end: parseISO(endDate),
@@ -142,12 +149,12 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
     const hoursBelow0 = dayRecords.filter(r => {
       const t = r.value.temp1avg ?? r.value.temp1min;
       return t !== undefined && t !== null && t <= 0;
-    }).length * HOURS_PER_RECORD;
+    }).length * dynamicHoursPerRecord;
 
     const hoursBelow3 = dayRecords.filter(r => {
       const t = r.value.temp1avg ?? r.value.temp1min;
       return t !== undefined && t !== null && t <= 3;
-    }).length * HOURS_PER_RECORD;
+    }).length * dynamicHoursPerRecord;
 
     // Delta T calculations
     const dtValues = dayRecords
@@ -158,7 +165,7 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
       const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
       const gust = r.value.rafaga ?? r.value.velmax ?? r.value.velavg ?? 0;
       return dt !== null && dt >= 2 && dt <= 8 && gust < 15;
-    }).length * HOURS_PER_RECORD;
+    }).length * dynamicHoursPerRecord;
 
     // Wind directions
     const windDirections = dayRecords
@@ -399,6 +406,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
         setError('No se encontraron datos para el rango seleccionado.');
         return;
       }
+      
+      // Sort records ascending by time so charts render left-to-right correctly
+      records.sort((a: SensorRecord, b: SensorRecord) => a.time - b.time);
+      
       setRawRecords(records);
       setReportGenerated(true);
     } catch (e: any) {
@@ -829,7 +840,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 <div>
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
                   <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={hourlyWindData} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+                    <LineChart data={hourlyWindData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="dateAxis" 
@@ -846,13 +857,32 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                         formatter={(value: number, name: string) => [`${fmt(value)} km/h`, name]}
                         labelFormatter={(label, payload) => payload?.[0]?.payload?.dateLabel || label}
                       />
-                      <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
-                        payload={[
-                          { value: 'Velocidad promedio', type: 'line', color: '#475569' },
-                          { value: 'Rafaga', type: 'line', color: '#d97706' },
-                          { value: 'Umbral rafaga 15 km/h', type: 'line', color: '#22c55e' },
-                          { value: 'Referencia 20 km/h', type: 'line', color: '#ef4444' }
-                        ]}
+                      <Legend 
+                        verticalAlign="top" 
+                        align="center"
+                        wrapperStyle={{ width: '100%', paddingBottom: '15px' }}
+                        content={() => (
+                          <div className="flex justify-center w-full">
+                            <div className="grid grid-cols-2 gap-x-12 gap-y-1 text-xs text-slate-700">
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 border-t-2 border-[#475569]"></span>
+                                Velocidad promedio
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 border-t-2 border-[#22c55e] border-dashed"></span>
+                                Umbral rafaga 15 km/h
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 border-t-2 border-[#d97706]"></span>
+                                Rafaga
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 border-t-2 border-[#ef4444] border-dotted"></span>
+                                Referencia 20 km/h
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       />
                       <ReferenceLine y={15} stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} />
                       <ReferenceLine y={20} stroke="#ef4444" strokeDasharray="1 3" strokeWidth={1} />
@@ -865,7 +895,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 <div>
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas con Delta T optimo y rafagas &lt; 15 km/h</p>
                   <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+                    <BarChart data={dailyData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="date" 
@@ -880,10 +910,18 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
                         formatter={(value: number) => [`${fmt(value)} h`, 'Horas']}
                       />
-                      <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
-                        payload={[
-                          { value: 'Criterio optimo: >=4 h', type: 'line', color: '#475569' }
-                        ]}
+                      <Legend 
+                        verticalAlign="top" 
+                        align="left"
+                        wrapperStyle={{ width: '100%', paddingBottom: '10px', left: 40 }}
+                        content={() => (
+                          <div className="flex text-xs text-slate-700">
+                            <div className="flex items-center gap-2">
+                              <span className="w-4 border-t-2 border-[#475569] border-dashed"></span>
+                              Criterio optimo: &gt;=4 h
+                            </div>
+                          </div>
+                        )}
                       />
                       <ReferenceLine y={4} stroke="#475569" strokeDasharray="3 3" strokeWidth={1} />
                       <Bar dataKey="dtHoursOptimal" name="Horas" maxBarSize={40}>
