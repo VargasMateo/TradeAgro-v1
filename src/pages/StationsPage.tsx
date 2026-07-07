@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Thermometer,
   ThermometerSun,
@@ -257,7 +258,14 @@ export default function StationsPage() {
 
           if (filteredDevices.length > 0) {
             setDevices(filteredDevices);
-            setSelectedDid(filteredDevices[0].dId);
+            const searchParams = new URLSearchParams(window.location.search);
+            const paramDid = searchParams.get('dId');
+            
+            if (paramDid && filteredDevices.some(d => d.dId === paramDid)) {
+              setSelectedDid(paramDid);
+            } else {
+              setSelectedDid(filteredDevices[0].dId);
+            }
           } else {
             throw new Error('No hay centrales disponibles para tu perfil');
           }

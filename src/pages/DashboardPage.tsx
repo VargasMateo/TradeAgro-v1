@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   UserPlus,
@@ -8,7 +8,8 @@ import {
   UserCheck,
   Clock,
   Calendar,
-  BarChart3
+  BarChart3,
+  ThermometerSun
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import Map from "../components/Map";
@@ -23,6 +24,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [userName, setUserName] = useState("Admin");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [weatherMarkers, setWeatherMarkers] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -72,9 +75,69 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       }
     };
 
+    const fetchWeatherStations = async () => {
+      try {
+        const storedProfile = localStorage.getItem("userProfile");
+        const profile = storedProfile ? JSON.parse(storedProfile) : null;
+        const isClient = profile?.role === 'client' || userRole === 'client';
+        
+        // If the user is a client and doesn't have stations enabled, don't fetch or show the map
+        if (isClient && !profile?.hasStations) {
+          return;
+        }
+        
+        const res = await authenticatedFetch('/backend/weather-stations/devices');
+        if (!res.ok) return;
+        const json = await res.json();
+        
+        if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+          
+          const filteredDevices = json.data.filter((device: any) => {
+            const isSprayMonitor = device.name.toLowerCase().includes('monitor de pulverizaci') || device.name.toLowerCase().includes('pulveriz');
+            if (isSprayMonitor && isClient && !profile?.hasSprayMonitor) {
+              return false;
+            }
+            return true;
+          });
+
+          // Now fetch coordinates for filtered devices
+          const markers: any[] = [];
+          await Promise.all(filteredDevices.map(async (device: any) => {
+            const dRes = await authenticatedFetch(`/backend/weather-stations?dId=${device.dId}`);
+            if (dRes.ok) {
+              const dJson = await dRes.json();
+              if (dJson.status === 'success' && dJson.data && dJson.data.length > 0) {
+                const dData = dJson.data[0];
+                if (dData.value && typeof dData.value.lat === 'number' && typeof dData.value.lng === 'number') {
+                  // Ignore [0,0] coordinates (Null Island) which happen when GPS is missing
+                  if (dData.value.lat !== 0 || dData.value.lng !== 0) {
+                    const dt = dData.value.dt;
+                    let isSelected = false; 
+                    
+                    markers.push({
+                      id: device.dId,
+                      position: [dData.value.lat, dData.value.lng],
+                      label: device.name,
+                      isSelected: false,
+                      onClick: () => navigate(`/stations?dId=${device.dId}`)
+                    });
+                  }
+                }
+              }
+            }
+          }));
+          
+          setWeatherMarkers(markers);
+        }
+      } catch (error) {
+        console.error('Error fetching weather stations for dashboard:', error);
+      }
+    };
+
     fetchClients();
     fetchWorkOrders();
     loadProfile();
+    fetchWeatherStations();
 
     window.addEventListener("profile-updated", loadProfile);
     window.addEventListener("clients-updated", fetchClients);
@@ -259,16 +322,14 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       )}
 
-      {/* Upcoming Jobs Section - Hidden if no work orders AND not loading */}
-      {(isLoadingWorkOrders || hasAnyWorkOrders) && (
-        <div className="order-4 lg:col-span-2">
-          <UpcomingWorkOrders
-            data={filteredWorkOrders}
-            isLoading={isLoadingWorkOrders}
-            userRole={userRole}
-          />
-        </div>
-      )}
+      {/* Upcoming Jobs Section */}
+      <div className="order-4 lg:col-span-2">
+        <UpcomingWorkOrders
+          data={filteredWorkOrders}
+          isLoading={isLoadingWorkOrders}
+          userRole={userRole}
+        />
+      </div>
 
       {/* Map & Weather - Only for profesional and admin and if there are markers or loading */}
       {(userRole === 'profesional' || userRole === 'admin') && (() => {
@@ -345,6 +406,22 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
           </div>
         );
       })()}
+
+      {/* Weather Stations Map - Based on permissions */}
+      {weatherMarkers.length > 0 && (
+        <div className="space-y-4 order-6 lg:col-span-2">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <ThermometerSun className="h-5 w-5 text-[#2e7d32]" /> Centrales Meteorológicas
+          </h3>
+          <div className="relative h-[300px] md:h-[400px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
+            <Map markers={weatherMarkers} />
+            <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none border border-slate-100 transition-opacity">
+              <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#2e7d32] animate-pulse"></span>
+              {weatherMarkers.length} {weatherMarkers.length === 1 ? 'Central Registrada' : 'Centrales Registradas'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
