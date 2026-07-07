@@ -201,7 +201,7 @@ export default function StationsConfigModal({ isOpen, onClose, client, onSave }:
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 rounded-xl bg-[#0A6C35] px-6 py-2 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-[#0A6C35] px-6 py-2 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Guardar Cambios
