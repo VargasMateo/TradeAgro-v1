@@ -614,12 +614,12 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Resumen ejecutivo</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. máx.</p>
-                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                   <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. mín.</p>
                   <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMin)} °C</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Temp. máx.</p>
+                  <p className="text-xl font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 print:border-slate-200 print:p-3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                   <p className="text-sm font-semibold text-slate-500 print:text-slate-700">Lluvia total</p>
