@@ -463,6 +463,32 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
     return hourly;
   }, [rawRecords]);
 
+  // Downsampled Wind data for chart
+  const hourlyWindData = useMemo(() => {
+    if (rawRecords.length === 0) return [];
+    const hourly = [];
+    let currentKey = '';
+    
+    for (const r of rawRecords) {
+      const date = new Date(r.time);
+      const key = `${date.getDate()}-${date.getHours()}`;
+      
+      if (r.value.velavg !== undefined) {
+        if (key !== currentKey) {
+          hourly.push({
+            time: date.getTime(),
+            dateLabel: format(date, 'yyyy-MM-dd HH:mm'),
+            dateAxis: format(date, 'yyyy-MM-dd'),
+            windAvg: r.value.velavg,
+            gustMax: r.value.rafaga ?? r.value.velmax ?? r.value.velavg
+          });
+          currentKey = key;
+        }
+      }
+    }
+    return hourly;
+  }, [rawRecords]);
+
   // Predominant wind calculation
   const predominantWind = useMemo(() => {
     if (dailyData.length === 0) return null;
@@ -801,42 +827,75 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
               <div className="space-y-8">
                 <div>
-                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad y ráfagas de viento</p>
+                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
                   <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <LineChart data={hourlyWindData} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" km/h" />
+                      <XAxis 
+                        dataKey="dateAxis" 
+                        tick={{ fontSize: 11, fill: '#64748b' }} 
+                        angle={-45} 
+                        textAnchor="end" 
+                        tickMargin={10} 
+                        interval="preserveStartEnd"
+                        minTickGap={30}
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'km/h', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: 5 }} />
                       <Tooltip
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
                         formatter={(value: number, name: string) => [`${fmt(value)} km/h`, name]}
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.dateLabel || label}
                       />
-                      <Legend wrapperStyle={{ fontSize: '12px' }} />
-                      <Line type="monotone" dataKey="windAvg" name="Viento Promedio" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="gustMax" name="Ráfagas (Máx)" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
+                      <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
+                        payload={[
+                          { value: 'Velocidad promedio', type: 'line', color: '#475569' },
+                          { value: 'Rafaga', type: 'line', color: '#d97706' },
+                          { value: 'Umbral rafaga 15 km/h', type: 'line', color: '#22c55e' },
+                          { value: 'Referencia 20 km/h', type: 'line', color: '#ef4444' }
+                        ]}
+                      />
+                      <ReferenceLine y={15} stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} />
+                      <ReferenceLine y={20} stroke="#ef4444" strokeDasharray="1 3" strokeWidth={1} />
+                      
+                      <Line type="monotone" dataKey="windAvg" name="Velocidad promedio" stroke="#475569" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="gustMax" name="Rafaga" stroke="#d97706" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
                 <div>
-                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Precipitación diaria</p>
-                  {periodSummary.totalRain > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-                        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" mm" />
-                        <Tooltip
-                          contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                          formatter={(value: number) => [`${fmt(value)} mm`, 'Precipitación']}
-                        />
-                        <Bar dataKey="rainTotal" name="Lluvia" fill="#3b82f6" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-[250px] text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg print:border-none print:text-black">
-                      Sin registros de precipitación en el período
-                    </div>
-                  )}
+                  <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas con Delta T optimo y rafagas &lt; 15 km/h</p>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={dailyData} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 11, fill: '#64748b' }} 
+                        angle={-45} 
+                        textAnchor="end" 
+                        tickMargin={10} 
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Horas', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: 5 }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                        formatter={(value: number) => [`${fmt(value)} h`, 'Horas']}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
+                        payload={[
+                          { value: 'Criterio optimo: >=4 h', type: 'line', color: '#475569' }
+                        ]}
+                      />
+                      <ReferenceLine y={4} stroke="#475569" strokeDasharray="3 3" strokeWidth={1} />
+                      <Bar dataKey="dtHoursOptimal" name="Horas" maxBarSize={40}>
+                        {dailyData.map((entry, index) => {
+                          let fill = '#ef4444';
+                          if (entry.dtHoursOptimal >= 4) fill = '#84cc16';
+                          else if (entry.dtHoursOptimal > 0) fill = '#eab308';
+                          return <Cell key={`cell-${index}`} fill={fill} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
