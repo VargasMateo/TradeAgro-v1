@@ -167,6 +167,11 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
       return dt !== null && dt >= 2 && dt <= 8 && gust < 15;
     }).length * dynamicHoursPerRecord;
 
+    const dtOnlyHoursOptimal = dayRecords.filter(r => {
+      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
+      return dt !== null && dt >= 2 && dt <= 8;
+    }).length * dynamicHoursPerRecord;
+
     // Wind directions
     const windDirections = dayRecords
       .filter(r => r.value.diravg !== undefined && r.value.velavg !== undefined)
@@ -201,6 +206,7 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
       dtValues,
       dtAvg: dtValues.length > 0 ? dtValues.reduce((s, v) => s + v, 0) / dtValues.length : 0,
       dtHoursOptimal,
+      dtOnlyHoursOptimal,
       hoursBelow0,
       hoursBelow3,
       windDirections,
@@ -969,25 +975,25 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                   <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 print:bg-slate-100 print:text-black print:border-slate-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                     <tr>
                       <th className="py-3 px-4 font-semibold">Fecha</th>
-                      <th className="text-right py-3 px-4 font-semibold">Temp. prom (°C)</th>
-                      <th className="text-right py-3 px-4 font-semibold">Delta T prom</th>
-                      <th className="text-right py-3 px-4 font-semibold">Hs en rango 2-8</th>
-                      <th className="text-center py-3 px-4 font-semibold">Condición</th>
+                      <th className="text-right py-3 px-4 font-semibold">Horas optimas</th>
+                      <th className="text-right py-3 px-4 font-semibold">Delta T opt.</th>
+                      <th className="text-right py-3 px-4 font-semibold">Raf. max</th>
+                      <th className="text-center py-3 px-4 font-semibold">Estado</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dailyData.map(d => {
                       const isVerde = d.dtHoursOptimal >= 4;
                       const isAmarillo = d.dtHoursOptimal > 0 && d.dtHoursOptimal < 4;
-                      const condition = isVerde ? 'Óptima' : isAmarillo ? 'Regular' : 'Mala';
+                      const condition = isVerde ? 'Optimo' : isAmarillo ? 'Precaucion' : 'No recomendado';
                       const bgCond = isVerde ? 'bg-[#c5e1a5]' : isAmarillo ? 'bg-[#ffe082]' : 'bg-[#ffcdd2]';
                       const textCond = isVerde ? 'text-green-900' : isAmarillo ? 'text-amber-900' : 'text-red-900';
                       return (
                         <tr key={d.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-200">
                           <td className="py-2.5 px-4 font-medium text-slate-700 print:text-black">{d.dateLabel}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.tempAvg)}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtAvg)}</td>
                           <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtHoursOptimal)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtOnlyHoursOptimal)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.gustMax)}</td>
                           <td className="py-2.5 px-4 text-center">
                             <span className={`inline-block px-3 py-1 text-xs font-bold rounded ${bgCond} ${textCond}`} style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{condition}</span>
                           </td>
