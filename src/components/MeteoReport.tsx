@@ -373,6 +373,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   const [error, setError] = useState<string>('');
   const [rawRecords, setRawRecords] = useState<SensorRecord[]>([]);
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -548,16 +549,35 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   const handleDownloadPDF = useReactToPrint({
     contentRef: reportRef,
     documentTitle: `informe-meteo-${selectedDeviceName.replace(/[^a-z0-9]/gi, '_')}-${startDate}-${endDate}`,
+    pageStyle: `
+      @page { margin: 15mm; }
+      @media print {
+        body {
+          zoom: 0.75;
+        }
+      }
+    `,
+    // @ts-ignore
+    onBeforeGetContent: () => {
+      return new Promise<void>((resolve) => {
+        setIsPrinting(true);
+        setTimeout(() => {
+          resolve();
+        }, 300); // Dar tiempo a Recharts para re-calcular el ancho
+      });
+    },
     onBeforePrint: () => {
       setIsDownloading(true);
       return Promise.resolve();
     },
     onAfterPrint: () => {
+      setIsPrinting(false);
       setIsDownloading(false);
     },
     onPrintError: (error) => {
       console.error('Print error:', error);
       alert('Error de impresión: ' + error);
+      setIsPrinting(false);
       setIsDownloading(false);
     }
   });
@@ -694,7 +714,11 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
       {/* Report */}
       {reportGenerated && dailyData.length > 0 && periodSummary && (
-        <div ref={reportRef} className="bg-white shadow-lg border border-slate-200 rounded-2xl overflow-hidden print:shadow-none print:border-none print:rounded-2xl" id="meteo-report-content">
+        <div 
+          ref={reportRef} 
+          className={`bg-white shadow-lg border border-slate-200 rounded-2xl overflow-hidden print:shadow-none print:border-none print:rounded-2xl ${isPrinting ? 'w-[794px] mx-auto' : ''}`} 
+          id="meteo-report-content"
+        >
           {/* Header */}
           <div className="bg-[#2e7d32] text-white p-6 sm:p-8" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
