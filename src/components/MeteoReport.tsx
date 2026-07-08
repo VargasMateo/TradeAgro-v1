@@ -1026,12 +1026,12 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             {/* Rosa de vientos */}
             <div className="break-inside-avoid pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center w-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-8 print:gap-4 items-center w-full">
                 <div className="flex flex-col items-center">
                   <WindRose data={dailyData} />
                 </div>
                 {predominantWind && (
-                  <div className="text-sm text-slate-700 space-y-4 print:text-black mt-6 md:mt-0 max-w-md">
+                  <div className="text-sm text-slate-700 space-y-4 print:text-black mt-6 md:mt-0 print:mt-0 max-w-md">
                     <div className="space-y-1">
                       <p>Dirección predominante: {predominantWind.label}</p>
                       <p>Frecuencia: {predominantWind.percentage.toFixed(0)}% del periodo ponderado por tiempo.</p>
