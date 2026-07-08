@@ -396,6 +396,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       setError('Completá todos los campos');
       return;
     }
+    if (new Date(startDate) > new Date(endDate)) {
+      setError('La fecha "Desde" no puede ser mayor a la fecha "Hasta"');
+      return;
+    }
     setLoading(true);
     setError('');
     setReportGenerated(false);
@@ -721,6 +725,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             <input
               type="date"
               value={startDate}
+              max={endDate || new Date().toISOString().split('T')[0]}
               onChange={(e) => setStartDate(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
             />
@@ -732,6 +737,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             <input
               type="date"
               value={endDate}
+              min={startDate}
+              max={new Date().toISOString().split('T')[0]}
               onChange={(e) => setEndDate(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
             />
