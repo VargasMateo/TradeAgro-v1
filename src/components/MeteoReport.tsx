@@ -598,7 +598,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
     contentRef: reportRef,
     documentTitle: `informe-meteo-${selectedDeviceName.replace(/[^a-z0-9]/gi, '_')}-${startDate}-${endDate}`,
     pageStyle: `
-      @page { margin: 15mm; }
+      @page { margin: 15mm 0; }
       @media print {
         body {
           zoom: 0.75;
@@ -764,7 +764,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       {reportGenerated && dailyData.length > 0 && periodSummary && (
         <div 
           ref={reportRef} 
-          className={`bg-white shadow-lg border border-slate-200 rounded-2xl overflow-hidden print:shadow-none print:border-none print:rounded-2xl ${isPrinting ? 'w-[794px] mx-auto' : ''}`} 
+          className={`bg-white shadow-lg border border-slate-200 rounded-2xl overflow-hidden print:shadow-none print:border-none print:rounded-none ${isPrinting ? 'w-[1058px] mx-auto' : ''}`} 
           id="meteo-report-content"
         >
           {/* Header */}
@@ -847,7 +847,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 {/* Temperatura Max y Min */}
                 <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
                   <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Temperatura máxima y mínima diaria</p>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={300}>
                     <ComposedChart data={dailyData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} angle={-45} textAnchor="end" tickMargin={10} />
@@ -875,7 +875,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 {/* Delta T */}
                 <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
                   <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Delta T durante el periodo</p>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={300}>
                     <ComposedChart data={deltaTData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
@@ -917,7 +917,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <div className="space-y-8">
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
-                  <ResponsiveContainer width="100%" height={250}>
+                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={250}>
                     <LineChart data={hourlyWindData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
@@ -972,7 +972,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 </div>
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas con Delta T optimo y rafagas &lt; 15 km/h</p>
-                  <ResponsiveContainer width="100%" height={250}>
+                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={250}>
                     <BarChart data={dailyData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
