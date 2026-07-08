@@ -71,22 +71,22 @@ interface SensorRecord {
 interface DailySummary {
   date: string; // YYYY-MM-DD
   dateLabel: string;
-  tempMin: number;
-  tempMax: number;
-  tempAvg: number;
-  humMin: number;
-  humMax: number;
-  humAvg: number;
-  windMin: number;
-  windMax: number;
-  windAvg: number;
-  gustMax: number;
-  rainTotal: number;
+  tempMin: number | null;
+  tempMax: number | null;
+  tempAvg: number | null;
+  humMin: number | null;
+  humMax: number | null;
+  humAvg: number | null;
+  windMin: number | null;
+  windMax: number | null;
+  windAvg: number | null;
+  gustMax: number | null;
+  rainTotal: number | null;
   dtValues: number[];
-  dtAvg: number;
-  dtHoursOptimal: number; // hours with DT between 2-8
-  hoursBelow0: number;
-  hoursBelow3: number;
+  dtAvg: number | null;
+  dtHoursOptimal: number | null; // hours with DT between 2-8
+  hoursBelow0: number | null;
+  hoursBelow3: number | null;
   windDirections: { dir: number; vel: number; gust: number }[];
   recordCount: number;
 }
@@ -188,31 +188,31 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
     return {
       date: format(day, 'yyyy-MM-dd'),
       dateLabel: format(day, 'dd/MM', { locale: es }),
-      tempMin: tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : 0),
-      tempMax: tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : 0),
+      tempMin: tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : null),
+      tempMax: tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : null),
       tempRange: [
-        tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : 0),
-        tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : 0)
+        tempsMin.length > 0 ? Math.min(...tempsMin) : (temps.length > 0 ? Math.min(...temps) : null),
+        tempsMax.length > 0 ? Math.max(...tempsMax) : (temps.length > 0 ? Math.max(...temps) : null)
       ],
-      tempAvg: temps.length > 0 ? temps.reduce((s, v) => s + v, 0) / temps.length : 0,
-      humMin: hums.length > 0 ? Math.min(...hums) : 0,
-      humMax: hums.length > 0 ? Math.max(...hums) : 0,
-      humAvg: hums.length > 0 ? hums.reduce((s, v) => s + v, 0) / hums.length : 0,
-      windMin: vels.length > 0 ? Math.min(...vels) : 0,
-      windMax: vels.length > 0 ? Math.max(...vels) : 0,
-      windAvg: vels.length > 0 ? vels.reduce((s, v) => s + v, 0) / vels.length : 0,
-      gustMax: gusts.length > 0 ? Math.max(...gusts) : 0,
-      rainTotal,
+      tempAvg: temps.length > 0 ? temps.reduce((s, v) => s + v, 0) / temps.length : null,
+      humMin: hums.length > 0 ? Math.min(...hums) : null,
+      humMax: hums.length > 0 ? Math.max(...hums) : null,
+      humAvg: hums.length > 0 ? hums.reduce((s, v) => s + v, 0) / hums.length : null,
+      windMin: vels.length > 0 ? Math.min(...vels) : null,
+      windMax: vels.length > 0 ? Math.max(...vels) : null,
+      windAvg: vels.length > 0 ? vels.reduce((s, v) => s + v, 0) / vels.length : null,
+      gustMax: gusts.length > 0 ? Math.max(...gusts) : null,
+      rainTotal: rainTotal > 0 ? rainTotal : (dayRecords.length > 0 ? 0 : null),
       dtValues,
-      dtAvg: dtValues.length > 0 ? dtValues.reduce((s, v) => s + v, 0) / dtValues.length : 0,
-      dtHoursOptimal,
-      dtOnlyHoursOptimal,
-      hoursBelow0,
-      hoursBelow3,
+      dtAvg: dtValues.length > 0 ? dtValues.reduce((s, v) => s + v, 0) / dtValues.length : null,
+      dtHoursOptimal: dayRecords.length > 0 ? dtHoursOptimal : null,
+      dtOnlyHoursOptimal: dayRecords.length > 0 ? dtOnlyHoursOptimal : null,
+      hoursBelow0: dayRecords.length > 0 ? hoursBelow0 : null,
+      hoursBelow3: dayRecords.length > 0 ? hoursBelow3 : null,
       windDirections,
       recordCount: dayRecords.length,
     };
-  }).filter(d => d.recordCount > 0);
+  });
 }
 
 function getWedgePath(cx: number, cy: number, rInner: number, rOuter: number, startAngle: number, endAngle: number) {
@@ -435,42 +435,56 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   // Period aggregates
   const periodSummary = useMemo(() => {
     if (dailyData.length === 0) return null;
+    
+    // Filter out nulls for aggregates
+    const validTempMins = dailyData.map(d => d.tempMin).filter(v => v !== null) as number[];
+    const validTempMaxs = dailyData.map(d => d.tempMax).filter(v => v !== null) as number[];
+    const validTempAvgs = dailyData.map(d => d.tempAvg).filter(v => v !== null) as number[];
+    const validDtAvgs = dailyData.map(d => d.dtAvg).filter(v => v !== null) as number[];
+    const validWindMins = dailyData.map(d => d.windMin).filter(v => v !== null) as number[];
+    const validWindMaxs = dailyData.map(d => d.windMax).filter(v => v !== null) as number[];
+    const validWindAvgs = dailyData.map(d => d.windAvg).filter(v => v !== null) as number[];
+    const validGustMaxs = dailyData.map(d => d.gustMax).filter(v => v !== null) as number[];
+
     return {
-      tempMin: Math.min(...dailyData.map(d => d.tempMin)),
-      tempMax: Math.max(...dailyData.map(d => d.tempMax)),
-      tempAvg: dailyData.reduce((s, d) => s + d.tempAvg, 0) / dailyData.length,
-      dtAvg: dailyData.reduce((s, d) => s + d.dtAvg, 0) / dailyData.length,
-      windMin: Math.min(...dailyData.map(d => d.windMin)),
-      windMax: Math.max(...dailyData.map(d => d.windMax)),
-      windAvg: dailyData.reduce((s, d) => s + d.windAvg, 0) / dailyData.length,
-      gustMax: Math.max(...dailyData.map(d => d.gustMax)),
-      totalHoursBelow0: dailyData.reduce((s, d) => s + d.hoursBelow0, 0),
-      totalHoursBelow3: dailyData.reduce((s, d) => s + d.hoursBelow3, 0),
-      totalRain: dailyData.reduce((s, d) => s + d.rainTotal, 0),
+      tempMin: validTempMins.length > 0 ? Math.min(...validTempMins) : 0,
+      tempMax: validTempMaxs.length > 0 ? Math.max(...validTempMaxs) : 0,
+      tempAvg: validTempAvgs.length > 0 ? validTempAvgs.reduce((s, v) => s + v, 0) / validTempAvgs.length : 0,
+      dtAvg: validDtAvgs.length > 0 ? validDtAvgs.reduce((s, v) => s + v, 0) / validDtAvgs.length : 0,
+      windMin: validWindMins.length > 0 ? Math.min(...validWindMins) : 0,
+      windMax: validWindMaxs.length > 0 ? Math.max(...validWindMaxs) : 0,
+      windAvg: validWindAvgs.length > 0 ? validWindAvgs.reduce((s, v) => s + v, 0) / validWindAvgs.length : 0,
+      gustMax: validGustMaxs.length > 0 ? Math.max(...validGustMaxs) : 0,
+      totalHoursBelow0: dailyData.reduce((s, d) => s + (d.hoursBelow0 || 0), 0),
+      totalHoursBelow3: dailyData.reduce((s, d) => s + (d.hoursBelow3 || 0), 0),
+      totalRain: dailyData.reduce((s, d) => s + (d.rainTotal || 0), 0),
       totalRecords: rawRecords.length,
-      greenDays: dailyData.filter(d => d.dtHoursOptimal >= 4).length,
+      greenDays: dailyData.filter(d => (d.dtHoursOptimal || 0) >= 4).length,
     };
   }, [dailyData, rawRecords]);
 
   // Downsampled Delta T for chart
   const deltaTData = useMemo(() => {
-    if (rawRecords.length === 0) return [];
-    const hourly = [];
+    if (!startDate || !endDate) return [];
+    const hourly: any[] = [];
     let currentKey = '';
+    const daysWithData = new Set<string>();
     
     for (const r of rawRecords) {
       const date = new Date(r.time);
       const key = `${date.getDate()}-${date.getHours()}`;
+      const dayStr = format(date, 'yyyy-MM-dd');
       
       // Take first valid record of each hour
       if (r.value.temp1avg !== undefined && r.value.hum1avg !== undefined && r.value.hum1avg > 0) {
         if (key !== currentKey) {
           const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
           if (dt !== null) {
+            daysWithData.add(dayStr);
             hourly.push({
               time: date.getTime(),
               dateLabel: format(date, 'yyyy-MM-dd HH:mm'),
-              dateAxis: format(date, 'yyyy-MM-dd'),
+              dateAxis: dayStr,
               dt: dt
             });
             currentKey = key;
@@ -478,25 +492,43 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
         }
       }
     }
-    return hourly;
-  }, [rawRecords]);
+
+    // Inject empty days so chart domain is complete
+    const allDays = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
+    for (const d of allDays) {
+      const dayStr = format(d, 'yyyy-MM-dd');
+      if (!daysWithData.has(dayStr)) {
+        hourly.push({
+          time: d.getTime(),
+          dateLabel: format(d, 'yyyy-MM-dd HH:mm'),
+          dateAxis: dayStr,
+          dt: null
+        });
+      }
+    }
+
+    return hourly.sort((a, b) => a.time - b.time);
+  }, [rawRecords, startDate, endDate]);
 
   // Downsampled Wind data for chart
   const hourlyWindData = useMemo(() => {
-    if (rawRecords.length === 0) return [];
-    const hourly = [];
+    if (!startDate || !endDate) return [];
+    const hourly: any[] = [];
     let currentKey = '';
+    const daysWithData = new Set<string>();
     
     for (const r of rawRecords) {
       const date = new Date(r.time);
       const key = `${date.getDate()}-${date.getHours()}`;
+      const dayStr = format(date, 'yyyy-MM-dd');
       
       if (r.value.velavg !== undefined) {
         if (key !== currentKey) {
+          daysWithData.add(dayStr);
           hourly.push({
             time: date.getTime(),
             dateLabel: format(date, 'yyyy-MM-dd HH:mm'),
-            dateAxis: format(date, 'yyyy-MM-dd'),
+            dateAxis: dayStr,
             windAvg: r.value.velavg,
             gustMax: r.value.rafaga ?? r.value.velmax ?? r.value.velavg
           });
@@ -504,8 +536,24 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
         }
       }
     }
-    return hourly;
-  }, [rawRecords]);
+
+    // Inject empty days so chart domain is complete
+    const allDays = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
+    for (const d of allDays) {
+      const dayStr = format(d, 'yyyy-MM-dd');
+      if (!daysWithData.has(dayStr)) {
+        hourly.push({
+          time: d.getTime(),
+          dateLabel: format(d, 'yyyy-MM-dd HH:mm'),
+          dateAxis: dayStr,
+          windAvg: null,
+          gustMax: null
+        });
+      }
+    }
+
+    return hourly.sort((a, b) => a.time - b.time);
+  }, [rawRecords, startDate, endDate]);
 
   // Predominant wind calculation
   const predominantWind = useMemo(() => {

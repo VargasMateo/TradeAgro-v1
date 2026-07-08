@@ -4234,36 +4234,70 @@ apiRouter.get('/weather-stations/historical', authenticateToken, async (req: any
     }
 
     let token = await getMklToken();
-    let apiUrl = `https://panel.mklagro.com/api/get-data-date?dId=${encodeURIComponent(dId)}&variable=${encodeURIComponent(variable)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
-    if (specificField) {
-      apiUrl += `&specificField=${encodeURIComponent(specificField)}`;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid dates provided' });
+    }
+    if (start > end) {
+      return res.status(400).json({ error: 'startDate cannot be after endDate' });
     }
 
-    console.log(`[MKL API] Fetching historical data: ${startDate} → ${endDate} for device ${dId}`);
+    const chunkDays = 10; // Fetch in 10-day chunks to bypass 10,000 records limit
+    const allRecords: any[] = [];
+    
+    let currentStart = new Date(start);
+    console.log(`[MKL API] Fetching historical data in chunks: ${startDate} → ${endDate} for device ${dId}`);
 
-    let mklResponse = await fetch(apiUrl, {
-      headers: { 'token': token }
-    });
+    while (currentStart <= end) {
+      let currentEnd = new Date(currentStart);
+      currentEnd.setDate(currentEnd.getDate() + chunkDays - 1);
+      if (currentEnd > end) {
+        currentEnd = new Date(end);
+      }
 
-    // Auto-Healing: retry once with fresh login token if 401 Unauthorized occurs
-    if (mklResponse.status === 401) {
-      console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
-      token = await getMklToken(true);
-      mklResponse = await fetch(apiUrl, {
-        headers: { 'token': token }
-      });
+      const chunkStartStr = currentStart.toISOString().split('T')[0];
+      const chunkEndStr = currentEnd.toISOString().split('T')[0];
+
+      let apiUrl = `https://panel.mklagro.com/api/get-data-date?dId=${encodeURIComponent(dId)}&variable=${encodeURIComponent(variable)}&startDate=${encodeURIComponent(chunkStartStr)}&endDate=${encodeURIComponent(chunkEndStr)}`;
+      if (specificField) {
+        apiUrl += `&specificField=${encodeURIComponent(specificField)}`;
+      }
+
+      console.log(`[MKL API] Fetching chunk: ${chunkStartStr} → ${chunkEndStr}`);
+
+      let mklResponse = await fetch(apiUrl, { headers: { 'token': token } });
+
+      if (mklResponse.status === 401) {
+        console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+        token = await getMklToken(true);
+        mklResponse = await fetch(apiUrl, { headers: { 'token': token } });
+      }
+
+      if (!mklResponse.ok) {
+        console.error('[ERROR] MKL API returned status for chunk:', mklResponse.status);
+        const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+        return res.status(status).json({ error: 'Failed to fetch historical data from MKL API' });
+      }
+
+      const mklData = await mklResponse.json();
+      if (mklData?.data && Array.isArray(mklData.data)) {
+        allRecords.push(...mklData.data);
+      }
+
+      // Advance to the next day after currentEnd
+      currentStart = new Date(currentEnd);
+      currentStart.setDate(currentStart.getDate() + 1);
     }
 
-    if (!mklResponse.ok) {
-      console.error('[ERROR] MKL API returned status:', mklResponse.status);
-      const status = mklResponse.status === 401 ? 502 : mklResponse.status;
-      return res.status(status).json({ error: 'Failed to fetch historical data from MKL API' });
-    }
+    // Ensure records are ordered chronologically
+    allRecords.sort((a, b) => (a.time || 0) - (b.time || 0));
 
-    const mklData = await mklResponse.json();
-    console.log(`[MKL API] Historical data: ${mklData?.data?.length || 0} records returned`);
+    console.log(`[MKL API] Historical data: Total ${allRecords.length} records returned after combining chunks`);
 
-    res.json(mklData);
+    res.json({ error: 0, msj: "success", data: allRecords });
   } catch (error: any) {
     console.error('[ERROR] GET /backend/weather-stations/historical:', error.message);
     res.status(500).json({ error: 'Failed to fetch historical weather data' });
