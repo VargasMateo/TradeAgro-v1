@@ -606,7 +606,6 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       @media print {
         body {
           zoom: 0.75;
-          padding-top: 15mm;
           padding-bottom: 15mm;
         }
       }
