@@ -142,8 +142,8 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       >
         <div className="flex h-full flex-col">
           {/* Logo Section */}
-          <Link to="/dashboard" className="flex h-24 items-center gap-3 border-b border-slate-100 px-8 transition-opacity hover:opacity-80 overflow-hidden">
-            <img src={logoIso} alt="TradeAgro" className="h-10 w-auto object-contain shrink-0" />
+          <Link to="/dashboard" className="flex h-24 items-center gap-2 border-b border-slate-100 pl-8 pr-4 transition-opacity hover:opacity-80 overflow-hidden">
+            <img src={logoIso} alt="TradeAgro" className="h-8 w-auto object-contain shrink-0" />
             {userRole === 'admin' && (
               <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Admin
