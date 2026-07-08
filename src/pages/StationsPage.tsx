@@ -433,8 +433,6 @@ let globalDevicesCacheTime = 0;
         isSelected: d.dId === selectedDid,
         onClick: () => {
           setSelectedDid(d.dId);
-          // Scroll to top on mobile
-          window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       };
     });

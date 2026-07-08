@@ -61,10 +61,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const createCustomIcon = (isSelected: boolean = false) => {
+const createCustomIcon = (isSelected: boolean = false, label?: string) => {
   const scale = isSelected ? 1.3 : 1;
   const pinFill = isSelected ? "#0ea5e9" : "white"; // sky-500
   
+  const labelHtml = label ? `
+    <div class="${isSelected ? 'custom-tooltip-selected' : 'custom-tooltip'}" style="position: absolute; left: 50%; transform: translateX(-50%); top: ${44 * scale + (isSelected ? 10 : 5)}px; white-space: nowrap; text-align: center; pointer-events: auto;">
+      ${label}
+    </div>
+  ` : '';
+
   return L.divIcon({
     className: 'custom-field-icon',
     html: `
@@ -92,15 +98,13 @@ const createCustomIcon = (isSelected: boolean = false) => {
           <circle cx="50" cy="40" r="34" stroke="${isSelected ? 'white' : '#0A6C35'}" stroke-width="3" fill="none" />
         </svg>
       </div>
+      ${labelHtml}
     `,
     iconSize: [44 * scale, 44 * scale],
     iconAnchor: [22 * scale, 44 * scale],
     popupAnchor: [0, -40 * scale]
   });
 };
-
-const customFieldIcon = createCustomIcon(false);
-const selectedFieldIcon = createCustomIcon(true);
 
 interface MapProps {
   center?: [number, number];
@@ -125,6 +129,8 @@ const ZoomHandler = () => {
 
 const MapController = ({ markers }: { markers: any[] }) => {
   const map = useMap();
+  const prevSelectedId = React.useRef<string | null>(null);
+
   useEffect(() => {
     if (!markers || markers.length === 0) return;
 
@@ -132,11 +138,14 @@ const MapController = ({ markers }: { markers: any[] }) => {
     const selectedMarker = markers.find(m => m.isSelected);
     
     if (selectedMarker) {
-      const currentZoom = map.getZoom();
-      map.flyTo(selectedMarker.position, currentZoom, {
-        animate: true,
-        duration: 1.0
-      });
+      if (prevSelectedId.current !== selectedMarker.id) {
+        const currentZoom = map.getZoom();
+        map.flyTo(selectedMarker.position, currentZoom, {
+          animate: true,
+          duration: 1.0
+        });
+        prevSelectedId.current = selectedMarker.id;
+      }
     } else {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
@@ -179,34 +188,17 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
             console.log(`[MAP COMPONENT] Marker ${index}: position=${marker.position[0]},${marker.position[1]}`);
             return (
               <Marker 
-                key={marker.id || index} 
+                key={`${marker.id || index}-${marker.isSelected ? 'sel' : 'unsel'}`} 
                 position={marker.position} 
-                icon={marker.isSelected ? selectedFieldIcon : customFieldIcon}
+                icon={createCustomIcon(marker.isSelected, marker.label)}
                 zIndexOffset={marker.isSelected ? 1000 : 0}
                 eventHandlers={{
-                  click: () => {
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e as any);
                     if (marker.onClick) marker.onClick();
                   }
                 }}
               >
-                {marker.label && (
-                  <Tooltip 
-                    key={`tooltip-${marker.isSelected}`}
-                    direction="bottom" 
-                    offset={[0, marker.isSelected ? 10 : 5]} 
-                    opacity={1} 
-                    permanent 
-                    interactive={true}
-                    eventHandlers={{
-                      click: () => {
-                        if (marker.onClick) marker.onClick();
-                      }
-                    }}
-                    className={marker.isSelected ? 'custom-tooltip-selected' : 'custom-tooltip'}
-                  >
-                    {marker.label}
-                  </Tooltip>
-                )}
                 {marker.popupContent && (
                   <Popup className="custom-map-popup" minWidth={180} maxWidth={240}>
                     {marker.popupContent}
@@ -216,7 +208,7 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
             );
           })
         ) : (
-          <Marker position={center} icon={customFieldIcon}>
+          <Marker position={center} icon={createCustomIcon(false)}>
             {popupContent && (
               <Popup className="custom-map-popup" minWidth={180} maxWidth={240}>
                 {popupContent}

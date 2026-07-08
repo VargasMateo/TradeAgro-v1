@@ -768,12 +768,12 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Gráficos principales */}
-            <div className="break-inside-avoid pt-2">
+            <div className="pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
               <div className="space-y-12">
                 
                 {/* Temperatura Max y Min */}
-                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0">
+                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
                   <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Temperatura máxima y mínima diaria</p>
                   <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={dailyData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
@@ -801,7 +801,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 </div>
 
                 {/* Delta T */}
-                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0">
+                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
                   <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Delta T durante el periodo</p>
                   <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={deltaTData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
@@ -840,10 +840,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Viento y ventana operativa */}
-            <div className="break-inside-avoid pt-2">
+            <div className="pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
               <div className="space-y-8">
-                <div>
+                <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
                   <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={hourlyWindData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
@@ -898,7 +898,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div>
+                <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas con Delta T optimo y rafagas &lt; 15 km/h</p>
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={dailyData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
@@ -968,7 +968,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Semáforo diario */}
-            <div className="break-inside-avoid pt-2">
+            <div className="pt-2">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200 print:border-slate-300 print:rounded-xl">
                 <table className="w-full text-sm text-left">
@@ -989,7 +989,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                       const bgCond = isVerde ? 'bg-[#c5e1a5]' : isAmarillo ? 'bg-[#ffe082]' : 'bg-[#ffcdd2]';
                       const textCond = isVerde ? 'text-green-900' : isAmarillo ? 'text-amber-900' : 'text-red-900';
                       return (
-                        <tr key={d.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-200">
+                        <tr key={d.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-200 print:break-inside-avoid">
                           <td className="py-2.5 px-4 font-medium text-slate-700 print:text-black">{d.dateLabel}</td>
                           <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtHoursOptimal)}</td>
                           <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtOnlyHoursOptimal)}</td>
