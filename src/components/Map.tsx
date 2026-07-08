@@ -129,25 +129,31 @@ const ZoomHandler = () => {
 
 const MapController = ({ markers }: { markers: any[] }) => {
   const map = useMap();
+  const prevMarkersIds = React.useRef<string>('');
   const prevSelectedId = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (!markers || markers.length === 0) return;
 
-    const bounds = L.latLngBounds(markers.map(m => m.position));
-    const selectedMarker = markers.find(m => m.isSelected);
+    // Detect if the actual set of devices changed
+    const currentIds = markers.map(m => m.id).sort().join(',');
     
+    if (prevMarkersIds.current !== currentIds) {
+      const bounds = L.latLngBounds(markers.map(m => m.position));
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      prevMarkersIds.current = currentIds;
+    }
+
+    const selectedMarker = markers.find(m => m.isSelected);
     if (selectedMarker) {
-      if (prevSelectedId.current !== selectedMarker.id) {
+      if (prevSelectedId.current !== null && prevSelectedId.current !== selectedMarker.id) {
         const currentZoom = map.getZoom();
         map.flyTo(selectedMarker.position, currentZoom, {
           animate: true,
           duration: 1.0
         });
-        prevSelectedId.current = selectedMarker.id;
       }
-    } else {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      prevSelectedId.current = selectedMarker.id;
     }
   }, [markers, map]);
   return null;
@@ -167,6 +173,7 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
         zoom={8} 
         scrollWheelZoom={false} 
         zoomControl={false}
+        keyboard={false}
         style={{ height: '100%', width: '100%', borderRadius: '1rem' }}
       >
         <TileLayer
