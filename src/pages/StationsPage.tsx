@@ -217,10 +217,27 @@ export default function StationsPage() {
     }
   };
 
+// Module-level cache to prevent refetching when navigating back and forth
+let globalDevicesCache: any[] | null = null;
+let globalDevicesCacheTime = 0;
+
   // 1. Fetch devices list on mount
   useEffect(() => {
     const fetchDevices = async () => {
       try {
+        if (globalDevicesCache && Date.now() - globalDevicesCacheTime < 5 * 60 * 1000) {
+          setDevices(globalDevicesCache);
+          const searchParams = new URLSearchParams(window.location.search);
+          const paramDid = searchParams.get('dId');
+          
+          if (paramDid && globalDevicesCache.some((d: any) => d.dId === paramDid)) {
+            setSelectedDid(paramDid);
+          } else {
+            setSelectedDid(globalDevicesCache[0].dId);
+          }
+          return;
+        }
+
         setLoading(true);
         
         // Refresh user profile first
@@ -262,17 +279,19 @@ export default function StationsPage() {
           }).sort((a: WeatherDevice, b: WeatherDevice) => a.name.localeCompare(b.name));
 
           if (filteredDevices.length > 0) {
+            globalDevicesCache = filteredDevices;
+            globalDevicesCacheTime = Date.now();
             setDevices(filteredDevices);
             const searchParams = new URLSearchParams(window.location.search);
             const paramDid = searchParams.get('dId');
             
-            if (paramDid && filteredDevices.some(d => d.dId === paramDid)) {
+            if (paramDid && filteredDevices.some((d: any) => d.dId === paramDid)) {
               setSelectedDid(paramDid);
             } else {
               setSelectedDid(filteredDevices[0].dId);
             }
           } else {
-            throw new Error('No hay centrales disponibles para tu perfil');
+            throw new Error('No hay estaciones disponibles para tu perfil');
           }
         } else {
           throw new Error('No weather devices found');
@@ -456,7 +475,7 @@ export default function StationsPage() {
         ) : devices.length > 0 ? (
           <div className="flex flex-col gap-1.5 w-full md:w-auto md:min-w-[280px]">
             <label htmlFor="station-selector" className="text-xs font-bold text-slate-400 tracking-wider uppercase">
-              Seleccionar Central
+              Seleccionar Estación
             </label>
             <div className="relative">
               <select
@@ -614,7 +633,7 @@ export default function StationsPage() {
             <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
               <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-4 flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Diagnóstico y Conectividad de la Central
+                Diagnóstico y Conectividad de la Estación
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

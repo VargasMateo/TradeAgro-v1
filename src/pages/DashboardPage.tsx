@@ -415,15 +415,17 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       {/* Weather Stations Map - Based on permissions */}
       {weatherMarkers.length > 0 && (
         <div className="space-y-4 order-6 lg:col-span-2">
-          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <ThermometerSun className="h-5 w-5 text-[#2e7d32]" /> Centrales Meteorológicas
-          </h3>
-          <div className="relative h-[300px] md:h-[400px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm z-0">
-            <Map markers={weatherMarkers} />
-            <div className="absolute left-4 top-4 z-[1000] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-sm pointer-events-none border border-slate-100 transition-opacity">
-              <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#2e7d32] animate-pulse"></span>
-              {weatherMarkers.length} {weatherMarkers.length === 1 ? 'Central Registrada' : 'Centrales Registradas'}
+          <div className="flex items-center gap-2 mb-6">
+            <ThermometerSun className="h-5 w-5 text-[#2e7d32]" />
+            <h2 className="text-xl font-bold text-slate-800">Tus Estaciones Meteorológicas</h2>
+          </div>
+          
+          <div className="bg-slate-100 rounded-2xl h-[400px] border border-slate-200 overflow-hidden relative">
+            <div className="absolute top-4 left-4 z-[1000] bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-200 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <div className="w-2 h-2 rounded-full bg-[#2e7d32]" />
+              {weatherMarkers.length} {weatherMarkers.length === 1 ? 'Estación Registrada' : 'Estaciones Registradas'}
             </div>
+            <Map markers={weatherMarkers} />
           </div>
         </div>
       )}
