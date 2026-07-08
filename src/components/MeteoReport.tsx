@@ -600,12 +600,14 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   // PDF download using react-to-print
   const handleDownloadPDF = useReactToPrint({
     contentRef: reportRef,
-    documentTitle: `informe-meteo-${selectedDeviceName.replace(/[^a-z0-9]/gi, '_')}-${startDate}-${endDate}`,
+    documentTitle: `TradeAgro-Meteo-${selectedDeviceName.split(' - ')[0].replace(/[^a-z0-9]/gi, '_')}-${startDate}`,
     pageStyle: `
-      @page { margin: 15mm 0; }
+      @page { size: auto; margin: 0mm; }
       @media print {
         body {
           zoom: 0.75;
+          padding-top: 15mm;
+          padding-bottom: 15mm;
         }
       }
     `,
