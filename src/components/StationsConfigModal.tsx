@@ -91,7 +91,7 @@ export default function StationsConfigModal({ isOpen, onClose, client, onSave }:
           <div>
             <h2 className="text-lg font-bold text-slate-900">Equipos Permitidos</h2>
             <p className="text-sm font-medium text-slate-500">
-              Cliente: <span className="font-bold text-slate-700">{client.businessName || client.name}</span>
+              Cliente: <span className="font-bold text-slate-700">{client.name}{client.businessName ? ` - ${client.businessName}` : ''}</span>
             </p>
           </div>
           <button
