@@ -801,7 +801,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             
             {/* Resumen ejecutivo */}
             <div className="break-inside-avoid">
-              <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Resumen ejecutivo</h3>
+              <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black print:mb-12">Resumen ejecutivo</h3>
               <div className="overflow-x-auto rounded-lg border border-slate-200 print:border-slate-300">
                 <table className="w-full text-sm text-left">
                   <tbody>
@@ -835,8 +835,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Conclusiones técnicas */}
-            <div className="break-inside-avoid mt-8">
-              <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black">Conclusiones técnicas</h3>
+            <div className="break-inside-avoid mt-8 print:mt-24">
+              <h3 className="text-xl font-bold text-slate-900 border-b-2 border-slate-200 pb-2 mb-4 print:border-slate-800 print:text-black print:mb-12">Conclusiones técnicas</h3>
               <ul className="list-disc pl-5 space-y-2 text-sm text-slate-700 leading-relaxed print:text-black">
                 {conclusionsBullets.map((bullet, i) => (
                   <li key={i}>{bullet}</li>
@@ -848,9 +848,9 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Gráficos principales */}
-            <div className="pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
-              <div className="space-y-12">
+            <div className="pt-2 print:break-before-page">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
+              <div className="space-y-12 print:space-y-32">
                 
                 {/* Temperatura Max y Min */}
                 <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
@@ -920,9 +920,9 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Viento y ventana operativa */}
-            <div className="pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
-              <div className="space-y-8">
+            <div className="pt-2 print:break-before-page">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
+              <div className="space-y-8 print:space-y-32">
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
                   <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={250}>
@@ -1025,8 +1025,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Rosa de vientos */}
-            <div className="break-inside-avoid pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
+            <div className="break-inside-avoid pt-2 print:break-before-page">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-8 print:gap-4 items-center w-full">
                 <div className="flex flex-col items-center">
                   <WindRose data={dailyData} />
@@ -1048,8 +1048,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Semáforo diario */}
-            <div className="pt-2">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
+            <div className="pt-2 print:break-before-page">
+              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200 print:border-slate-300 print:rounded-xl">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 print:bg-slate-100 print:text-black print:border-slate-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
