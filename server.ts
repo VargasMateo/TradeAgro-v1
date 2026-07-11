@@ -2860,9 +2860,9 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
     }
     const order = woRows[0];
 
-    // Authorization: Admin, Client, or Professional
+    // Authorization: Admin, Client, or ANY Professional (read-only view)
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.role === 'profesional';
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
     }
@@ -3056,12 +3056,11 @@ apiRouter.get('/attachments/:id/content', authenticateToken, async (req: any, re
 
     const { fileData, fileName, fileType, clientId, profesionalId } = rows[0];
 
-    // Authorization Check: Must be uploader (not explicitly needed if associated with job), 
-    // Admin, the assigned Profesional, or the Client for this job.
+    // Authorization Check: Admin, the Client, or ANY Professional (read-only access)
     const isAuthorized =
       user.role === 'admin' ||
       user.id === clientId ||
-      user.id === profesionalId;
+      user.role === 'profesional';
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized access attempt by UID ${user.id} to attachment ${id}`);
@@ -4141,6 +4140,9 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
         let minDp = latestDp;
         let maxDp = latestDp;
 
+        // Rain tips accumulator (converted to mm after the loop using device multiplier)
+        let rainAccumulated = 0;
+
         for (const record of todaysRecords) {
           const val = record.value;
           if (val) {
@@ -4168,6 +4170,11 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
             if (val.velmax !== undefined && val.velmax !== null) maxVel = Math.max(maxVel, val.velmax);
             if (val.velavg !== undefined && val.velavg !== null) maxVel = Math.max(maxVel, val.velavg);
 
+            // Rain: sum tips from today's records
+            if (val.rain !== undefined && val.rain !== null && val.rain > 0) {
+              rainAccumulated += val.rain;
+            }
+
             // Dew Point (calculated per-record then min/maxed)
             const dp = calculateDp(val.temp1avg, val.hum1avg);
             if (dp !== null && !isNaN(dp)) {
@@ -4193,6 +4200,28 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
         latestData.value.velmax = maxVel;
         latestData.value.dpMin = minDp;
         latestData.value.dpMax = maxDp;
+
+        // Convert rain tips to mm using the device's pluviometer multiplier from MKL config
+        // Default multiplier is 0.314 mm/tip (standard for MKL pluviometers)
+        let rainMultiplier = 0.314;
+        try {
+          if (cachedDevices?.data && Array.isArray(cachedDevices.data)) {
+            const device = cachedDevices.data.find((d: any) => d.dId === dId);
+            if (device?.template?.widgets) {
+              const rainWidget = device.template.widgets.find((w: any) => w.widget === 'rainchart' && w.multiplicador);
+              if (rainWidget?.multiplicador) {
+                rainMultiplier = parseFloat(rainWidget.multiplicador);
+                if (isNaN(rainMultiplier) || rainMultiplier <= 0) rainMultiplier = 0.314;
+              }
+            }
+          }
+        } catch (e) {
+          // Silently use default multiplier
+        }
+        
+        const dailyRainMm = parseFloat((rainAccumulated * rainMultiplier).toFixed(1));
+        latestData.value.rain = dailyRainMm;
+        console.log(`[RAIN] dId: ${dId} | tips: ${rainAccumulated} | multiplier: ${rainMultiplier} | rain: ${dailyRainMm}mm`);
       }
 
       finalData = {

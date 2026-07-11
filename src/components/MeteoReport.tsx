@@ -1,15 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Thermometer,
-  Wind,
-  Calendar,
-  MapPin,
   Download,
   Loader2,
-  ChevronDown,
   BarChart3,
   FileText,
-  Droplets,
 } from "lucide-react";
 import { authenticatedFetch } from "../lib/api";
 import { useReactToPrint } from 'react-to-print';
@@ -17,16 +11,10 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, Cell, ReferenceLine, ComposedChart, Area, ReferenceArea
 } from "recharts";
-import { format, parseISO, eachDayOfInterval, startOfDay, isSameDay } from "date-fns";
+import { format, parseISO, eachDayOfInterval, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 
 // ── Types ──────────────────────────────────────────────────────────
-
-interface WeatherDevice {
-  name: string;
-  dId: string;
-  templateName?: string;
-}
 
 interface SensorRecord {
   _id: string;
@@ -365,6 +353,8 @@ function WindRose({ data }: { data: DailySummary[] }) {
 
 // ── Main Page ──────────────────────────────────────────────────────
 
+
+
 export default function MeteoReport({ selectedDevice, selectedDeviceName }: { selectedDevice: string, selectedDeviceName: string }) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -373,7 +363,6 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   const [error, setError] = useState<string>('');
   const [rawRecords, setRawRecords] = useState<SensorRecord[]>([]);
   const [reportGenerated, setReportGenerated] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -597,42 +586,34 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
     return predominant;
   }, [dailyData]);
 
-  // PDF download using react-to-print
+  // PDF download using react-to-print with CSS scale transform
   const handleDownloadPDF = useReactToPrint({
     contentRef: reportRef,
     documentTitle: `TradeAgro-Meteo-${selectedDeviceName.split(' - ')[0].replace(/[^a-z0-9]/gi, '_')}-${startDate}`,
     pageStyle: `
-      @page { size: auto; margin: 0mm; }
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
       @media print {
-        body {
-          zoom: 0.75;
-          padding-bottom: 15mm;
+        html, body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #meteo-report-content {
+          transform: scale(0.62);
+          transform-origin: top left;
+          width: 161%;
         }
       }
     `,
-    // @ts-ignore
-    onBeforeGetContent: () => {
-      return new Promise<void>((resolve) => {
-        setIsPrinting(true);
-        setTimeout(() => {
-          resolve();
-        }, 300); // Dar tiempo a Recharts para re-calcular el ancho
-      });
-    },
     onBeforePrint: () => {
       setIsDownloading(true);
       return Promise.resolve();
     },
     onAfterPrint: () => {
-      setIsPrinting(false);
       setIsDownloading(false);
     },
-    onPrintError: (error) => {
-      console.error('Print error:', error);
-      alert('Error de impresión: ' + error);
-      setIsPrinting(false);
-      setIsDownloading(false);
-    }
   });
 
   // ── Conclusions ──────────────────────────────────────────────────
@@ -772,7 +753,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       {reportGenerated && dailyData.length > 0 && periodSummary && (
         <div 
           ref={reportRef} 
-          className={`bg-white shadow-lg border border-slate-200 rounded-2xl overflow-hidden print:shadow-none print:border-none print:rounded-none ${isPrinting ? 'w-[1058px] mx-auto' : ''}`} 
+          className="bg-white shadow-lg border border-slate-200 rounded-2xl overflow-hidden"
           id="meteo-report-content"
         >
           {/* Header */}
@@ -855,7 +836,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 {/* Temperatura Max y Min */}
                 <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
                   <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Temperatura máxima y mínima diaria</p>
-                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={300}>
+                  <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={dailyData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} angle={-45} textAnchor="end" tickMargin={10} />
@@ -883,7 +864,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 {/* Delta T */}
                 <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
                   <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Delta T durante el periodo</p>
-                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={300}>
+                  <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={deltaTData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
@@ -925,7 +906,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <div className="space-y-8 print:space-y-32">
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
-                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={250}>
+                  <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={hourlyWindData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
@@ -980,7 +961,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 </div>
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas con Delta T optimo y rafagas &lt; 15 km/h</p>
-                  <ResponsiveContainer width={isPrinting ? 994 : "100%"} height={250}>
+                  <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={dailyData} margin={{ top: 15, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
