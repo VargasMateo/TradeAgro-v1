@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database, RefreshCw } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
@@ -22,6 +22,8 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [configuringStationsFor, setConfiguringStationsFor] = useState<Client | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<number | null>(null);
+  const [resendSuccessId, setResendSuccessId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -130,6 +132,29 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const handleSaveDirect = (clientData: Client) => {
     // Refresh list via event
     fetchClients();
+  };
+
+  const handleResendInvite = async (client: Client) => {
+    setResendingInviteId(client.id);
+    try {
+      const response = await authenticatedFetch('/backend/auth/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: client.id }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setResendSuccessId(client.id);
+        setTimeout(() => setResendSuccessId(null), 3000);
+      } else {
+        alert(data.error || 'Error al reenviar la invitación');
+      }
+    } catch (error) {
+      console.error('Error resending invite:', error);
+      alert('Error al reenviar la invitación');
+    } finally {
+      setResendingInviteId(null);
+    }
   };
 
   const handleSaveStationsConfig = async (clientId: number, allowedStations: string[] | null) => {
@@ -311,9 +336,38 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                       </span>
                     )}
                     {client.setupPending && (
-                      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
-                        Pendiente
-                      </span>
+                      <>
+                        <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
+                          Pendiente
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleResendInvite(client); }}
+                          disabled={resendingInviteId === client.id || resendSuccessId === client.id}
+                          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-bold shrink-0 cursor-pointer transition-all duration-200 shadow-sm ${
+                            resendSuccessId === client.id
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-[#2e7d32] text-white hover:bg-[#256b29] hover:shadow-md active:scale-95'
+                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          title="Reenviar email de invitación"
+                        >
+                          {resendSuccessId === client.id ? (
+                            <>
+                              <Check className="h-3 w-3" />
+                              Enviado
+                            </>
+                          ) : resendingInviteId === client.id ? (
+                            <>
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-3 w-3" />
+                              Reenviar invitación
+                            </>
+                          )}
+                        </button>
+                      </>
                     )}
                   </div>
                   {client.businessName && (
