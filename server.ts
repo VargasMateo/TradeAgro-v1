@@ -262,6 +262,7 @@ async function initializeDatabase() {
         phoneNumber VARCHAR(50),
         hasStations BOOLEAN DEFAULT FALSE,
         hasSprayMonitor BOOLEAN DEFAULT FALSE,
+        allowedStations JSON DEFAULT NULL,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
         deletedAt TIMESTAMP NULL DEFAULT NULL,
@@ -521,6 +522,14 @@ async function initializeDatabase() {
       if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] hasSprayMonitor migration error:', e.message);
     }
 
+    // Migration: add allowedStations column to clients if it doesn't exist
+    try {
+      await connection.query('ALTER TABLE clients ADD COLUMN allowedStations JSON DEFAULT NULL AFTER hasSprayMonitor');
+      console.log('[INIT] Added allowedStations column to clients');
+    } catch (e: any) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('[INIT] allowedStations migration error:', e.message);
+    }
+
     // Migration: add notificationEmails column to clients if it doesn't exist
     try {
       await connection.query('ALTER TABLE clients ADD COLUMN notificationEmails TEXT DEFAULT NULL AFTER hasStations');
@@ -598,7 +607,7 @@ app.put('/backend/profile', authenticateToken, async (req: any, res: any) => {
     const [rows]: any = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor, c.allowedStations
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1394,7 +1403,7 @@ apiRouter.post('/login', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1450,6 +1459,9 @@ apiRouter.post('/login', async (req, res) => {
     if ('hasSprayMonitor' in userData) {
       userData.hasSprayMonitor = !!userData.hasSprayMonitor;
     }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     res.json({
@@ -1473,7 +1485,7 @@ apiRouter.post('/login-external', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1524,6 +1536,9 @@ apiRouter.post('/login-external', async (req, res) => {
     if ('hasSprayMonitor' in userData) {
       userData.hasSprayMonitor = !!userData.hasSprayMonitor;
     }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+    }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
     const redirectUrl = `/login-callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(userData))}`;
@@ -1544,7 +1559,7 @@ apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
@@ -1561,6 +1576,9 @@ apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
     }
     if ('hasSprayMonitor' in userData) {
       userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
     }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
@@ -1616,6 +1634,8 @@ apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
       ...row,
       setupPending: !!row.setupPending,
       hasStations: !!row.hasStations,
+      hasSprayMonitor: !!row.hasSprayMonitor,
+      allowedStations: typeof row.allowedStations === 'string' ? JSON.parse(row.allowedStations) : (row.allowedStations || null),
       isTest: !!row.isTest,
       // Mapping for frontend compatibility
       name: row.displayName,
@@ -1651,6 +1671,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       notificationEmails,
       hasStations,
       hasSprayMonitor,
+      allowedStations,
       isTest,
       fields // Array of fields from the modal
     } = req.body;
@@ -1671,7 +1692,8 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       phoneNumber: phoneNumber,
       notificationEmails: notificationEmails || null,
       hasStations: hasStations === undefined ? null : !!hasStations,
-      hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor
+      hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor,
+      allowedStations: allowedStations ? JSON.stringify(allowedStations) : null
     };
 
     console.log('[DEBUG] Updating client extension for userId:', userId);
@@ -1764,6 +1786,7 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       notificationEmails,
       hasStations,
       hasSprayMonitor,
+      allowedStations,
       createdBy,
       isTest,
       password, // Optional, can default
@@ -1820,11 +1843,11 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, allowedStations, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), allowedStations = VALUES(allowedStations), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor, allowedStations ? JSON.stringify(allowedStations) : null]
     );
 
     // 3. Insert associated fields if any
@@ -2837,9 +2860,9 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
     }
     const order = woRows[0];
 
-    // Authorization: Admin, Client, or Professional
+    // Authorization: Admin, Client, or ANY Professional (read-only view)
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.role === 'profesional';
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
     }
@@ -3033,12 +3056,11 @@ apiRouter.get('/attachments/:id/content', authenticateToken, async (req: any, re
 
     const { fileData, fileName, fileType, clientId, profesionalId } = rows[0];
 
-    // Authorization Check: Must be uploader (not explicitly needed if associated with job), 
-    // Admin, the assigned Profesional, or the Client for this job.
+    // Authorization Check: Admin, the Client, or ANY Professional (read-only access)
     const isAuthorized =
       user.role === 'admin' ||
       user.id === clientId ||
-      user.id === profesionalId;
+      user.role === 'profesional';
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized access attempt by UID ${user.id} to attachment ${id}`);
@@ -3552,6 +3574,36 @@ apiRouter.patch('/clients/:id/stations-toggle', authenticateToken, async (req: a
   } catch (error: any) {
     console.error('[DATABASE ERROR] PATCH /clients/:id/stations-toggle:', error.message);
     res.status(500).json({ success: false, error: 'Failed to update stations flag', details: error.message });
+  }
+});
+
+/**
+ * Update allowedStations for a client (admin only)
+ */
+apiRouter.patch('/clients/:id/allowed-stations', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  const { allowedStations } = req.body;
+  console.log(`[DEBUG] PATCH /backend/clients/${id}/allowed-stations - length=${allowedStations?.length}`);
+
+  if (req.user.role !== 'admin' && req.user.role !== 'profesional') {
+    return res.status(403).json({ success: false, error: 'Solo administradores y profesionales pueden modificar esta configuración.' });
+  }
+
+  try {
+    const jsonStr = allowedStations ? JSON.stringify(allowedStations) : null;
+    const [result]: any = await pool.query(
+      'UPDATE clients SET allowedStations = ? WHERE userId = ?',
+      [jsonStr, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Client not found' });
+    }
+
+    res.json({ success: true, allowedStations });
+  } catch (error: any) {
+    console.error('[DATABASE ERROR] PATCH /clients/:id/allowed-stations:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to update allowed stations', details: error.message });
   }
 });
 
@@ -4088,6 +4140,9 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
         let minDp = latestDp;
         let maxDp = latestDp;
 
+        // Rain tips accumulator (converted to mm after the loop using device multiplier)
+        let rainAccumulated = 0;
+
         for (const record of todaysRecords) {
           const val = record.value;
           if (val) {
@@ -4115,6 +4170,11 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
             if (val.velmax !== undefined && val.velmax !== null) maxVel = Math.max(maxVel, val.velmax);
             if (val.velavg !== undefined && val.velavg !== null) maxVel = Math.max(maxVel, val.velavg);
 
+            // Rain: sum tips from today's records
+            if (val.rain !== undefined && val.rain !== null && val.rain > 0) {
+              rainAccumulated += val.rain;
+            }
+
             // Dew Point (calculated per-record then min/maxed)
             const dp = calculateDp(val.temp1avg, val.hum1avg);
             if (dp !== null && !isNaN(dp)) {
@@ -4140,6 +4200,28 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
         latestData.value.velmax = maxVel;
         latestData.value.dpMin = minDp;
         latestData.value.dpMax = maxDp;
+
+        // Convert rain tips to mm using the device's pluviometer multiplier from MKL config
+        // Default multiplier is 0.314 mm/tip (standard for MKL pluviometers)
+        let rainMultiplier = 0.314;
+        try {
+          if (cachedDevices?.data && Array.isArray(cachedDevices.data)) {
+            const device = cachedDevices.data.find((d: any) => d.dId === dId);
+            if (device?.template?.widgets) {
+              const rainWidget = device.template.widgets.find((w: any) => w.widget === 'rainchart' && w.multiplicador);
+              if (rainWidget?.multiplicador) {
+                rainMultiplier = parseFloat(rainWidget.multiplicador);
+                if (isNaN(rainMultiplier) || rainMultiplier <= 0) rainMultiplier = 0.314;
+              }
+            }
+          }
+        } catch (e) {
+          // Silently use default multiplier
+        }
+        
+        const dailyRainMm = parseFloat((rainAccumulated * rainMultiplier).toFixed(1));
+        latestData.value.rain = dailyRainMm;
+        console.log(`[RAIN] dId: ${dId} | tips: ${rainAccumulated} | multiplier: ${rainMultiplier} | rain: ${dailyRainMm}mm`);
       }
 
       finalData = {
@@ -4159,6 +4241,95 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
   } catch (error: any) {
     console.error('[ERROR] GET /backend/weather-stations:', error.message);
     res.status(500).json({ error: 'Failed to fetch weather stations' });
+  }
+});
+
+/**
+ * GET /backend/weather-stations/historical — Fetch historical sensor data by date range from MKL Agro API
+ * Uses the MKL /api/get-data-date endpoint with startDate + endDate (ISO 8601)
+ * Max 10,000 records per query.
+ */
+apiRouter.get('/weather-stations/historical', authenticateToken, async (req: any, res: any) => {
+  console.log('[DEBUG] GET /backend/weather-stations/historical');
+  try {
+    const dId = req.query.dId;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const variable = req.query.variable || 'estaciontodas';
+    const specificField = req.query.specificField;
+
+    if (!dId || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Missing required parameters: dId, startDate, endDate' });
+    }
+
+    let token = await getMklToken();
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid dates provided' });
+    }
+    if (start > end) {
+      return res.status(400).json({ error: 'startDate cannot be after endDate' });
+    }
+
+    const chunkDays = 10; // Fetch in 10-day chunks to bypass 10,000 records limit
+    const allRecords: any[] = [];
+    
+    let currentStart = new Date(start);
+    console.log(`[MKL API] Fetching historical data in chunks: ${startDate} → ${endDate} for device ${dId}`);
+
+    while (currentStart <= end) {
+      let currentEnd = new Date(currentStart);
+      currentEnd.setDate(currentEnd.getDate() + chunkDays - 1);
+      if (currentEnd > end) {
+        currentEnd = new Date(end);
+      }
+
+      const chunkStartStr = currentStart.toISOString().split('T')[0];
+      const chunkEndStr = currentEnd.toISOString().split('T')[0];
+
+      let apiUrl = `https://panel.mklagro.com/api/get-data-date?dId=${encodeURIComponent(dId)}&variable=${encodeURIComponent(variable)}&startDate=${encodeURIComponent(chunkStartStr)}&endDate=${encodeURIComponent(chunkEndStr)}`;
+      if (specificField) {
+        apiUrl += `&specificField=${encodeURIComponent(specificField)}`;
+      }
+
+      console.log(`[MKL API] Fetching chunk: ${chunkStartStr} → ${chunkEndStr}`);
+
+      let mklResponse = await fetch(apiUrl, { headers: { 'token': token } });
+
+      if (mklResponse.status === 401) {
+        console.warn('[MKL API] Token returned 401 Unauthorized. Forcing token rotation and retry...');
+        token = await getMklToken(true);
+        mklResponse = await fetch(apiUrl, { headers: { 'token': token } });
+      }
+
+      if (!mklResponse.ok) {
+        console.error('[ERROR] MKL API returned status for chunk:', mklResponse.status);
+        const status = mklResponse.status === 401 ? 502 : mklResponse.status;
+        return res.status(status).json({ error: 'Failed to fetch historical data from MKL API' });
+      }
+
+      const mklData = await mklResponse.json();
+      if (mklData?.data && Array.isArray(mklData.data)) {
+        allRecords.push(...mklData.data);
+      }
+
+      // Advance to the next day after currentEnd
+      currentStart = new Date(currentEnd);
+      currentStart.setDate(currentStart.getDate() + 1);
+    }
+
+    // Ensure records are ordered chronologically
+    allRecords.sort((a, b) => (a.time || 0) - (b.time || 0));
+
+    console.log(`[MKL API] Historical data: Total ${allRecords.length} records returned after combining chunks`);
+
+    res.json({ error: 0, msj: "success", data: allRecords });
+  } catch (error: any) {
+    console.error('[ERROR] GET /backend/weather-stations/historical:', error.message);
+    res.status(500).json({ error: 'Failed to fetch historical weather data' });
   }
 });
 

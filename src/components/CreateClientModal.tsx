@@ -4,6 +4,7 @@ import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
 import { authenticatedFetch } from "../lib/api";
+import StationsConfigModal from "./StationsConfigModal";
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export default function CreateClientModal({
     isTest: boolean;
     hasStations: boolean;
     hasSprayMonitor: boolean;
+    allowedStations?: string[] | null;
     fields: ClientField[];
   }>({
     name: initialName,
@@ -41,8 +43,9 @@ export default function CreateClientModal({
     phone: '',
     notificationEmails: '',
     isTest: false,
-    hasStations: false,
-    hasSprayMonitor: false,
+    hasStations: true,
+    hasSprayMonitor: true,
+    allowedStations: null,
     fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
   });
 
@@ -57,6 +60,9 @@ export default function CreateClientModal({
     fields?: string;
     fieldErrors?: Record<number, { lat?: string; lng?: string }>;
   }>({});
+
+  const [isConfiguringStations, setIsConfiguringStations] = useState(false);
+  const [devices, setDevices] = useState<any[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [dialog, setDialog] = useState<{
@@ -97,6 +103,26 @@ export default function CreateClientModal({
   const canManageStations = isAdmin || isProfesional;
 
   useEffect(() => {
+    if (isOpen) {
+        document.body.style.overflow = 'hidden';
+        const fetchDevices = async () => {
+          try {
+            const res = await authenticatedFetch('/backend/weather-stations/devices');
+            if (res.ok) {
+              const json = await res.json();
+              if (json.status === 'success' && Array.isArray(json.data)) {
+                setDevices(json.data);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching devices:', error);
+          }
+        };
+        fetchDevices();
+      } else {
+        document.body.style.overflow = 'unset';
+      }
+
     if (editingClient) {
       const initialEmails = editingClient.notificationEmails
         ? editingClient.notificationEmails.split(/[,;\s]+/).map(e => e.trim()).filter(e => e !== '')
@@ -114,6 +140,7 @@ export default function CreateClientModal({
         isTest: !!editingClient.isTest,
         hasStations: !!editingClient.hasStations,
         hasSprayMonitor: !!editingClient.hasSprayMonitor,
+        allowedStations: editingClient.allowedStations,
         fields: (editingClient.fields || []).map(f => ({
           name: f.name || '',
           lat: f.lat,
@@ -132,8 +159,9 @@ export default function CreateClientModal({
         phone: '',
         notificationEmails: '',
         isTest: false,
-        hasStations: false,
-        hasSprayMonitor: false,
+        hasStations: true,
+        hasSprayMonitor: true,
+        allowedStations: null,
         fields: [{ name: '', lat: undefined, lng: undefined, lots: [''] }]
       });
     }
@@ -288,6 +316,7 @@ export default function CreateClientModal({
         isTest: formData.isTest,
         hasStations: formData.hasStations,
         hasSprayMonitor: formData.hasSprayMonitor,
+        allowedStations: formData.allowedStations,
         createdBy: currentUserId,
         fields: formData.fields.map(f => ({
           id: f.id,
@@ -603,62 +632,47 @@ export default function CreateClientModal({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-amber-100 bg-amber-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-500">
+                  <div className="flex items-start justify-between p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-[#0A6C35] mt-0.5">
                         <Sun className="h-5 w-5" />
                       </div>
                       <div>
-                        <label className="text-sm font-bold text-slate-900 block">
-                          Habilitar Estaciones Meteorológicas
+                        <label className="text-sm font-bold text-slate-900 block leading-tight mb-1">
+                          Equipos y Centrales Permitidas
                         </label>
-                        <p className="text-[11px] text-slate-500">
-                          Permite al cliente visualizar y gestionar estaciones de clima.
+                        <p className="text-[11px] text-slate-500 mb-2">
+                          Configure a qué equipos tiene acceso el cliente.
                         </p>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {formData.allowedStations === null ? (
+                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                              <span>Todos los equipos</span>
+                            </div>
+                          ) : formData.allowedStations.length === 0 ? (
+                            <div className="flex items-center gap-1.5 bg-slate-50 text-slate-500 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                              <span>Ningún equipo asignado</span>
+                            </div>
+                          ) : (
+                            formData.allowedStations.map(dId => {
+                              const device = devices.find(d => d.dId === dId);
+                              const name = device ? device.name : dId;
+                              return (
+                                <div key={dId} className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                                  <span className="max-w-[200px] truncate" title={name}>{name}</span>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={(e) => { e.preventDefault(); setFormData(prev => ({ ...prev, hasStations: !prev.hasStations })); }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shrink-0 ${
-                        formData.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
-                      }`}
+                      onClick={(e) => { e.preventDefault(); setIsConfiguringStations(true); }}
+                      className="rounded-xl px-4 py-2 text-xs font-bold text-[#0A6C35] bg-white border border-emerald-200 hover:bg-emerald-50 transition-colors cursor-pointer"
                     >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                          formData.hasStations ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Monitor de Pulverizacion Toggle */}
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-sky-100 bg-sky-50/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
-                        <Database className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold text-slate-900 block">
-                          Habilitar Monitor de Pulverización
-                        </label>
-                        <p className="text-[11px] text-slate-500">
-                          Permite al cliente visualizar y gestionar la central de pulverización.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); setFormData(prev => ({ ...prev, hasSprayMonitor: !prev.hasSprayMonitor })); }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shrink-0 ${
-                        formData.hasSprayMonitor ? 'bg-emerald-500' : 'bg-slate-200'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                          formData.hasSprayMonitor ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
+                      Configurar
                     </button>
                   </div>
                 </div>
@@ -970,6 +984,24 @@ export default function CreateClientModal({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <StationsConfigModal
+        isOpen={isConfiguringStations}
+        onClose={() => setIsConfiguringStations(false)}
+        client={{ id: -1, name: formData.name, businessName: formData.businessName, allowedStations: formData.allowedStations }}
+        onSave={async (_, allowedStations) => {
+          // If we have selected at least one station, or null (all), we assume they should have the menu tabs.
+          // In a fully granular system, the backend/frontend would decide this based on the devices array contents.
+          // For now, we set them to true if allowedStations is not empty, to keep the sidebar tabs visible.
+          const shouldEnable = allowedStations === null || allowedStations.length > 0;
+          setFormData(prev => ({
+            ...prev,
+            allowedStations,
+            hasStations: shouldEnable,
+            hasSprayMonitor: shouldEnable
+          }));
+        }}
+      />
     </div>
   );
 }

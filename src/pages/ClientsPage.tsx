@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database, RefreshCw } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import StationsConfigModal from "../components/StationsConfigModal";
 import { Client, ClientField } from "../types/client";
 import { authenticatedFetch } from "../lib/api";
 
@@ -20,8 +21,9 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [togglingStations, setTogglingStations] = useState<number | null>(null);
-  const [togglingSprayMonitor, setTogglingSprayMonitor] = useState<number | null>(null);
+  const [configuringStationsFor, setConfiguringStationsFor] = useState<Client | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<number | null>(null);
+  const [resendSuccessId, setResendSuccessId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -132,41 +134,43 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
     fetchClients();
   };
 
-  const handleToggleStations = async (client: Client) => {
-    const newValue = !client.hasStations;
-    setTogglingStations(client.id);
+  const handleResendInvite = async (client: Client) => {
+    setResendingInviteId(client.id);
     try {
-      const response = await authenticatedFetch(`/backend/clients/${client.id}/stations-toggle`, {
-        method: 'PATCH',
-        body: JSON.stringify({ hasStations: newValue })
+      const response = await authenticatedFetch('/backend/auth/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: client.id }),
       });
       const data = await response.json();
       if (data.success) {
-        setClients(prev => prev.map(c => c.id === client.id ? { ...c, hasStations: newValue } : c));
+        setResendSuccessId(client.id);
+        setTimeout(() => setResendSuccessId(null), 3000);
+      } else {
+        alert(data.error || 'Error al reenviar la invitación');
       }
     } catch (error) {
-      console.error('Error toggling stations:', error);
+      console.error('Error resending invite:', error);
+      alert('Error al reenviar la invitación');
     } finally {
-      setTogglingStations(null);
+      setResendingInviteId(null);
     }
   };
 
-  const handleToggleSprayMonitor = async (client: Client) => {
-    const newValue = !client.hasSprayMonitor;
-    setTogglingSprayMonitor(client.id);
+  const handleSaveStationsConfig = async (clientId: number, allowedStations: string[] | null) => {
     try {
-      const response = await authenticatedFetch(`/backend/clients/${client.id}/spray-monitor-toggle`, {
+      const response = await authenticatedFetch(`/backend/clients/${clientId}/allowed-stations`, {
         method: 'PATCH',
-        body: JSON.stringify({ hasSprayMonitor: newValue })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowedStations }),
       });
       const data = await response.json();
-      if (data.success) {
-        setClients(prev => prev.map(c => c.id === client.id ? { ...c, hasSprayMonitor: newValue } : c));
-      }
+      if (!data.success) throw new Error(data.error);
+      
+      setClients(clients.map(c => c.id === clientId ? { ...c, allowedStations: data.allowedStations } : c));
     } catch (error) {
-      console.error('Error toggling spray monitor:', error);
-    } finally {
-      setTogglingSprayMonitor(null);
+      console.error('Error updating allowed stations:', error);
+      alert('Error al actualizar los equipos permitidos');
     }
   };
 
@@ -332,9 +336,38 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                       </span>
                     )}
                     {client.setupPending && (
-                      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
-                        Pendiente
-                      </span>
+                      <>
+                        <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
+                          Pendiente
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleResendInvite(client); }}
+                          disabled={resendingInviteId === client.id || resendSuccessId === client.id}
+                          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-bold shrink-0 cursor-pointer transition-all duration-200 shadow-sm ${
+                            resendSuccessId === client.id
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-[#2e7d32] text-white hover:bg-[#256b29] hover:shadow-md active:scale-95'
+                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          title="Reenviar email de invitación"
+                        >
+                          {resendSuccessId === client.id ? (
+                            <>
+                              <Check className="h-3 w-3" />
+                              Enviado
+                            </>
+                          ) : resendingInviteId === client.id ? (
+                            <>
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-3 w-3" />
+                              Reenviar invitación
+                            </>
+                          )}
+                        </button>
+                      </>
                     )}
                   </div>
                   {client.businessName && (
@@ -382,42 +415,12 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
 
                 {(userRole === 'admin' || userRole === 'profesional') && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
-                    <div className="flex items-center justify-between pb-1">
-                      <div className="flex items-center gap-2">
-                        <Sun className="h-4 w-4 text-amber-500" />
-                        <span className="text-xs font-semibold text-slate-600">Est. Meteorológicas</span>
-                      </div>
+                    <div className="mt-2 flex justify-end">
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleToggleStations(client); }}
-                        disabled={togglingStations === client.id}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
-                          client.hasStations ? 'bg-emerald-500' : 'bg-slate-200'
-                        } ${togglingStations === client.id ? 'opacity-50' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setConfiguringStationsFor(client); }}
+                        className="text-xs font-semibold text-[#0A6C35] hover:underline cursor-pointer"
                       >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                            client.hasStations ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Database className="h-4 w-4 text-sky-500" />
-                        <span className="text-xs font-semibold text-slate-600">Mon. Pulverización</span>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleToggleSprayMonitor(client); }}
-                        disabled={togglingSprayMonitor === client.id}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${
-                          client.hasSprayMonitor ? 'bg-emerald-500' : 'bg-slate-200'
-                        } ${togglingSprayMonitor === client.id ? 'opacity-50' : ''}`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                            client.hasSprayMonitor ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
+                        Configurar centrales habilitadas
                       </button>
                     </div>
                   </div>
@@ -453,7 +456,14 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
         }}
         onConfirm={confirmDelete}
         title="Eliminar Cliente"
-        description={`¿Estás seguro de que deseas eliminar a "${clientToDelete?.name}"? Esta acción no se puede deshacer.`}
+        description={`¿Está seguro que desea eliminar a ${clientToDelete?.businessName || clientToDelete?.name}? Esta acción no se puede deshacer.`}
+      />
+
+      <StationsConfigModal
+        isOpen={!!configuringStationsFor}
+        onClose={() => setConfiguringStationsFor(null)}
+        client={configuringStationsFor}
+        onSave={handleSaveStationsConfig}
       />
     </div>
   );

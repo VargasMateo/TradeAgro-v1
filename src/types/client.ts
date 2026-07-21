@@ -20,5 +20,6 @@ export interface Client {
   hasSprayMonitor?: boolean;
   notificationEmails?: string;
   isTest?: boolean;
+  allowedStations?: string[] | null;
   createdAt?: string;
 }

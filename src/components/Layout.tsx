@@ -8,7 +8,8 @@ import {
   UserCheck,
   Shield,
   ClipboardList,
-  Sun
+  Sun,
+  FileBarChart
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
@@ -31,11 +32,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           name: parsed.displayName || parsed.name || "Usuario",
           email: parsed.email || "",
           hasStations: !!parsed.hasStations,
+          allowedStations: parsed.allowedStations,
           avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
         };
       } catch (e) { /* fall through */ }
     }
-    return { name: "Usuario", email: "", hasStations: false, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+    return { name: "Usuario", email: "", hasStations: false, allowedStations: null, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
   };
 
   const [userProfile, setUserProfile] = useState(getInitialProfile);
@@ -50,6 +52,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
             name: parsed.displayName || parsed.name || "Usuario",
             email: parsed.email || "",
             hasStations: !!parsed.hasStations,
+            allowedStations: parsed.allowedStations,
             avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
         } catch (e) {
@@ -105,7 +108,8 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     navItems.push(
       { path: "/profesionales", label: "Profesionales", icon: UserCheck }
     );
-    if (userProfile.hasStations) {
+    const userHasAccessToStations = userProfile.hasStations && (!Array.isArray(userProfile.allowedStations) || userProfile.allowedStations.length > 0);
+    if (userHasAccessToStations) {
       navItems.push(
         { path: "/stations", label: "Est. Meteorológicas", icon: Sun }
       );
@@ -138,8 +142,8 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       >
         <div className="flex h-full flex-col">
           {/* Logo Section */}
-          <Link to="/dashboard" className="flex h-24 items-center gap-3 border-b border-slate-100 px-8 transition-opacity hover:opacity-80 overflow-hidden">
-            <img src={logoIso} alt="TradeAgro" className="h-10 w-auto object-contain shrink-0" />
+          <Link to="/dashboard" className="flex h-24 items-center gap-2 border-b border-slate-100 pl-8 pr-4 transition-opacity hover:opacity-80 overflow-hidden">
+            <img src={logoIso} alt="TradeAgro" className="h-8 w-auto object-contain shrink-0" />
             {userRole === 'admin' && (
               <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Admin
