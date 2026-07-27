@@ -2004,10 +2004,10 @@ apiRouter.delete('/clients/:id', authenticateToken, async (req: any, res: any) =
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /backend/clients/${id} - Soft delete requested`);
   try {
-    // Soft delete in clients table
+    // Soft delete in clients table for the client and their associated accounts
     const [result]: any = await pool.query(
-      'UPDATE clients SET deletedAt = NOW() WHERE userId = ?',
-      [id]
+      'UPDATE clients SET deletedAt = NOW() WHERE userId = ? OR ownerId = ?',
+      [id, id]
     );
 
     if (result.affectedRows === 0) {
