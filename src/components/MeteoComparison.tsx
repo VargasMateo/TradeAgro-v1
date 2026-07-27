@@ -77,7 +77,7 @@ export default function MeteoComparison({ devices }: MeteoComparisonProps) {
           let absMin = Infinity;
           let absMax = -Infinity;
 
-          if (json.status === "success" && json.data) {
+          if (json.data && Array.isArray(json.data)) {
             chartData = json.data
               .map((record: any) => {
                 const tempMin = record.value?.temp1min;
@@ -93,7 +93,8 @@ export default function MeteoComparison({ devices }: MeteoComparisonProps) {
                   tempAvg,
                 };
               })
-              .filter((d: any) => d.tempAvg !== undefined);
+              .filter((d: any) => d.tempAvg !== undefined)
+              .sort((a: any, b: any) => a.time - b.time);
           }
 
           return {
