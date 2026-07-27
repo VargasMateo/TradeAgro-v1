@@ -109,10 +109,7 @@ export default function MeteoComparison({ devices }: MeteoComparisonProps) {
 
       setResults(fetchedResults);
       setCommonPeriod(
-        `${format(dStart, "dd/MM/yyyy HH:mm")} a ${format(
-          dEnd,
-          "dd/MM/yyyy HH:mm"
-        )}`
+        `${format(dStart, "dd/MM/yyyy")} a ${format(dEnd, "dd/MM/yyyy")}`
       );
     } catch (e) {
       console.error(e);
@@ -218,8 +215,8 @@ export default function MeteoComparison({ devices }: MeteoComparisonProps) {
       {/* Results Grid */}
       {results.length > 0 && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="mb-6 bg-slate-100 rounded-lg p-3 px-5 text-sm font-bold text-slate-600 flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-slate-400" />
+          <div className="mb-6 bg-white rounded-2xl border border-slate-200 p-4 shadow-sm text-sm font-bold text-slate-600 flex items-center gap-3">
+            <Calendar className="h-5 w-5 text-green-700" />
             Período común: <span className="text-slate-800">{commonPeriod}</span>
           </div>
 
