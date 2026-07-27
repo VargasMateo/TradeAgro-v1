@@ -159,6 +159,7 @@ const StationSkeleton = () => (
 
 import Map from "../components/Map";
 import MeteoReport from "../components/MeteoReport";
+import MeteoComparison from "../components/MeteoComparison";
 
 export default function StationsPage() {
   const [devices, setDevices] = useState<WeatherDevice[]>([]);
@@ -746,6 +747,13 @@ let globalDevicesCacheTime = 0;
       {selectedDid && (
         <div className="mt-8 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
           <MeteoReport selectedDevice={selectedDid} selectedDeviceName={selectedDeviceName} />
+        </div>
+      )}
+
+      {/* Meteo Comparison Component */}
+      {devices.length > 0 && (
+        <div className="mt-8 animate-fade-in-up" style={{ animationDelay: '360ms' }}>
+          <MeteoComparison devices={devices} />
         </div>
       )}
 
