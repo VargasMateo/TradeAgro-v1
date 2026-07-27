@@ -167,7 +167,7 @@ export default function DemoAccountsPage() {
             setEditingEntry(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] cursor-pointer"
+          className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-3 text-sm font-bold text-white transition-all hover:bg-[#1b5e20] hover:shadow-lg hover:shadow-[#2e7d32]/20 active:scale-[0.98] cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           Agregar CUIT
@@ -279,7 +279,7 @@ export default function DemoAccountsPage() {
                           onClick={() => handleToggleActive(entry)}
                           disabled={togglingId === entry.id}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                            entry.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                            entry.isActive ? 'bg-[#2e7d32]' : 'bg-slate-300'
                           } ${togglingId === entry.id ? 'opacity-50' : ''}`}
                         >
                           <span
@@ -355,7 +355,7 @@ export default function DemoAccountsPage() {
                         onClick={() => handleToggleActive(entry)}
                         disabled={togglingId === entry.id}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                          entry.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                          entry.isActive ? 'bg-[#2e7d32]' : 'bg-slate-300'
                         }`}
                       >
                         <span
