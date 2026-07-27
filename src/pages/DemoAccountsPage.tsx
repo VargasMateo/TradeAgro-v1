@@ -170,7 +170,7 @@ export default function DemoAccountsPage() {
           className="flex items-center gap-2 rounded-xl bg-[#2e7d32] px-5 py-3 text-sm font-bold text-white transition-all hover:bg-[#1b5e20] hover:shadow-lg hover:shadow-[#2e7d32]/20 active:scale-[0.98] cursor-pointer"
         >
           <Plus className="h-4 w-4" />
-          Agregar CUIT
+          Agregar cuenta
         </button>
       </div>
 

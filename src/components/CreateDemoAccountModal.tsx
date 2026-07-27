@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface DemoPadronEntry {
@@ -95,11 +95,12 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* CUIT */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">CUIL / CUIT</label>
+            <label className="text-sm font-semibold text-slate-700">CUIL / CUIT <span className="text-red-500">*</span></label>
             <input
               type="text"
               value={formData.cuit}
               onChange={(e) => setFormData(prev => ({ ...prev, cuit: e.target.value }))}
+              maxLength={11}
               placeholder="20123456789"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono"
               autoFocus
@@ -108,7 +109,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
 
           {/* Razón Social */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Razón Social</label>
+            <label className="text-sm font-semibold text-slate-700">Razón Social <span className="text-red-500">*</span></label>
             <input
               type="text"
               value={formData.razonSocial}
@@ -128,7 +129,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                formData.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                formData.isActive ? 'bg-[#2e7d32]' : 'bg-slate-300'
               }`}
             >
               <span
@@ -150,7 +151,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, hasExpiration: !prev.hasExpiration }))}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  formData.hasExpiration ? 'bg-emerald-500' : 'bg-slate-300'
+                  formData.hasExpiration ? 'bg-[#2e7d32]' : 'bg-slate-300'
                 }`}
               >
                 <span
@@ -189,7 +190,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] disabled:opacity-70 cursor-pointer"
+              className="flex-1 rounded-xl bg-[#2e7d32] px-4 py-3 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-[#2e7d32]/20 active:scale-[0.98] disabled:opacity-70 cursor-pointer"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
