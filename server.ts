@@ -1576,7 +1576,13 @@ apiRouter.post('/login-demo', async (req, res) => {
     );
 
     // Build user data
-    const userData: any = { ...user, isDemo: true };
+    let expiresAt = padronEntry.expiresAt;
+    if (!expiresAt) {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      expiresAt = d.toISOString();
+    }
+    const userData: any = { ...user, isDemo: true, demoExpiresAt: expiresAt };
     if ('hasStations' in userData) {
       userData.hasStations = !!userData.hasStations;
     }

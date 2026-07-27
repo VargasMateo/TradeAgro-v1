@@ -35,11 +35,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           hasStations: !!parsed.hasStations,
           allowedStations: parsed.allowedStations,
           isDemo: !!parsed.isDemo,
+          demoExpiresAt: parsed.demoExpiresAt || null,
           avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
         };
       } catch (e) { /* fall through */ }
     }
-    return { name: "Usuario", email: "", hasStations: false, allowedStations: null, isDemo: false, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+    return { name: "Usuario", email: "", hasStations: false, allowedStations: null, isDemo: false, demoExpiresAt: null, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
   };
 
   const [userProfile, setUserProfile] = useState(getInitialProfile);
@@ -56,6 +57,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
             hasStations: !!parsed.hasStations,
             allowedStations: parsed.allowedStations,
             isDemo: !!parsed.isDemo,
+            demoExpiresAt: parsed.demoExpiresAt || null,
             avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
         } catch (e) {
@@ -293,11 +295,24 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto bg-slate-50/50 p-4 lg:p-8">
           {userProfile.isDemo && (
-            <div className="mb-4 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
-              <KeyRound className="h-4 w-4 text-amber-600 shrink-0" />
-              <p className="text-sm font-medium text-amber-700">
-                Estás navegando en <span className="font-bold">modo demostración</span>. Los datos que ves son de ejemplo.
-              </p>
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-amber-600 shrink-0" />
+                <p className="text-sm font-medium text-amber-700">
+                  Estás navegando en <span className="font-bold">modo demostración</span>. Los datos que ves son de ejemplo.
+                </p>
+              </div>
+              {userProfile.demoExpiresAt && (
+                <div className="text-xs font-bold bg-amber-200/50 text-amber-800 px-2.5 py-1 rounded-md shrink-0 border border-amber-200">
+                  {(() => {
+                    const daysLeft = Math.ceil((new Date(userProfile.demoExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    if (daysLeft > 1) return `Vence en ${daysLeft} días`;
+                    if (daysLeft === 1) return `Vence mañana`;
+                    if (daysLeft === 0) return `Vence hoy`;
+                    return 'Acceso vencido';
+                  })()}
+                </div>
+              )}
             </div>
           )}
           {children}
