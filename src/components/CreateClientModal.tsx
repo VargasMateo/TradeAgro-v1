@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy, Sun } from "lucide-react";
+import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy, Sun, RefreshCw } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
@@ -66,6 +66,7 @@ export default function CreateClientModal({
 
   const [associatedClients, setAssociatedClients] = useState<any[]>([]);
   const [loadingAssociated, setLoadingAssociated] = useState(false);
+  const [fetchingAssociated, setFetchingAssociated] = useState(false);
   const [newAssociatedForm, setNewAssociatedForm] = useState({ name: '', email: '' });
   const [associatedError, setAssociatedError] = useState('');
 
@@ -130,7 +131,7 @@ export default function CreateClientModal({
 
     const fetchAssociatedClients = async () => {
       if (!editingClient || editingClient.clientRole === 'associated') return;
-      setLoadingAssociated(true);
+      setFetchingAssociated(true);
       try {
         const res = await authenticatedFetch('/backend/clients');
         if (res.ok) {
@@ -143,7 +144,7 @@ export default function CreateClientModal({
       } catch (err) {
         console.error('Error fetching associated clients:', err);
       } finally {
-        setLoadingAssociated(false);
+        setFetchingAssociated(false);
       }
     };
 
@@ -455,7 +456,12 @@ export default function CreateClientModal({
           }
         }
       } else {
-        setAssociatedError(data.error || data.details || 'Error al crear cuenta asociada');
+        const errorMsg = data.error || data.details || 'Error al crear cuenta asociada';
+        if (errorMsg.includes('Duplicate entry')) {
+          setAssociatedError('El correo electrónico ya está en uso por otra cuenta.');
+        } else {
+          setAssociatedError(errorMsg);
+        }
       }
     } catch (err: any) {
       setAssociatedError(err.message || 'Ocurrió un error inesperado');
@@ -982,7 +988,7 @@ export default function CreateClientModal({
                   </div>
                   
                   <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/30 space-y-4">
-                    {loadingAssociated ? (
+                    {fetchingAssociated ? (
                       <div className="text-xs text-slate-500 text-center py-2">Cargando...</div>
                     ) : (
                       <>
@@ -1040,9 +1046,13 @@ export default function CreateClientModal({
                               type="button"
                               onClick={handleCreateAssociatedClient}
                               disabled={loadingAssociated}
-                              className="w-full sm:w-auto rounded-xl bg-[#2e7d32] px-4 py-2 text-xs font-bold text-white hover:bg-[#1b5e20] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/50 disabled:opacity-50 transition-colors h-[38px]"
+                              className="w-full sm:w-auto rounded-xl bg-[#2e7d32] px-4 py-2 text-xs font-bold text-white hover:bg-[#1b5e20] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/50 disabled:opacity-50 transition-colors h-[38px] flex items-center justify-center gap-2 min-w-[80px]"
                             >
-                              Agregar
+                              {loadingAssociated ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Agregar"
+                              )}
                             </button>
                           </div>
                           {associatedError && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database, RefreshCw } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database, RefreshCw, ChevronDown } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
@@ -16,6 +16,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'owner' | 'associated' | 'all'>('owner');
 
   // Delete Modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -235,10 +236,16 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (client.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients.filter(client => {
+    const matchesSearch = (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (client.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (roleFilter === 'owner') return client.clientRole !== 'associated';
+    if (roleFilter === 'associated') return client.clientRole === 'associated';
+    return true;
+  });
 
   const ClientSkeleton = () => (
     <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm animate-pulse h-full">
@@ -294,13 +301,25 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as any)}
+              className="appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-slate-900 focus:border-[#2e7d32] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/20 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              <option value="owner">Dueños</option>
+              <option value="associated">Asociados</option>
+              <option value="all">Todos</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          </div>
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Buscar cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-64"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#2e7d32] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/20 shadow-sm sm:w-64 transition-colors hover:bg-slate-50"
             />
           </div>
           <button
