@@ -1001,7 +1001,7 @@ export default function CreateClientModal({
                                   <div className="text-[10px] text-slate-500">{assoc.email}</div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
+                                  <div className="text-[10px] bg-[#2e7d32]/10 text-[#2e7d32] px-2 py-0.5 rounded-full font-semibold">
                                     Asociado
                                   </div>
                                   <button
