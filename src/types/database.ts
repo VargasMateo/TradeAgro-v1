@@ -18,6 +18,8 @@ export interface Client extends User {
   ivaCondition: string;
   phoneNumber?: string;
   hasStations?: boolean;
+  clientRole?: 'owner' | 'associated';
+  ownerId?: number;
   deletedAt?: string;
 }
 

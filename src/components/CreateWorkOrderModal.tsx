@@ -309,10 +309,11 @@ export default function CreateWorkOrderModal() {
     type: 'warning'
   });
 
-  const clientSuggestions = clients.filter((c: any) =>
-    (c.name || '').toLowerCase().includes(formData.client.toLowerCase()) ||
-    (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()))
-  ).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+  const clientSuggestions = clients.filter((c: any) => {
+    if (c.clientRole === 'associated') return false;
+    return (c.name || '').toLowerCase().includes(formData.client.toLowerCase()) ||
+           (c.businessName && c.businessName.toLowerCase().includes(formData.client.toLowerCase()));
+  }).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
   const selectedClientObj = clients.find((c: any) =>
     (formData.clientId && c.id === formData.clientId) ||
     (!formData.clientId && (

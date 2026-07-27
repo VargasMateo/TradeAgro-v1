@@ -274,10 +274,26 @@ async function initializeDatabase() {
         allowedStations JSON DEFAULT NULL,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
+        clientRole VARCHAR(50) DEFAULT 'owner',
+        ownerId INT DEFAULT NULL,
         deletedAt TIMESTAMP NULL DEFAULT NULL,
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (ownerId) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Migration for clients: clientRole and ownerId
+    const [clientRoleCol]: any = await connection.query('SHOW COLUMNS FROM clients LIKE "clientRole"');
+    if (clientRoleCol.length === 0) {
+      console.log('[INIT] Migrating clients: adding clientRole column');
+      await connection.query('ALTER TABLE clients ADD COLUMN clientRole VARCHAR(50) DEFAULT "owner"');
+    }
+    const [ownerIdCol]: any = await connection.query('SHOW COLUMNS FROM clients LIKE "ownerId"');
+    if (ownerIdCol.length === 0) {
+      console.log('[INIT] Migrating clients: adding ownerId column');
+      await connection.query('ALTER TABLE clients ADD COLUMN ownerId INT DEFAULT NULL');
+      await connection.query('ALTER TABLE clients ADD FOREIGN KEY (ownerId) REFERENCES users(id) ON DELETE CASCADE');
+    }
 
     // Other tables
     console.log('[INIT] Creating fields table...');
@@ -1905,7 +1921,9 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       hasSprayMonitor,
       allowedStations,
       isTest,
-      fields // Array of fields from the modal
+      fields, // Array of fields from the modal
+      clientRole,
+      ownerId
     } = req.body;
 
     await connection.beginTransaction();
@@ -1917,7 +1935,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
     );
 
     // 2. Update client data (Extension)
-    const clientData = {
+    const clientData: any = {
       businessName: businessName,
       cuit: cuit,
       ivaCondition: ivaCondition || 'Responsable Inscripto',
@@ -1928,14 +1946,18 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       allowedStations: allowedStations ? JSON.stringify(allowedStations) : null
     };
 
+    if (clientRole !== undefined) clientData.clientRole = clientRole;
+    if (ownerId !== undefined) clientData.ownerId = ownerId;
+
     console.log('[DEBUG] Updating client extension for userId:', userId);
     await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
 
     // 3. Replace fields (delete existing, insert new)
-    console.log('[DEBUG] Replacing associated fields');
-    await connection.query('DELETE FROM fields WHERE clientId = ?', [userId]);
+    if (clientRole !== 'associated') {
+      console.log('[DEBUG] Replacing associated fields');
+      await connection.query('DELETE FROM fields WHERE clientId = ?', [userId]);
 
-    if (fields && Array.isArray(fields)) {
+      if (fields && Array.isArray(fields)) {
       for (const field of fields) {
         const fieldData = {
           clientId: userId,
@@ -1945,6 +1967,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO fields SET ?', [fieldData]);
+      }
       }
     }
 
@@ -2022,7 +2045,9 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       createdBy,
       isTest,
       password, // Optional, can default
-      fields // Array of fields from the modal
+      fields, // Array of fields from the modal
+      clientRole,
+      ownerId
     } = req.body;
 
     const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
@@ -2075,15 +2100,15 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, allowedStations, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, allowedStations, clientRole, ownerId, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), allowedStations = VALUES(allowedStations), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor, allowedStations ? JSON.stringify(allowedStations) : null]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), allowedStations = VALUES(allowedStations), clientRole = VALUES(clientRole), ownerId = VALUES(ownerId), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor, allowedStations ? JSON.stringify(allowedStations) : null, clientRole || 'owner', ownerId || null]
     );
 
     // 3. Insert associated fields if any
-    if (fields && Array.isArray(fields)) {
+    if (clientRole !== 'associated' && fields && Array.isArray(fields)) {
       console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
       for (const field of fields) {
         const fieldData = {
@@ -2189,9 +2214,13 @@ apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
 
     // Role-based filtering
     if (role === 'client') {
-      console.log(`[DEBUG_AUTH] Filtering for clientId: ${id}`);
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [id]);
+      const clientExt = clientRows[0];
+      const targetClientId = (clientExt && clientExt.clientRole === 'associated' && clientExt.ownerId) ? clientExt.ownerId : id;
+
+      console.log(`[DEBUG_AUTH] Filtering for clientId: ${targetClientId} (original user: ${id})`);
       query += ` AND t.clientId = ?`;
-      params.push(id);
+      params.push(targetClientId);
     } else {
       console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
     }
@@ -2546,7 +2575,11 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
         SELECT t.*, 
                u_client.displayName as clientName, u_client.email as clientEmail,
                c_client.notificationEmails as clientNotificationEmails,
-               u_prof.displayName as profesionalName, u_prof.email as profesionalEmail
+               u_prof.displayName as profesionalName, u_prof.email as profesionalEmail,
+               (SELECT GROUP_CONCAT(assoc_u.email SEPARATOR ',') 
+                FROM clients assoc_c 
+                JOIN users assoc_u ON assoc_c.userId = assoc_u.id 
+                WHERE assoc_c.ownerId = t.clientId AND assoc_c.clientRole = 'associated') as associatedEmails
         FROM work_orders t
         LEFT JOIN users u_client ON t.clientId = u_client.id
         LEFT JOIN clients c_client ON t.clientId = c_client.userId
@@ -2561,7 +2594,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
           uuid: row.uuid,
           clientName: row.clientName,
           clientEmail: row.clientEmail,
-          clientNotificationEmails: row.clientNotificationEmails,
+          clientNotificationEmails: [row.clientNotificationEmails, row.associatedEmails].filter(Boolean).join(','),
           profesionalName: row.profesionalName,
           profesionalEmail: row.profesionalEmail,
           service: row.service,
@@ -2593,7 +2626,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
   try {
     // Resolve UUID to internal numeric ID
     const [woRows]: any = await pool.query(
-      'SELECT id, status, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      'SELECT id, status, profesionalId, clientId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
       [id]
     );
     if (woRows.length === 0) {
@@ -2601,8 +2634,15 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
     }
     const orderBeforeUpdate = woRows[0];
 
-    // Authorization: Admin or the assigned Professional
-    const isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId;
+    // Authorization: Admin, Assigned Professional, Client, or Associated Client
+    let isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId || user.id === orderBeforeUpdate.clientId;
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === orderBeforeUpdate.clientId) {
+        isAuthorized = true;
+      }
+    }
+
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para modificar esta orden' });
     }
@@ -2765,7 +2805,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
       try {
         const query = `
           SELECT t.*, u.displayName as clientName, u.email as clientEmail,
-                 c.notificationEmails as clientNotificationEmails
+                 c.notificationEmails as clientNotificationEmails,
+                 (SELECT GROUP_CONCAT(assoc_u.email SEPARATOR ',') 
+                  FROM clients assoc_c 
+                  JOIN users assoc_u ON assoc_c.userId = assoc_u.id 
+                  WHERE assoc_c.ownerId = t.clientId AND assoc_c.clientRole = 'associated') as associatedEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
           LEFT JOIN clients c ON t.clientId = c.userId
@@ -2780,7 +2824,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
             uuid: row.uuid,
             clientName: row.clientName,
             clientEmail: row.clientEmail,
-            clientNotificationEmails: row.clientNotificationEmails,
+            clientNotificationEmails: [row.clientNotificationEmails, row.associatedEmails].filter(Boolean).join(','),
             service: row.service || 'Servicio General',
             location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
             hectares: row.hectares,
@@ -2893,10 +2937,17 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
     const row = rows[0];
 
     // Authorization Check: Admin, Assigned Professional, Client, or ANY Professional
-    const isAuthorized =
+    let isAuthorized =
       user.role === 'admin' ||
       user.role === 'profesional' ||
       user.id === row.clientId;
+
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === row.clientId) {
+        isAuthorized = true;
+      }
+    }
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized WO access attempt by UID ${user.id} to WO ${id}`);
