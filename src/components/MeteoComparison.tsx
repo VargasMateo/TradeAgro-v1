@@ -280,6 +280,7 @@ export default function MeteoComparison({ devices }: MeteoComparisonProps) {
                           tickFormatter={(val) => `${val}°C`}
                         />
                         <Tooltip
+                          formatter={(value: number) => [`${value.toFixed(1)}°C`, "Temperatura"]}
                           contentStyle={{
                             borderRadius: "12px",
                             border: "1px solid #e2e8f0",
