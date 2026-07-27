@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, CheckCircle2, KeyRound } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 interface LoginPageProps {
@@ -7,7 +7,7 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
-  const [view, setView] = useState<'login' | 'forgot-password'>('login');
+  const [view, setView] = useState<'login' | 'forgot-password' | 'demo'>('login');
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotIsLoading, setForgotIsLoading] = useState(false);
@@ -17,6 +17,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Demo login state
+  const [demoUsername, setDemoUsername] = useState('demo');
+  const [demoCuit, setDemoCuit] = useState('');
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [demoIsLoading, setDemoIsLoading] = useState(false);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -67,6 +73,45 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       setError('Error de conexión con el servidor');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDemoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDemoError(null);
+
+    if (!demoUsername.trim()) {
+      setDemoError('Por favor, ingresa el usuario');
+      return;
+    }
+    if (!demoCuit.trim()) {
+      setDemoError('Por favor, ingresa tu CUIL/CUIT');
+      return;
+    }
+
+    setDemoIsLoading(true);
+
+    try {
+      const response = await fetch('/backend/login-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: demoUsername, cuit: demoCuit.replace(/[-\s]/g, '') }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userProfile", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("profile-updated"));
+        onLogin(data.user.role);
+      } else {
+        setDemoError(data.error || 'Error al acceder como demo');
+      }
+    } catch (err) {
+      setDemoError('Error de conexión con el servidor');
+    } finally {
+      setDemoIsLoading(false);
     }
   };
 
@@ -123,7 +168,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <img src={logo} alt="TradeAgro Logo" className="h-full w-auto object-contain" />
           </div>
           <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">
-            {view === 'login' ? 'Panel de Administración' : 'Recuperar Contraseña'}
+            {view === 'login' ? 'Panel de Administración' : view === 'demo' ? 'Acceso Demo' : 'Recuperar Contraseña'}
           </p>
         </div>
 
@@ -194,7 +239,82 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 )}
               </button>
 
+              {/* Demo access link */}
+              <button
+                type="button"
+                onClick={() => {
+                  setView('demo');
+                  setDemoError(null);
+                  setDemoCuit('');
+                }}
+                className="flex w-full items-center justify-center gap-2 text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors cursor-pointer pt-1"
+              >
+                <KeyRound className="h-4 w-4" />
+                Tengo cuenta demo
+              </button>
 
+            </form>
+          ) : view === 'demo' ? (
+            <form onSubmit={handleDemoSubmit} className="space-y-6">
+              <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-700 border border-amber-100">
+                <p className="font-semibold mb-1">Acceso de demostración</p>
+                <p className="text-amber-600 text-xs">Ingresá tu usuario y CUIL/CUIT para explorar la plataforma.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Usuario</label>
+                <input
+                  type="text"
+                  value={demoUsername}
+                  onChange={(e) => setDemoUsername(e.target.value)}
+                  placeholder="demo"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">CUIL / CUIT</label>
+                <input
+                  type="text"
+                  value={demoCuit}
+                  onChange={(e) => setDemoCuit(e.target.value)}
+                  placeholder="20123456789"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  autoFocus
+                />
+              </div>
+
+              {demoError && (
+                <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                  {demoError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={demoIsLoading}
+                className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-amber-500 px-6 py-4 font-bold text-white transition-all hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-500/20 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 cursor-pointer"
+              >
+                {demoIsLoading ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <>
+                    <span>Acceder como Demo</span>
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setView('login');
+                  setDemoError(null);
+                }}
+                className="w-full text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                VOLVER AL INICIO
+              </button>
             </form>
           ) : (
             <div className="space-y-6">

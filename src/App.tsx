@@ -18,6 +18,7 @@ import StationsPage from "./pages/StationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
 import DbTestPage from "./pages/DbTestPage";
+import DemoAccountsPage from "./pages/DemoAccountsPage";
 import PublicWorkOrderPage from "./pages/PublicWorkOrderPage";
 
 export default function App() {
@@ -171,6 +172,9 @@ export default function App() {
           <Route path="/profile" element={<ProfilePage userRole={userRole} onLogout={handleLogout} />} />
           {userRole === 'admin' && (
             <Route path="/db-test" element={<DbTestPage />} />
+          )}
+          {userRole === 'admin' && (
+            <Route path="/demo-accounts" element={<DemoAccountsPage />} />
           )}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

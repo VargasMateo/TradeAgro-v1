@@ -167,6 +167,15 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
       );
     }
 
+    // 4. Demo Account — ensure demo@tradeagro.com has a usable password
+    const demoEmail = process.env.DEMO_EMAIL || 'demo@tradeagro.com';
+    const [demoCheck]: any = await connection.query('SELECT id, password FROM users WHERE email = ?', [demoEmail]);
+    if (demoCheck.length > 0 && demoCheck[0].password === '__PASSWORD_NOT_SET__') {
+      console.log('[SEED] Setting password for demo account...');
+      const demoPass = await bcrypt.hash('demo2026!', 10);
+      await connection.query('UPDATE users SET password = ? WHERE id = ?', [demoPass, demoCheck[0].id]);
+    }
+
     console.log('[SEED] SUCCESS: Default users and extensions seeded.');
   } catch (err: any) {
     console.error('[SEED ERROR]:', err.message);
@@ -400,6 +409,20 @@ async function initializeDatabase() {
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       )
+    `);
+
+    // Demo Padrón Table
+    console.log('[INIT] Creating demo_padron table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS demo_padron (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cuit VARCHAR(20) NOT NULL UNIQUE,
+        razonSocial VARCHAR(255) NOT NULL,
+        isActive BOOLEAN DEFAULT TRUE,
+        expiresAt DATETIME DEFAULT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
     // Migration: Rename userId INT to profesionalId INT if userId exists
@@ -1475,6 +1498,107 @@ apiRouter.post('/login', async (req, res) => {
   }
 });
 
+// ==========================================
+// DEMO LOGIN ENDPOINT
+// ==========================================
+apiRouter.post('/login-demo', async (req, res) => {
+  const { username, cuit } = req.body;
+  const expectedUsername = process.env.DEMO_USERNAME || 'demo';
+  const demoEmail = process.env.DEMO_EMAIL || 'demo@tradeagro.com';
+
+  console.log(`[AUTH-DEMO] Demo login attempt: username=${username}, cuit=${cuit}`);
+
+  try {
+    // 1. Validate username
+    if (!username || username.toLowerCase() !== expectedUsername.toLowerCase()) {
+      return res.status(401).json({ success: false, error: 'Usuario inválido' });
+    }
+
+    if (!cuit || !cuit.trim()) {
+      return res.status(401).json({ success: false, error: 'Debe ingresar un CUIL/CUIT' });
+    }
+
+    // 2. Check CUIT in demo_padron
+    const [padronRows]: any = await pool.query(
+      'SELECT * FROM demo_padron WHERE cuit = ?',
+      [cuit.trim().replace(/[-\s]/g, '')]
+    );
+
+    if (padronRows.length === 0) {
+      console.log(`[AUTH-DEMO] Failed: CUIT ${cuit} not found in demo_padron`);
+      return res.status(401).json({ success: false, error: 'CUIL/CUIT no autorizado para acceso demo' });
+    }
+
+    const padronEntry = padronRows[0];
+
+    // 3. Check isActive
+    if (!padronEntry.isActive) {
+      console.log(`[AUTH-DEMO] Failed: CUIT ${cuit} is deactivated`);
+      return res.status(401).json({ success: false, error: 'Tu acceso demo se encuentra desactivado' });
+    }
+
+    // 4. Check expiration
+    if (padronEntry.expiresAt && new Date(padronEntry.expiresAt) < new Date()) {
+      console.log(`[AUTH-DEMO] Failed: CUIT ${cuit} access expired at ${padronEntry.expiresAt}`);
+      return res.status(401).json({ success: false, error: 'Tu acceso demo ha expirado' });
+    }
+
+    // 4.5 Set 7 days expiration on first login
+    if (!padronEntry.expiresAt) {
+      console.log(`[AUTH-DEMO] First login for CUIT ${cuit}. Setting expiration to 7 days.`);
+      await pool.query(
+        'UPDATE demo_padron SET expiresAt = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?',
+        [padronEntry.id]
+      );
+    }
+
+    // 5. Fetch demo account
+    const [userRows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+      FROM users u
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.email = ?
+    `, [demoEmail]);
+
+    if (userRows.length === 0) {
+      console.error(`[AUTH-DEMO] CRITICAL: Demo account ${demoEmail} not found in database`);
+      return res.status(500).json({ success: false, error: 'Cuenta demo no configurada. Contacte al administrador.' });
+    }
+
+    const user = userRows[0];
+
+    console.log(`[AUTH-DEMO] Success: CUIT ${cuit} (${padronEntry.razonSocial}) logged in as demo`);
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, isDemo: true },
+      JWT_SECRET!,
+      { expiresIn: '24h' }
+    );
+
+    // Build user data
+    const userData: any = { ...user, isDemo: true };
+    if ('hasStations' in userData) {
+      userData.hasStations = !!userData.hasStations;
+    }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+    }
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+    res.json({
+      success: true,
+      token,
+      user: userData
+    });
+  } catch (error: any) {
+    console.error('[AUTH-DEMO ERROR]:', error.message);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
 // External/Form-based Login endpoint (supports urlencoded and redirects)
 apiRouter.post('/login-external', async (req, res) => {
   const { email, password } = req.body;
@@ -1592,6 +1716,103 @@ apiRouter.get('/auth/me', authenticateToken, async (req: any, res: any) => {
 // Test endpoint
 apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// ==========================================
+// DEMO PADRÓN CRUD (Admin only)
+// ==========================================
+
+// GET all demo padron entries
+apiRouter.get('/demo-padron', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM demo_padron ORDER BY createdAt DESC');
+    res.json({ success: true, data: rows });
+  } catch (error: any) {
+    console.error('[DEMO PADRON ERROR] GET:', error.message);
+    res.status(500).json({ success: false, error: 'Error al obtener el padrón demo' });
+  }
+});
+
+// CREATE new demo padron entry
+apiRouter.post('/demo-padron', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  const { cuit, razonSocial, isActive, expiresAt } = req.body;
+  if (!cuit || !razonSocial) {
+    return res.status(400).json({ success: false, error: 'CUIT y Razón Social son requeridos' });
+  }
+  try {
+    const cleanCuit = cuit.trim().replace(/[-\s]/g, '');
+    const [result]: any = await pool.query(
+      'INSERT INTO demo_padron (cuit, razonSocial, isActive, expiresAt) VALUES (?, ?, ?, ?)',
+      [cleanCuit, razonSocial.trim(), isActive !== undefined ? !!isActive : true, expiresAt || null]
+    );
+    const [newRow]: any = await pool.query('SELECT * FROM demo_padron WHERE id = ?', [result.insertId]);
+    res.json({ success: true, data: newRow[0] });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Este CUIT ya existe en el padrón' });
+    }
+    console.error('[DEMO PADRON ERROR] POST:', error.message);
+    res.status(500).json({ success: false, error: 'Error al crear registro en el padrón' });
+  }
+});
+
+// UPDATE demo padron entry
+apiRouter.put('/demo-padron/:id', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  const { id } = req.params;
+  const { cuit, razonSocial, isActive, expiresAt } = req.body;
+  try {
+    const updates: string[] = [];
+    const values: any[] = [];
+    if (cuit !== undefined) { updates.push('cuit = ?'); values.push(cuit.trim().replace(/[-\s]/g, '')); }
+    if (razonSocial !== undefined) { updates.push('razonSocial = ?'); values.push(razonSocial.trim()); }
+    if (isActive !== undefined) { updates.push('isActive = ?'); values.push(isActive ? 1 : 0); }
+    if (expiresAt !== undefined) { updates.push('expiresAt = ?'); values.push(expiresAt || null); }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'No hay campos para actualizar' });
+    }
+
+    values.push(id);
+    await pool.query(`UPDATE demo_padron SET ${updates.join(', ')} WHERE id = ?`, values);
+    const [updatedRow]: any = await pool.query('SELECT * FROM demo_padron WHERE id = ?', [id]);
+    if (updatedRow.length === 0) {
+      return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+    }
+    res.json({ success: true, data: updatedRow[0] });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Este CUIT ya existe en el padrón' });
+    }
+    console.error('[DEMO PADRON ERROR] PUT:', error.message);
+    res.status(500).json({ success: false, error: 'Error al actualizar registro del padrón' });
+  }
+});
+
+// DELETE demo padron entry
+apiRouter.delete('/demo-padron/:id', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  const { id } = req.params;
+  try {
+    const [result]: any = await pool.query('DELETE FROM demo_padron WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+    }
+    res.json({ success: true, message: 'Registro eliminado correctamente' });
+  } catch (error: any) {
+    console.error('[DEMO PADRON ERROR] DELETE:', error.message);
+    res.status(500).json({ success: false, error: 'Error al eliminar registro del padrón' });
+  }
 });
 
 // Endpoint to fetch clients from clients
