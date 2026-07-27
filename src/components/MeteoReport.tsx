@@ -354,7 +354,6 @@ function WindRose({ data }: { data: DailySummary[] }) {
 // ── Main Page ──────────────────────────────────────────────────────
 
 
-
 export default function MeteoReport({ selectedDevice, selectedDeviceName }: { selectedDevice: string, selectedDeviceName: string }) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -365,14 +364,30 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   const [reportGenerated, setReportGenerated] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Set default dates (last 7 days)
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    setEndDate(format(now, 'yyyy-MM-dd'));
-    setStartDate(format(weekAgo, 'yyyy-MM-dd'));
+  // Check if user is demo
+  const isDemo = useMemo(() => {
+    try {
+      const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      return !!profile.isDemo;
+    } catch {
+      return false;
+    }
   }, []);
+
+  // Set default dates
+  useEffect(() => {
+    const now = new Date();
+    let start = new Date(now);
+    
+    if (isDemo) {
+      start.setDate(now.getDate() - 7);
+    } else {
+      start.setDate(now.getDate() - 30);
+    }
+    
+    setEndDate(format(now, 'yyyy-MM-dd'));
+    setStartDate(format(start, 'yyyy-MM-dd'));
+  }, [isDemo]);
 
   // Reset report when device changes
   useEffect(() => {
@@ -700,6 +715,11 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
       {/* Form */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        {isDemo && (
+          <div className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-700 border border-amber-100">
+            <p className="font-medium">En el <b>modo demostración</b> solo se pueden consultar los reportes de los últimos 7 días.</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
           {/* Start Date */}
           <div>
@@ -709,7 +729,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               value={startDate}
               max={endDate || new Date().toISOString().split('T')[0]}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              disabled={isDemo}
+              className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 ${isDemo ? 'bg-slate-100 opacity-70 cursor-not-allowed' : 'bg-white'}`}
             />
           </div>
 
@@ -722,7 +743,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               min={startDate}
               max={new Date().toISOString().split('T')[0]}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              disabled={isDemo}
+              className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 ${isDemo ? 'bg-slate-100 opacity-70 cursor-not-allowed' : 'bg-white'}`}
             />
           </div>
 
