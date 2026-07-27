@@ -1397,9 +1397,14 @@ apiRouter.post('/auth/resend-invite', authenticateToken, async (req: any, res: a
     // Send email
     try {
       await sendPasswordSetupEmail(user.email, user.displayName, token);
+
+      const appUrl = getAppUrl();
+      const setupLink = `${appUrl}/setup-password?token=${token}`;
+
       res.json({
         success: true,
-        message: `Email de invitación reenviado a ${user.email}`
+        message: `Email de invitación reenviado a ${user.email}`,
+        setupLink
       });
     } catch (emailError: any) {
       console.error('[AUTH ERROR] resend-invite email failed:', emailError.message);
