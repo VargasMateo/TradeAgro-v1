@@ -3070,7 +3070,13 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
     const order = woRows[0];
 
     // Authorization: Admin, Client, or Professional
-    const isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    let isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    if (!isAuthorized && req.user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [req.user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
     }
@@ -3145,7 +3151,13 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
 
     // Authorization: Admin, Client, or ANY Professional (read-only view)
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.role === 'profesional';
+    let isAuthorized = user.role === 'admin' || user.id === order.clientId || user.role === 'profesional';
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
     }
@@ -3240,7 +3252,13 @@ apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req: an
 
     // Authorization: Admin, Client, or Professional
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    let isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para ver las observaciones de esta orden' });
     }
@@ -3288,7 +3306,13 @@ apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req: a
 
     // Authorization: Admin, Client, or Professional
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    let isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para agregar observaciones a esta orden' });
     }
@@ -3340,10 +3364,17 @@ apiRouter.get('/attachments/:id/content', authenticateToken, async (req: any, re
     const { fileData, fileName, fileType, clientId, profesionalId } = rows[0];
 
     // Authorization Check: Admin, the Client, or ANY Professional (read-only access)
-    const isAuthorized =
+    let isAuthorized =
       user.role === 'admin' ||
       user.id === clientId ||
       user.role === 'profesional';
+
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === clientId) {
+        isAuthorized = true;
+      }
+    }
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized access attempt by UID ${user.id} to attachment ${id}`);
