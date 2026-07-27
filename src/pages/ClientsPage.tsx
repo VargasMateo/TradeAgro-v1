@@ -386,7 +386,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                   </div>
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors capitalize text-nowrap truncate">
                       {client.name}
@@ -457,7 +457,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                   )}
                 </div>
 
-                <div className="space-y-3 border-t border-slate-100 pt-6">
+                <div className="space-y-3 border-t border-slate-100 pt-4">
                   <div className="flex items-center gap-3 text-sm text-slate-500">
                     <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                     <span className="truncate">{client.email}</span>
