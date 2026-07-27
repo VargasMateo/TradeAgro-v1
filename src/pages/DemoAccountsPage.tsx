@@ -149,6 +149,70 @@ export default function DemoAccountsPage() {
     return entry.cuit.includes(term) || entry.razonSocial.toLowerCase().includes(term);
   });
 
+  const TableSkeleton = () => (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      {/* Desktop table */}
+      <div className="hidden lg:block overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/80">
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">CUIT</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Razón Social</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Estado</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Activo</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Vencimiento</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Alta</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <tr key={i} className="animate-pulse">
+                <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-100 rounded" /></td>
+                <td className="px-6 py-4"><div className="h-4 w-32 bg-slate-100 rounded" /></td>
+                <td className="px-6 py-4"><div className="h-6 w-24 bg-slate-100 rounded-full" /></td>
+                <td className="px-6 py-4"><div className="h-6 w-11 bg-slate-100 rounded-full" /></td>
+                <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-100 rounded" /></td>
+                <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-100 rounded" /></td>
+                <td className="px-6 py-4">
+                  <div className="flex justify-end gap-2">
+                    <div className="h-8 w-8 bg-slate-50 rounded-lg" />
+                    <div className="h-8 w-8 bg-slate-50 rounded-lg" />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile skeleton */}
+      <div className="lg:hidden divide-y divide-slate-100">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="p-4 space-y-3 animate-pulse">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-slate-100 rounded" />
+                <div className="h-4 w-32 bg-slate-100 rounded" />
+              </div>
+              <div className="h-6 w-24 bg-slate-100 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-6 w-11 bg-slate-100 rounded-full" />
+                <div className="h-4 w-20 bg-slate-100 rounded" />
+              </div>
+              <div className="flex gap-2">
+                <div className="h-8 w-8 bg-slate-50 rounded-lg" />
+                <div className="h-8 w-8 bg-slate-50 rounded-lg" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   // Stats
   const totalEntries = entries.length;
   const activeEntries = entries.filter(e => e.isActive && !isExpired(e.expiresAt)).length;
@@ -225,9 +289,7 @@ export default function DemoAccountsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
-        </div>
+        <TableSkeleton />
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-20 text-red-500">
           <AlertCircle className="h-10 w-10 mb-3" />
