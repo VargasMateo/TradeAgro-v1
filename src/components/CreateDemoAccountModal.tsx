@@ -145,7 +145,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
             <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-slate-700">Fecha de vencimiento</p>
-                <p className="text-xs text-slate-400">Definir fecha límite de acceso</p>
+                <p className="text-xs text-slate-400">Definir fecha límite de acceso. Si no se define, expirará en 7 días tras el primer ingreso.</p>
               </div>
               <button
                 type="button"
