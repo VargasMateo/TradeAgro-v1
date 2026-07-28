@@ -345,9 +345,9 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             .filter((f: any) => {
               const isValid = f.lat != null && f.lng != null;
               if (!isValid && f.name) {
-                console.log(`[MAP DEBUG] Filtering out field "${f.name}" (Client: ${client.name}) due to missing coordinates: lat=${f.lat}, lng=${f.lng}`);
+                console.log(`[MAP DEBUG] Filtering out field due to missing coordinates`);
               } else if (isValid) {
-                console.log(`[MAP DEBUG] Adding marker for field "${f.name}" (Client: ${client.name}) at [${f.lat}, ${f.lng}]`);
+                console.log(`[MAP DEBUG] Adding marker for field`);
               }
               return isValid;
             })

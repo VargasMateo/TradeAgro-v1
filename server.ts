@@ -2486,7 +2486,7 @@ ${orderUrl}
  * Endpoint to create a job (trabajo)
  */
 apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
-  console.log('[DEBUG] POST /backend/work-orders - Creating new job:', JSON.stringify(req.body));
+  console.log('[DEBUG] POST /backend/work-orders - Creating new job');
   try {
     const {
       clientId,
@@ -2525,7 +2525,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       }
     }
 
-    console.log('[DEBUG] POST /backend/work-orders - RECIBIDO BODY:', JSON.stringify(req.body));
+    console.log('[DEBUG] POST /backend/work-orders - RECIBIDO BODY');
 
     const dbData: any = {
       clientId: finalClientId || null,
@@ -2552,7 +2552,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       delete dbData.description;
     }
 
-    console.log('[DEBUG] Inserting into work_orders with dbData:', JSON.stringify(dbData));
+    console.log('[DEBUG] Inserting into work_orders with dbData');
     const [result]: any = await pool.query('INSERT INTO work_orders SET ?', [dbData]);
 
     // If there is an observation, create it
@@ -2622,7 +2622,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
 apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const user = req.user;
-  console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
+  console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job`);
   try {
     // Resolve UUID to internal numeric ID
     const [woRows]: any = await pool.query(
@@ -2702,7 +2702,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
       status: status || undefined,
     };
 
-    console.log(`[DEBUG] Updating work_orders id ${internalJobId}:`, JSON.stringify(dbData));
+    console.log(`[DEBUG] Updating work_orders id ${internalJobId}`);
     const [result]: any = await pool.query('UPDATE work_orders SET ? WHERE id = ?', [dbData, internalJobId]);
 
     if (result.affectedRows === 0) {
@@ -3524,7 +3524,7 @@ runMigrations().then(() => {
  * CREATE A NEW FIELD
  */
 apiRouter.post('/fields', authenticateToken, async (req, res) => {
-  console.log('[DEBUG] POST /backend/fields - Creating new field:', JSON.stringify(req.body));
+  console.log('[DEBUG] POST /backend/fields - Creating new field');
   try {
     const { clientId, name, lat, lng, lotNames } = req.body;
 
@@ -3814,7 +3814,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
  */
 apiRouter.put('/profesionales/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params; // userId
-  console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
+  console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional`);
   const connection = await pool.getConnection();
   try {
     const { displayName, email, phoneNumber, specialty, isTest } = req.body;
@@ -3951,7 +3951,7 @@ apiRouter.patch('/clients/:id/spray-monitor-toggle', authenticateToken, async (r
  * POST /backend/profesionales — create a new professional
  */
 apiRouter.post('/profesionales', authenticateToken, async (req: any, res: any) => {
-  console.log('[DEBUG] POST /backend/profesionales - Creating new profesional:', JSON.stringify(req.body));
+  console.log('[DEBUG] POST /backend/profesionales - Creating new profesional');
   const connection = await pool.getConnection();
   try {
     const { displayName, email, password, phoneNumber, specialty, createdBy, isTest } = req.body;
