@@ -431,7 +431,7 @@ export default function WorkOrdersPage({ userRole = 'profesional' }: { userRole?
               <button
                 onClick={() => setShowOnlyMyOrders(!showOnlyMyOrders)}
                 className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showOnlyMyOrders ? 'bg-emerald-600' : 'bg-slate-300'
+                  showOnlyMyOrders ? 'bg-[#2e7d32]' : 'bg-slate-300'
                 }`}
               >
                 <span
