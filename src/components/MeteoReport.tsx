@@ -385,7 +385,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
     if (isDemo) {
       start.setDate(now.getDate() - 7);
     } else {
-      start.setDate(now.getDate() - 30);
+      start.setDate(now.getDate() - 7);
     }
     
     setEndDate(format(now, 'yyyy-MM-dd'));
