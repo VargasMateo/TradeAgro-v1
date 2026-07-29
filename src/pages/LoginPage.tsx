@@ -247,9 +247,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   setDemoError(null);
                   setDemoCuit('');
                 }}
-                className="flex w-full items-center justify-center gap-2 text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors cursor-pointer pt-1"
+                className="group flex w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700 transition-all hover:bg-amber-100 hover:border-amber-200 active:scale-[0.98] cursor-pointer"
               >
-                <KeyRound className="h-4 w-4" />
+                <KeyRound className="h-5 w-5 transition-transform group-hover:scale-110" />
                 Tengo cuenta demo
               </button>
 
