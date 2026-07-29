@@ -128,7 +128,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                 formData.isActive ? 'bg-[#2e7d32]' : 'bg-slate-300'
               }`}
             >
@@ -150,7 +150,7 @@ export default function CreateDemoAccountModal({ entry, onSave, onClose }: Creat
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, hasExpiration: !prev.hasExpiration }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                   formData.hasExpiration ? 'bg-[#2e7d32]' : 'bg-slate-300'
                 }`}
               >
