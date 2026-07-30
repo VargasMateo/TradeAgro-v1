@@ -106,7 +106,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
           });
 
           // Now fetch coordinates for filtered devices
-          const markers: any[] = [];
+          const rawMarkers: any[] = [];
           await Promise.all(filteredDevices.map(async (device: any) => {
             const dRes = await authenticatedFetch(`/backend/weather-stations?dId=${device.dId}`);
             if (dRes.ok) {
@@ -116,15 +116,11 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
                 if (dData.value && typeof dData.value.lat === 'number' && typeof dData.value.lng === 'number') {
                   // Ignore [0,0] coordinates (Null Island) which happen when GPS is missing
                   if (dData.value.lat !== 0 || dData.value.lng !== 0) {
-                    const dt = dData.value.dt;
-                    let isSelected = false; 
-                    
-                    markers.push({
+                    rawMarkers.push({
                       id: device.dId,
                       position: [dData.value.lat, dData.value.lng],
                       label: device.name,
                       isSelected: false,
-                      onClick: () => navigate(`/stations?dId=${device.dId}`)
                     });
                   }
                 }
@@ -132,7 +128,35 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
             }
           }));
           
-          setWeatherMarkers(markers);
+          const groupedMarkers: Record<string, any[]> = {};
+          rawMarkers.forEach(m => {
+            const baseName = m.label.split(' - ')[0].trim();
+            const key = baseName;
+            if (!groupedMarkers[key]) groupedMarkers[key] = [];
+            groupedMarkers[key].push(m);
+          });
+
+          const finalMarkers = Object.values(groupedMarkers).map(group => {
+            const baseName = group[0].label.split(' - ')[0].trim() || group[0].label;
+            return {
+              id: group[0].id,
+              position: group[0].position,
+              label: baseName,
+              isSelected: false,
+              isGroup: group.length > 1,
+              groupItems: group.map(g => ({
+                id: g.id,
+                label: g.label,
+                isSelected: false,
+              })),
+              onClick: (childId?: string) => {
+                const targetId = childId || group[0].id;
+                navigate(`/stations?dId=${targetId}`);
+              }
+            };
+          });
+          
+          setWeatherMarkers(finalMarkers);
         }
       } catch (error) {
         console.error('Error fetching weather stations for dashboard:', error);

@@ -422,21 +422,51 @@ let globalDevicesCacheTime = 0;
     selectedDevice?.templateName?.toLowerCase().includes("pluviometro")
   );
 
-  // Prepare map markers
-  const mapMarkers = (Object.values(allStationsData) as SensorData[])
+  // Prepare map markers grouped by base name
+  const groupedMarkers: Record<string, any[]> = {};
+  
+  (Object.values(allStationsData) as SensorData[])
     .filter(d => d.value?.lat && d.value?.lng)
-    .map(d => {
+    .forEach(d => {
       const dev = devices.find(x => x.dId === d.dId);
-      return {
+      const label = dev?.name || d.dId;
+      const baseName = label.split(' - ')[0].trim();
+      
+      // Using base name as the key groups them even if coordinates vary slightly
+      const key = baseName;
+      if (!groupedMarkers[key]) groupedMarkers[key] = [];
+      groupedMarkers[key].push({
         id: d.dId,
         position: [d.value.lat, d.value.lng] as [number, number],
-        label: dev?.name || d.dId,
+        label: label,
         isSelected: d.dId === selectedDid,
-        onClick: () => {
-          setSelectedDid(d.dId);
-        }
-      };
+      });
     });
+
+  const mapMarkers = Object.values(groupedMarkers).map(group => {
+    const isSelected = group.some(m => m.isSelected);
+    const baseName = group[0].label.split(' - ')[0].trim() || group[0].label;
+    
+    return {
+      id: group[0].id,
+      position: group[0].position,
+      label: baseName,
+      isSelected,
+      isGroup: group.length > 1,
+      groupItems: group.map(g => ({
+        id: g.id,
+        label: g.label,
+        isSelected: g.isSelected
+      })),
+      onClick: (childId?: string) => {
+        if (childId) {
+          setSelectedDid(childId);
+        } else {
+          setSelectedDid(group[0].id);
+        }
+      }
+    };
+  });
 
   return (
     <div className="animate-in fade-in duration-500 pb-10 space-y-6">
