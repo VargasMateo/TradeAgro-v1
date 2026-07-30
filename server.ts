@@ -167,6 +167,15 @@ const seedDefaultUsers = async (connection: mysql.Connection | mysql.Pool = pool
       );
     }
 
+    // 4. Demo Account — ensure demo@tradeagro.com has a usable password
+    const demoEmail = process.env.DEMO_EMAIL || 'demo@tradeagro.com';
+    const [demoCheck]: any = await connection.query('SELECT id, password FROM users WHERE email = ?', [demoEmail]);
+    if (demoCheck.length > 0 && demoCheck[0].password === '__PASSWORD_NOT_SET__') {
+      console.log('[SEED] Setting password for demo account...');
+      const demoPass = await bcrypt.hash('demo2026!', 10);
+      await connection.query('UPDATE users SET password = ? WHERE id = ?', [demoPass, demoCheck[0].id]);
+    }
+
     console.log('[SEED] SUCCESS: Default users and extensions seeded.');
   } catch (err: any) {
     console.error('[SEED ERROR]:', err.message);
@@ -265,10 +274,26 @@ async function initializeDatabase() {
         allowedStations JSON DEFAULT NULL,
         notificationEmails TEXT DEFAULT NULL,
         ivaCondition VARCHAR(100),
+        clientRole VARCHAR(50) DEFAULT 'owner',
+        ownerId INT DEFAULT NULL,
         deletedAt TIMESTAMP NULL DEFAULT NULL,
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (ownerId) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Migration for clients: clientRole and ownerId
+    const [clientRoleCol]: any = await connection.query('SHOW COLUMNS FROM clients LIKE "clientRole"');
+    if (clientRoleCol.length === 0) {
+      console.log('[INIT] Migrating clients: adding clientRole column');
+      await connection.query('ALTER TABLE clients ADD COLUMN clientRole VARCHAR(50) DEFAULT "owner"');
+    }
+    const [ownerIdCol]: any = await connection.query('SHOW COLUMNS FROM clients LIKE "ownerId"');
+    if (ownerIdCol.length === 0) {
+      console.log('[INIT] Migrating clients: adding ownerId column');
+      await connection.query('ALTER TABLE clients ADD COLUMN ownerId INT DEFAULT NULL');
+      await connection.query('ALTER TABLE clients ADD FOREIGN KEY (ownerId) REFERENCES users(id) ON DELETE CASCADE');
+    }
 
     // Other tables
     console.log('[INIT] Creating fields table...');
@@ -400,6 +425,20 @@ async function initializeDatabase() {
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       )
+    `);
+
+    // Demo Padrón Table
+    console.log('[INIT] Creating demo_padron table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS demo_padron (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cuit VARCHAR(20) NOT NULL UNIQUE,
+        razonSocial VARCHAR(255) NOT NULL,
+        isActive BOOLEAN DEFAULT TRUE,
+        expiresAt DATETIME DEFAULT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
 
     // Migration: Rename userId INT to profesionalId INT if userId exists
@@ -1374,9 +1413,14 @@ apiRouter.post('/auth/resend-invite', authenticateToken, async (req: any, res: a
     // Send email
     try {
       await sendPasswordSetupEmail(user.email, user.displayName, token);
+
+      const appUrl = getAppUrl();
+      const setupLink = `${appUrl}/setup-password?token=${token}`;
+
       res.json({
         success: true,
-        message: `Email de invitación reenviado a ${user.email}`
+        message: `Email de invitación reenviado a ${user.email}`,
+        setupLink
       });
     } catch (emailError: any) {
       console.error('[AUTH ERROR] resend-invite email failed:', emailError.message);
@@ -1472,6 +1516,113 @@ apiRouter.post('/login', async (req, res) => {
   } catch (error: any) {
     console.error('[AUTH ERROR]:', error.message);
     res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ==========================================
+// DEMO LOGIN ENDPOINT
+// ==========================================
+apiRouter.post('/login-demo', async (req, res) => {
+  const { username, cuit } = req.body;
+  const expectedUsername = process.env.DEMO_USERNAME || 'demo';
+  const demoEmail = process.env.DEMO_EMAIL || 'demo@tradeagro.com';
+
+  console.log(`[AUTH-DEMO] Demo login attempt: username=${username}, cuit=${cuit}`);
+
+  try {
+    // 1. Validate username
+    if (!username || username.toLowerCase() !== expectedUsername.toLowerCase()) {
+      return res.status(401).json({ success: false, error: 'Usuario inválido' });
+    }
+
+    if (!cuit || !cuit.trim()) {
+      return res.status(401).json({ success: false, error: 'Debe ingresar un CUIL/CUIT' });
+    }
+
+    // 2. Check CUIT in demo_padron
+    const [padronRows]: any = await pool.query(
+      'SELECT * FROM demo_padron WHERE cuit = ?',
+      [cuit.trim().replace(/[-\s]/g, '')]
+    );
+
+    if (padronRows.length === 0) {
+      console.log(`[AUTH-DEMO] Failed: CUIT ${cuit} not found in demo_padron`);
+      return res.status(401).json({ success: false, error: 'CUIL/CUIT no autorizado para acceso demo' });
+    }
+
+    const padronEntry = padronRows[0];
+
+    // 3. Check isActive
+    if (!padronEntry.isActive) {
+      console.log(`[AUTH-DEMO] Failed: CUIT ${cuit} is deactivated`);
+      return res.status(401).json({ success: false, error: 'Tu acceso demo se encuentra desactivado' });
+    }
+
+    // 4. Check expiration
+    if (padronEntry.expiresAt && new Date(padronEntry.expiresAt) < new Date()) {
+      console.log(`[AUTH-DEMO] Failed: CUIT ${cuit} access expired at ${padronEntry.expiresAt}`);
+      return res.status(401).json({ success: false, error: 'Tu acceso demo ha expirado' });
+    }
+
+    // 4.5 Set 7 days expiration on first login
+    if (!padronEntry.expiresAt) {
+      console.log(`[AUTH-DEMO] First login for CUIT ${cuit}. Setting expiration to 7 days.`);
+      await pool.query(
+        'UPDATE demo_padron SET expiresAt = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?',
+        [padronEntry.id]
+      );
+    }
+
+    // 5. Fetch demo account
+    const [userRows]: any = await pool.query(`
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+      FROM users u
+      LEFT JOIN clients c ON u.id = c.userId
+      WHERE u.email = ?
+    `, [demoEmail]);
+
+    if (userRows.length === 0) {
+      console.error(`[AUTH-DEMO] CRITICAL: Demo account ${demoEmail} not found in database`);
+      return res.status(500).json({ success: false, error: 'Cuenta demo no configurada. Contacte al administrador.' });
+    }
+
+    const user = userRows[0];
+
+    console.log(`[AUTH-DEMO] Success: CUIT ${cuit} (${padronEntry.razonSocial}) logged in as demo`);
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, isDemo: true },
+      JWT_SECRET!,
+      { expiresIn: '24h' }
+    );
+
+    // Build user data
+    let expiresAt = padronEntry.expiresAt;
+    if (!expiresAt) {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      expiresAt = d.toISOString();
+    }
+    const userData: any = { ...user, isDemo: true, demoExpiresAt: expiresAt };
+    if ('hasStations' in userData) {
+      userData.hasStations = !!userData.hasStations;
+    }
+    if ('hasSprayMonitor' in userData) {
+      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+    }
+    if (userData.allowedStations) {
+      userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+    }
+    Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+    res.json({
+      success: true,
+      token,
+      user: userData
+    });
+  } catch (error: any) {
+    console.error('[AUTH-DEMO ERROR]:', error.message);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
   }
 });
 
@@ -1594,6 +1745,103 @@ apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// ==========================================
+// DEMO PADRÓN CRUD (Admin only)
+// ==========================================
+
+// GET all demo padron entries
+apiRouter.get('/demo-padron', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM demo_padron ORDER BY createdAt DESC');
+    res.json({ success: true, data: rows });
+  } catch (error: any) {
+    console.error('[DEMO PADRON ERROR] GET:', error.message);
+    res.status(500).json({ success: false, error: 'Error al obtener el padrón demo' });
+  }
+});
+
+// CREATE new demo padron entry
+apiRouter.post('/demo-padron', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  const { cuit, razonSocial, isActive, expiresAt } = req.body;
+  if (!cuit || !razonSocial) {
+    return res.status(400).json({ success: false, error: 'CUIT y Razón Social son requeridos' });
+  }
+  try {
+    const cleanCuit = cuit.trim().replace(/[-\s]/g, '');
+    const [result]: any = await pool.query(
+      'INSERT INTO demo_padron (cuit, razonSocial, isActive, expiresAt) VALUES (?, ?, ?, ?)',
+      [cleanCuit, razonSocial.trim(), isActive !== undefined ? !!isActive : true, expiresAt || null]
+    );
+    const [newRow]: any = await pool.query('SELECT * FROM demo_padron WHERE id = ?', [result.insertId]);
+    res.json({ success: true, data: newRow[0] });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Este CUIT ya existe en el padrón' });
+    }
+    console.error('[DEMO PADRON ERROR] POST:', error.message);
+    res.status(500).json({ success: false, error: 'Error al crear registro en el padrón' });
+  }
+});
+
+// UPDATE demo padron entry
+apiRouter.put('/demo-padron/:id', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  const { id } = req.params;
+  const { cuit, razonSocial, isActive, expiresAt } = req.body;
+  try {
+    const updates: string[] = [];
+    const values: any[] = [];
+    if (cuit !== undefined) { updates.push('cuit = ?'); values.push(cuit.trim().replace(/[-\s]/g, '')); }
+    if (razonSocial !== undefined) { updates.push('razonSocial = ?'); values.push(razonSocial.trim()); }
+    if (isActive !== undefined) { updates.push('isActive = ?'); values.push(isActive ? 1 : 0); }
+    if (expiresAt !== undefined) { updates.push('expiresAt = ?'); values.push(expiresAt || null); }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'No hay campos para actualizar' });
+    }
+
+    values.push(id);
+    await pool.query(`UPDATE demo_padron SET ${updates.join(', ')} WHERE id = ?`, values);
+    const [updatedRow]: any = await pool.query('SELECT * FROM demo_padron WHERE id = ?', [id]);
+    if (updatedRow.length === 0) {
+      return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+    }
+    res.json({ success: true, data: updatedRow[0] });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Este CUIT ya existe en el padrón' });
+    }
+    console.error('[DEMO PADRON ERROR] PUT:', error.message);
+    res.status(500).json({ success: false, error: 'Error al actualizar registro del padrón' });
+  }
+});
+
+// DELETE demo padron entry
+apiRouter.delete('/demo-padron/:id', authenticateToken, async (req: any, res: any) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acceso denegado' });
+  }
+  const { id } = req.params;
+  try {
+    const [result]: any = await pool.query('DELETE FROM demo_padron WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+    }
+    res.json({ success: true, message: 'Registro eliminado correctamente' });
+  } catch (error: any) {
+    console.error('[DEMO PADRON ERROR] DELETE:', error.message);
+    res.status(500).json({ success: false, error: 'Error al eliminar registro del padrón' });
+  }
+});
+
 // Endpoint to fetch clients from clients
 apiRouter.get('/clients', authenticateToken, async (req: any, res: any) => {
   console.log('[DEBUG] GET /backend/clients - Fetching active clients');
@@ -1673,7 +1921,9 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       hasSprayMonitor,
       allowedStations,
       isTest,
-      fields // Array of fields from the modal
+      fields, // Array of fields from the modal
+      clientRole,
+      ownerId
     } = req.body;
 
     await connection.beginTransaction();
@@ -1685,7 +1935,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
     );
 
     // 2. Update client data (Extension)
-    const clientData = {
+    const clientData: any = {
       businessName: businessName,
       cuit: cuit,
       ivaCondition: ivaCondition || 'Responsable Inscripto',
@@ -1696,14 +1946,18 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
       allowedStations: allowedStations ? JSON.stringify(allowedStations) : null
     };
 
+    if (clientRole !== undefined) clientData.clientRole = clientRole;
+    if (ownerId !== undefined) clientData.ownerId = ownerId;
+
     console.log('[DEBUG] Updating client extension for userId:', userId);
     await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
 
     // 3. Replace fields (delete existing, insert new)
-    console.log('[DEBUG] Replacing associated fields');
-    await connection.query('DELETE FROM fields WHERE clientId = ?', [userId]);
+    if (clientRole !== 'associated') {
+      console.log('[DEBUG] Replacing associated fields');
+      await connection.query('DELETE FROM fields WHERE clientId = ?', [userId]);
 
-    if (fields && Array.isArray(fields)) {
+      if (fields && Array.isArray(fields)) {
       for (const field of fields) {
         const fieldData = {
           clientId: userId,
@@ -1713,6 +1967,7 @@ apiRouter.put('/clients/:id', authenticateToken, async (req: any, res: any) => {
           lotNames: JSON.stringify(field.lots || [])
         };
         await connection.query('INSERT INTO fields SET ?', [fieldData]);
+      }
       }
     }
 
@@ -1749,10 +2004,10 @@ apiRouter.delete('/clients/:id', authenticateToken, async (req: any, res: any) =
   const { id } = req.params;
   console.log(`[DEBUG] DELETE /backend/clients/${id} - Soft delete requested`);
   try {
-    // Soft delete in clients table
+    // Soft delete in clients table for the client and their associated accounts
     const [result]: any = await pool.query(
-      'UPDATE clients SET deletedAt = NOW() WHERE userId = ?',
-      [id]
+      'UPDATE clients SET deletedAt = NOW() WHERE userId = ? OR ownerId = ?',
+      [id, id]
     );
 
     if (result.affectedRows === 0) {
@@ -1790,7 +2045,9 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
       createdBy,
       isTest,
       password, // Optional, can default
-      fields // Array of fields from the modal
+      fields, // Array of fields from the modal
+      clientRole,
+      ownerId
     } = req.body;
 
     const userEmail = email || `${displayName.toLowerCase().replace(/\s+/g, '')}@tradeagro.com`;
@@ -1843,15 +2100,15 @@ apiRouter.post('/clients', authenticateToken, async (req: any, res: any) => {
     // 2. Create or Update Client extension record
     console.log('[DEBUG] UPSERTING client extension for userId:', newUserId);
     await connection.query(
-      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, allowedStations, deletedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+      `INSERT INTO clients (userId, businessName, cuit, ivaCondition, phoneNumber, notificationEmails, hasStations, hasSprayMonitor, allowedStations, clientRole, ownerId, deletedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
        ON DUPLICATE KEY UPDATE 
-       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), allowedStations = VALUES(allowedStations), deletedAt = NULL`,
-      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor, allowedStations ? JSON.stringify(allowedStations) : null]
+       businessName = VALUES(businessName), cuit = VALUES(cuit), ivaCondition = VALUES(ivaCondition), phoneNumber = VALUES(phoneNumber), notificationEmails = VALUES(notificationEmails), hasStations = VALUES(hasStations), hasSprayMonitor = VALUES(hasSprayMonitor), allowedStations = VALUES(allowedStations), clientRole = VALUES(clientRole), ownerId = VALUES(ownerId), deletedAt = NULL`,
+      [newUserId, businessName, cuit, ivaCondition || 'Responsable Inscripto', phoneNumber, notificationEmails || null, hasStations === undefined ? false : !!hasStations, hasSprayMonitor === undefined ? false : !!hasSprayMonitor, allowedStations ? JSON.stringify(allowedStations) : null, clientRole || 'owner', ownerId || null]
     );
 
     // 3. Insert associated fields if any
-    if (fields && Array.isArray(fields)) {
+    if (clientRole !== 'associated' && fields && Array.isArray(fields)) {
       console.log(`[DEBUG] Inserting ${fields.length} associated fields`);
       for (const field of fields) {
         const fieldData = {
@@ -1957,9 +2214,13 @@ apiRouter.get('/work-orders', authenticateToken, async (req: any, res) => {
 
     // Role-based filtering
     if (role === 'client') {
-      console.log(`[DEBUG_AUTH] Filtering for clientId: ${id}`);
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [id]);
+      const clientExt = clientRows[0];
+      const targetClientId = (clientExt && clientExt.clientRole === 'associated' && clientExt.ownerId) ? clientExt.ownerId : id;
+
+      console.log(`[DEBUG_AUTH] Filtering for clientId: ${targetClientId} (original user: ${id})`);
       query += ` AND t.clientId = ?`;
-      params.push(id);
+      params.push(targetClientId);
     } else {
       console.log(`[DEBUG_AUTH] No filtering applied for role: ${role}`);
     }
@@ -2225,7 +2486,7 @@ ${orderUrl}
  * Endpoint to create a job (trabajo)
  */
 apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
-  console.log('[DEBUG] POST /backend/work-orders - Creating new job:', JSON.stringify(req.body));
+  console.log('[DEBUG] POST /backend/work-orders - Creating new job');
   try {
     const {
       clientId,
@@ -2264,7 +2525,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       }
     }
 
-    console.log('[DEBUG] POST /backend/work-orders - RECIBIDO BODY:', JSON.stringify(req.body));
+    console.log('[DEBUG] POST /backend/work-orders - RECIBIDO BODY');
 
     const dbData: any = {
       clientId: finalClientId || null,
@@ -2291,7 +2552,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
       delete dbData.description;
     }
 
-    console.log('[DEBUG] Inserting into work_orders with dbData:', JSON.stringify(dbData));
+    console.log('[DEBUG] Inserting into work_orders with dbData');
     const [result]: any = await pool.query('INSERT INTO work_orders SET ?', [dbData]);
 
     // If there is an observation, create it
@@ -2314,7 +2575,11 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
         SELECT t.*, 
                u_client.displayName as clientName, u_client.email as clientEmail,
                c_client.notificationEmails as clientNotificationEmails,
-               u_prof.displayName as profesionalName, u_prof.email as profesionalEmail
+               u_prof.displayName as profesionalName, u_prof.email as profesionalEmail,
+               (SELECT GROUP_CONCAT(assoc_u.email SEPARATOR ',') 
+                FROM clients assoc_c 
+                JOIN users assoc_u ON assoc_c.userId = assoc_u.id 
+                WHERE assoc_c.ownerId = t.clientId AND assoc_c.clientRole = 'associated') as associatedEmails
         FROM work_orders t
         LEFT JOIN users u_client ON t.clientId = u_client.id
         LEFT JOIN clients c_client ON t.clientId = c_client.userId
@@ -2329,7 +2594,7 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
           uuid: row.uuid,
           clientName: row.clientName,
           clientEmail: row.clientEmail,
-          clientNotificationEmails: row.clientNotificationEmails,
+          clientNotificationEmails: [row.clientNotificationEmails, row.associatedEmails].filter(Boolean).join(','),
           profesionalName: row.profesionalName,
           profesionalEmail: row.profesionalEmail,
           service: row.service,
@@ -2357,11 +2622,11 @@ apiRouter.post('/work-orders', authenticateToken, async (req, res) => {
 apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const user = req.user;
-  console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job:`, JSON.stringify(req.body));
+  console.log(`[DEBUG] PUT /backend/work-orders/${id} - Updating job`);
   try {
     // Resolve UUID to internal numeric ID
     const [woRows]: any = await pool.query(
-      'SELECT id, status, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
+      'SELECT id, status, profesionalId, clientId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL',
       [id]
     );
     if (woRows.length === 0) {
@@ -2369,8 +2634,15 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
     }
     const orderBeforeUpdate = woRows[0];
 
-    // Authorization: Admin or the assigned Professional
-    const isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId;
+    // Authorization: Admin, Assigned Professional, Client, or Associated Client
+    let isAuthorized = user.role === 'admin' || user.id === orderBeforeUpdate.profesionalId || user.id === orderBeforeUpdate.clientId;
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === orderBeforeUpdate.clientId) {
+        isAuthorized = true;
+      }
+    }
+
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para modificar esta orden' });
     }
@@ -2430,7 +2702,7 @@ apiRouter.put('/work-orders/:id', authenticateToken, async (req: any, res) => {
       status: status || undefined,
     };
 
-    console.log(`[DEBUG] Updating work_orders id ${internalJobId}:`, JSON.stringify(dbData));
+    console.log(`[DEBUG] Updating work_orders id ${internalJobId}`);
     const [result]: any = await pool.query('UPDATE work_orders SET ? WHERE id = ?', [dbData, internalJobId]);
 
     if (result.affectedRows === 0) {
@@ -2533,7 +2805,11 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
       try {
         const query = `
           SELECT t.*, u.displayName as clientName, u.email as clientEmail,
-                 c.notificationEmails as clientNotificationEmails
+                 c.notificationEmails as clientNotificationEmails,
+                 (SELECT GROUP_CONCAT(assoc_u.email SEPARATOR ',') 
+                  FROM clients assoc_c 
+                  JOIN users assoc_u ON assoc_c.userId = assoc_u.id 
+                  WHERE assoc_c.ownerId = t.clientId AND assoc_c.clientRole = 'associated') as associatedEmails
           FROM work_orders t
           JOIN users u ON t.clientId = u.id
           LEFT JOIN clients c ON t.clientId = c.userId
@@ -2548,7 +2824,7 @@ apiRouter.patch('/work-orders/:id/status', authenticateToken, async (req, res) =
             uuid: row.uuid,
             clientName: row.clientName,
             clientEmail: row.clientEmail,
-            clientNotificationEmails: row.clientNotificationEmails,
+            clientNotificationEmails: [row.clientNotificationEmails, row.associatedEmails].filter(Boolean).join(','),
             service: row.service || 'Servicio General',
             location: row.fieldName ? `${row.fieldName}${row.lotName ? ` - ${row.lotName}` : ''}` : 'Ubicación registrada',
             hectares: row.hectares,
@@ -2661,10 +2937,17 @@ apiRouter.get('/work-orders/:id', authenticateToken, async (req: any, res) => {
     const row = rows[0];
 
     // Authorization Check: Admin, Assigned Professional, Client, or ANY Professional
-    const isAuthorized =
+    let isAuthorized =
       user.role === 'admin' ||
       user.role === 'profesional' ||
       user.id === row.clientId;
+
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === row.clientId) {
+        isAuthorized = true;
+      }
+    }
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized WO access attempt by UID ${user.id} to WO ${id}`);
@@ -2787,7 +3070,13 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
     const order = woRows[0];
 
     // Authorization: Admin, Client, or Professional
-    const isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    let isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    if (!isAuthorized && req.user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [req.user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
     }
@@ -2862,7 +3151,13 @@ apiRouter.get('/work-orders/:id/attachments', authenticateToken, async (req: any
 
     // Authorization: Admin, Client, or ANY Professional (read-only view)
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.role === 'profesional';
+    let isAuthorized = user.role === 'admin' || user.id === order.clientId || user.role === 'profesional';
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para ver los archivos de esta orden' });
     }
@@ -2957,7 +3252,13 @@ apiRouter.get('/work-orders/:id/observations', authenticateToken, async (req: an
 
     // Authorization: Admin, Client, or Professional
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    let isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para ver las observaciones de esta orden' });
     }
@@ -3005,7 +3306,13 @@ apiRouter.post('/work-orders/:id/observations', authenticateToken, async (req: a
 
     // Authorization: Admin, Client, or Professional
     const user = req.user as any;
-    const isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    let isAuthorized = user.role === 'admin' || user.id === order.clientId || user.id === order.profesionalId;
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+        isAuthorized = true;
+      }
+    }
     if (!isAuthorized) {
       return res.status(403).json({ success: false, error: 'No tienes permiso para agregar observaciones a esta orden' });
     }
@@ -3057,10 +3364,17 @@ apiRouter.get('/attachments/:id/content', authenticateToken, async (req: any, re
     const { fileData, fileName, fileType, clientId, profesionalId } = rows[0];
 
     // Authorization Check: Admin, the Client, or ANY Professional (read-only access)
-    const isAuthorized =
+    let isAuthorized =
       user.role === 'admin' ||
       user.id === clientId ||
       user.role === 'profesional';
+
+    if (!isAuthorized && user.role === 'client') {
+      const [clientRows]: any = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [user.id]);
+      if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === clientId) {
+        isAuthorized = true;
+      }
+    }
 
     if (!isAuthorized) {
       console.warn(`[SECURE CAUTION] Unauthorized access attempt by UID ${user.id} to attachment ${id}`);
@@ -3210,7 +3524,7 @@ runMigrations().then(() => {
  * CREATE A NEW FIELD
  */
 apiRouter.post('/fields', authenticateToken, async (req, res) => {
-  console.log('[DEBUG] POST /backend/fields - Creating new field:', JSON.stringify(req.body));
+  console.log('[DEBUG] POST /backend/fields - Creating new field');
   try {
     const { clientId, name, lat, lng, lotNames } = req.body;
 
@@ -3500,7 +3814,7 @@ apiRouter.get('/profesionales', authenticateToken, async (req: any, res: any) =>
  */
 apiRouter.put('/profesionales/:id', authenticateToken, async (req: any, res: any) => {
   const { id } = req.params; // userId
-  console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional:`, JSON.stringify(req.body));
+  console.log(`[DEBUG] PUT /backend/profesionales/${id} - Updating profesional`);
   const connection = await pool.getConnection();
   try {
     const { displayName, email, phoneNumber, specialty, isTest } = req.body;
@@ -3637,7 +3951,7 @@ apiRouter.patch('/clients/:id/spray-monitor-toggle', authenticateToken, async (r
  * POST /backend/profesionales — create a new professional
  */
 apiRouter.post('/profesionales', authenticateToken, async (req: any, res: any) => {
-  console.log('[DEBUG] POST /backend/profesionales - Creating new profesional:', JSON.stringify(req.body));
+  console.log('[DEBUG] POST /backend/profesionales - Creating new profesional');
   const connection = await pool.getConnection();
   try {
     const { displayName, email, password, phoneNumber, specialty, createdBy, isTest } = req.body;

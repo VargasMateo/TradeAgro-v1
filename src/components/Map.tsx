@@ -34,7 +34,7 @@ const popupStyles = `
   }
   
   .custom-tooltip-selected {
-    background-color: #0ea5e9 !important;
+    background-color: #0A6C35 !important;
     color: white !important;
     border: none !important;
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
@@ -61,20 +61,56 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const createCustomIcon = (isSelected: boolean = false, label?: string) => {
+const createCustomIcon = (isSelected: boolean = false, label?: string, groupItems?: Array<{id: string, label: string, isSelected: boolean}>) => {
   const scale = isSelected ? 1.3 : 1;
-  const pinFill = isSelected ? "#0ea5e9" : "white"; // sky-500
+  const pinFill = isSelected ? "#0A6C35" : "white"; // Brand green
   
-  const labelHtml = label ? `
-    <div class="${isSelected ? 'custom-tooltip-selected' : 'custom-tooltip'}" style="position: absolute; left: 50%; transform: translateX(-50%); top: ${44 * scale + (isSelected ? 10 : 5)}px; white-space: nowrap; text-align: center; pointer-events: auto;">
-      ${label}
-    </div>
-  ` : '';
+  let labelHtml = '';
+  
+  if (groupItems && groupItems.length > 1) {
+    const itemsHtml = groupItems.map(item => {
+      const match = item.label.match(/\(([^)]+)\)/);
+      let shortName = match ? match[1] : item.label;
+      
+      // Clean up common terms while preserving combinations like " + Temp"
+      shortName = shortName
+        .replace(/pluviometro|pluvio/gi, 'Pluviómetro')
+        .replace(/viento/gi, 'Viento')
+        .replace(/temperatura|temp/gi, 'Temp')
+        .replace(/\s*\+\s*/g, ' + ');
+      
+      const isItemSel = item.isSelected;
+      
+      return `<button 
+        class="w-full px-2 py-1.5 rounded text-[10px] whitespace-nowrap font-bold pointer-events-auto transition-colors cursor-pointer ${isItemSel ? 'bg-[#0A6C35] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} shadow-sm"
+        onclick="event.stopPropagation(); this.dispatchEvent(new CustomEvent('map-marker-click', { bubbles: true, detail: '${item.id}' }))"
+      >${shortName}</button>`;
+    }).join('');
+
+    labelHtml = `
+      <div class="custom-tooltip-group" style="position: absolute; left: 50%; transform: translateX(-50%); top: ${44 * scale + (isSelected ? 10 : 5)}px; pointer-events: none;">
+        <div class="bg-white rounded-lg shadow-md border border-slate-100 p-1.5 flex flex-col items-center gap-1.5">
+          <div class="text-[10px] font-black text-slate-800 px-1 whitespace-nowrap uppercase tracking-wider">${label}</div>
+          <div class="flex flex-col gap-1 w-full justify-center">
+            ${itemsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (label) {
+    labelHtml = `
+      <div class="${isSelected ? 'custom-tooltip-selected' : 'custom-tooltip'}" style="position: absolute; left: 50%; transform: translateX(-50%); top: ${44 * scale + (isSelected ? 10 : 5)}px; white-space: nowrap; text-align: center; pointer-events: auto;"
+        onclick="event.stopPropagation(); this.dispatchEvent(new CustomEvent('map-marker-click', { bubbles: true, detail: '${groupItems?.[0]?.id || ''}' }))"
+      >
+        ${label}
+      </div>
+    `;
+  }
 
   return L.divIcon({
     className: 'custom-field-icon',
     html: `
-      <div style="position: relative; width: ${44 * scale}px; height: ${44 * scale}px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 ${isSelected ? 8 : 4}px ${isSelected ? 12 : 6}px rgba(${isSelected ? '14, 165, 233, 0.4' : '0,0,0,0.15'})); transition: all 0.3s ease;">
+      <div style="position: relative; width: ${44 * scale}px; height: ${44 * scale}px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 ${isSelected ? 8 : 4}px ${isSelected ? 12 : 6}px rgba(${isSelected ? '10, 108, 53, 0.4' : '0,0,0,0.15'})); transition: all 0.3s ease;">
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
           {/* Main Pin Shape */}
           <path d="M50 95C50 95 90 65 90 40C90 18 72 0 50 0C28 0 10 18 10 40C10 65 50 95 50 95Z" fill="${pinFill}" stroke="${isSelected ? 'white' : 'none'}" stroke-width="2" />
@@ -115,7 +151,9 @@ interface MapProps {
     popupContent?: React.ReactNode;
     label?: string;
     isSelected?: boolean;
-    onClick?: () => void;
+    isGroup?: boolean;
+    groupItems?: Array<{ id: string; label: string; isSelected: boolean }>;
+    onClick?: (childId?: string) => void;
   }>;
 }
 
@@ -165,6 +203,20 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
       console.log(`[MAP COMPONENT] Rendering ${markers.length} markers:`, markers.map(m => m.position));
     }
   }, [markers]);
+
+  useEffect(() => {
+    const handleMarkerClick = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const id = customEvent.detail;
+      const marker = markers?.find(m => m.id === id || m.groupItems?.some(g => g.id === id));
+      if (marker && marker.onClick) {
+        marker.onClick(id);
+      }
+    };
+    document.addEventListener('map-marker-click', handleMarkerClick);
+    return () => document.removeEventListener('map-marker-click', handleMarkerClick);
+  }, [markers]);
+
   return (
     <>
       <style>{popupStyles}</style>
@@ -197,7 +249,7 @@ const Map = ({ center = [-31.4201, -64.1888], popupContent, markers }: MapProps)
               <Marker 
                 key={`${marker.id || index}-${marker.isSelected ? 'sel' : 'unsel'}`} 
                 position={marker.position} 
-                icon={createCustomIcon(marker.isSelected, marker.label)}
+                icon={createCustomIcon(marker.isSelected, marker.label, marker.groupItems)}
                 zIndexOffset={marker.isSelected ? 1000 : 0}
                 eventHandlers={{
                   click: (e) => {

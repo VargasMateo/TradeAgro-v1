@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy, Sun } from "lucide-react";
+import { X, Plus, Save, Trash2, ChevronDown, CheckCircle2, AlertCircle, Database, Copy, Sun, RefreshCw } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, ClientField } from "../types/client";
@@ -64,6 +64,12 @@ export default function CreateClientModal({
   const [isConfiguringStations, setIsConfiguringStations] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
 
+  const [associatedClients, setAssociatedClients] = useState<any[]>([]);
+  const [loadingAssociated, setLoadingAssociated] = useState(false);
+  const [fetchingAssociated, setFetchingAssociated] = useState(false);
+  const [newAssociatedForm, setNewAssociatedForm] = useState({ name: '', email: '' });
+  const [associatedError, setAssociatedError] = useState('');
+
   const [isSaving, setIsSaving] = useState(false);
   const [dialog, setDialog] = useState<{
     show: boolean;
@@ -123,7 +129,27 @@ export default function CreateClientModal({
         document.body.style.overflow = 'unset';
       }
 
+    const fetchAssociatedClients = async () => {
+      if (!editingClient || editingClient.clientRole === 'associated') return;
+      setFetchingAssociated(true);
+      try {
+        const res = await authenticatedFetch('/backend/clients');
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) {
+            const associated = json.filter((c: any) => c.clientRole === 'associated' && c.ownerId === editingClient.id);
+            setAssociatedClients(associated);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching associated clients:', err);
+      } finally {
+        setFetchingAssociated(false);
+      }
+    };
+
     if (editingClient) {
+      fetchAssociatedClients();
       const initialEmails = editingClient.notificationEmails
         ? editingClient.notificationEmails.split(/[,;\s]+/).map(e => e.trim()).filter(e => e !== '')
         : [];
@@ -168,6 +194,8 @@ export default function CreateClientModal({
     setStep('form');
     setCreatedId(null);
     setErrors({});
+    setNewAssociatedForm({ name: '', email: '' });
+    setAssociatedError('');
   }, [editingClient, initialName, isOpen]);
 
   const addChip = (value: string) => {
@@ -368,6 +396,109 @@ export default function CreateClientModal({
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleCreateAssociatedClient = async () => {
+    if (!editingClient) return;
+    if (!newAssociatedForm.name.trim() || !newAssociatedForm.email.trim()) {
+      setAssociatedError('Nombre y correo son obligatorios');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newAssociatedForm.email)) {
+      setAssociatedError('El formato del email no es válido');
+      return;
+    }
+
+    setLoadingAssociated(true);
+    setAssociatedError('');
+
+    try {
+      let currentUserId = 0;
+      const storedProfile = localStorage.getItem("userProfile");
+      if (storedProfile) {
+        try {
+          const profile = JSON.parse(storedProfile);
+          currentUserId = profile.id || 0;
+        } catch (e) {}
+      }
+
+      const payload = {
+        displayName: newAssociatedForm.name,
+        email: newAssociatedForm.email,
+        businessName: '',
+        cuit: '',
+        ivaCondition: 'Responsable Inscripto', // fallback
+        phoneNumber: '',
+        isTest: editingClient.isTest || false,
+        clientRole: 'associated',
+        ownerId: editingClient.id,
+        createdBy: currentUserId,
+        fields: []
+      };
+
+      const res = await authenticatedFetch('/backend/clients', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setNewAssociatedForm({ name: '', email: '' });
+        // Refetch associated clients
+        const refetchRes = await authenticatedFetch('/backend/clients');
+        if (refetchRes.ok) {
+          const json = await refetchRes.json();
+          if (Array.isArray(json)) {
+            const associated = json.filter((c: any) => c.clientRole === 'associated' && c.ownerId === editingClient.id);
+            setAssociatedClients(associated);
+          }
+        }
+      } else {
+        const errorMsg = data.error || data.details || 'Error al crear cuenta asociada';
+        if (errorMsg.includes('Duplicate entry')) {
+          setAssociatedError('El correo electrónico ya está en uso por otra cuenta.');
+        } else {
+          setAssociatedError(errorMsg);
+        }
+      }
+    } catch (err: any) {
+      setAssociatedError(err.message || 'Ocurrió un error inesperado');
+    } finally {
+      setLoadingAssociated(false);
+    }
+  };
+
+  const handleDeleteAssociatedClient = async (id: number) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta cuenta asociada?')) return;
+    
+    setLoadingAssociated(true);
+    setAssociatedError('');
+    
+    try {
+      const res = await authenticatedFetch(`/backend/clients/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        // Refetch associated clients
+        const refetchRes = await authenticatedFetch('/backend/clients');
+        if (refetchRes.ok) {
+          const json = await refetchRes.json();
+          if (Array.isArray(json)) {
+            const associated = json.filter((c: any) => c.clientRole === 'associated' && c.ownerId === editingClient?.id);
+            setAssociatedClients(associated);
+          }
+        }
+      } else {
+        setAssociatedError(data.error || 'Error al eliminar cuenta asociada');
+      }
+    } catch (err: any) {
+      setAssociatedError(err.message || 'Ocurrió un error al eliminar');
+    } finally {
+      setLoadingAssociated(false);
     }
   };
 
@@ -846,6 +977,95 @@ export default function CreateClientModal({
                   </div>
                 )}
               </div>
+
+              {/* Associated Clients Section (Only for owner clients in edit mode) */}
+              {editingClient && editingClient.clientRole !== 'associated' && (
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-700">
+                      Cuentas Asociadas
+                    </label>
+                  </div>
+                  
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/30 space-y-4">
+                    {fetchingAssociated ? (
+                      <div className="text-xs text-slate-500 text-center py-2">Cargando...</div>
+                    ) : (
+                      <>
+                        {associatedClients.length > 0 ? (
+                          <div className="space-y-2">
+                            {associatedClients.map((assoc, idx) => (
+                              <div key={idx} className="flex justify-between items-center bg-white p-2 border border-slate-200 rounded-lg">
+                                <div>
+                                  <div className="text-xs font-semibold text-slate-800">{assoc.displayName}</div>
+                                  <div className="text-[10px] text-slate-500">{assoc.email}</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-[10px] bg-[#2e7d32]/10 text-[#2e7d32] px-2 py-0.5 rounded-full font-semibold">
+                                    Asociado
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAssociatedClient(assoc.id)}
+                                    className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
+                                    title="Eliminar cuenta asociada"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-500 text-center py-2">No hay cuentas asociadas</div>
+                        )}
+                        
+                        <div className="border-t border-slate-200 pt-3 mt-3">
+                          <div className="flex gap-2 flex-col sm:flex-row items-end">
+                            <div className="w-full sm:w-1/3">
+                              <label className="text-[10px] font-bold text-slate-500 ml-1 mb-1 block uppercase">Nombre <span className="text-red-500">*</span></label>
+                              <input
+                                type="text"
+                                value={newAssociatedForm.name}
+                                onChange={(e) => setNewAssociatedForm(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="Nombre"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#2e7d32] focus:ring-2 focus:ring-[#2e7d32]/20"
+                              />
+                            </div>
+                            <div className="w-full sm:w-1/3">
+                              <label className="text-[10px] font-bold text-slate-500 ml-1 mb-1 block uppercase">Email <span className="text-red-500">*</span></label>
+                              <input
+                                type="email"
+                                value={newAssociatedForm.email}
+                                onChange={(e) => setNewAssociatedForm(prev => ({ ...prev, email: e.target.value }))}
+                                placeholder="Email"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#2e7d32] focus:ring-2 focus:ring-[#2e7d32]/20"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleCreateAssociatedClient}
+                              disabled={loadingAssociated}
+                              className="w-full sm:w-auto rounded-xl bg-[#2e7d32] px-4 py-2 text-xs font-bold text-white hover:bg-[#1b5e20] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/50 disabled:opacity-50 transition-colors h-[38px] flex items-center justify-center gap-2 min-w-[80px]"
+                            >
+                              {loadingAssociated ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Agregar"
+                              )}
+                            </button>
+                          </div>
+                          {associatedError && (
+                            <div className="mt-2 text-xs text-red-500 font-medium">
+                              {associatedError}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* SUCCESS STEP */

@@ -28,6 +28,9 @@ interface SensorRecord {
     hum1min?: number;
     hum1max?: number;
     hum1avg?: number;
+    hum2min?: number;
+    hum2max?: number;
+    hum2avg?: number;
     presmin?: number;
     presmax?: number;
     presavg?: number;
@@ -127,7 +130,7 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
     const temps = dayRecords.map(r => r.value.temp1avg).filter((v): v is number => v !== undefined && v !== null);
     const tempsMin = dayRecords.map(r => r.value.temp1min).filter((v): v is number => v !== undefined && v !== null);
     const tempsMax = dayRecords.map(r => r.value.temp1max).filter((v): v is number => v !== undefined && v !== null);
-    const hums = dayRecords.map(r => r.value.hum1avg).filter((v): v is number => v !== undefined && v !== null && v > 0);
+    const hums = dayRecords.map(r => r.value.hum2avg).filter((v): v is number => v !== undefined && v !== null && v > 0);
     const vels = dayRecords.map(r => r.value.velavg).filter((v): v is number => v !== undefined && v !== null);
     const gusts = dayRecords.map(r => r.value.rafaga ?? r.value.velmax).filter((v): v is number => v !== undefined && v !== null);
 
@@ -146,17 +149,17 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
 
     // Delta T calculations
     const dtValues = dayRecords
-      .map(r => calculateDeltaT(r.value.temp1avg, r.value.hum1avg))
+      .map(r => calculateDeltaT(r.value.temp1avg, r.value.hum2avg))
       .filter((v): v is number => v !== null && !isNaN(v));
 
     const dtHoursOptimal = dayRecords.filter(r => {
-      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
+      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg);
       const gust = r.value.rafaga ?? r.value.velmax ?? r.value.velavg ?? 0;
       return dt !== null && dt >= 2 && dt <= 8 && gust < 15;
     }).length * dynamicHoursPerRecord;
 
     const dtOnlyHoursOptimal = dayRecords.filter(r => {
-      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
+      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg);
       return dt !== null && dt >= 2 && dt <= 8;
     }).length * dynamicHoursPerRecord;
 
@@ -354,7 +357,6 @@ function WindRose({ data }: { data: DailySummary[] }) {
 // ── Main Page ──────────────────────────────────────────────────────
 
 
-
 export default function MeteoReport({ selectedDevice, selectedDeviceName }: { selectedDevice: string, selectedDeviceName: string }) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -365,14 +367,30 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   const [reportGenerated, setReportGenerated] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Set default dates (last 7 days)
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    setEndDate(format(now, 'yyyy-MM-dd'));
-    setStartDate(format(weekAgo, 'yyyy-MM-dd'));
+  // Check if user is demo
+  const isDemo = useMemo(() => {
+    try {
+      const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      return !!profile.isDemo;
+    } catch {
+      return false;
+    }
   }, []);
+
+  // Set default dates
+  useEffect(() => {
+    const now = new Date();
+    let start = new Date(now);
+    
+    if (isDemo) {
+      start.setDate(now.getDate() - 7);
+    } else {
+      start.setDate(now.getDate() - 7);
+    }
+    
+    setEndDate(format(now, 'yyyy-MM-dd'));
+    setStartDate(format(start, 'yyyy-MM-dd'));
+  }, [isDemo]);
 
   // Reset report when device changes
   useEffect(() => {
@@ -440,16 +458,17 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
     const validGustMaxs = dailyData.map(d => d.gustMax).filter(v => v !== null) as number[];
 
     return {
-      tempMin: validTempMins.length > 0 ? Math.min(...validTempMins) : 0,
-      tempMax: validTempMaxs.length > 0 ? Math.max(...validTempMaxs) : 0,
-      tempAvg: validTempAvgs.length > 0 ? validTempAvgs.reduce((s, v) => s + v, 0) / validTempAvgs.length : 0,
-      dtAvg: validDtAvgs.length > 0 ? validDtAvgs.reduce((s, v) => s + v, 0) / validDtAvgs.length : 0,
-      windMin: validWindMins.length > 0 ? Math.min(...validWindMins) : 0,
-      windMax: validWindMaxs.length > 0 ? Math.max(...validWindMaxs) : 0,
-      windAvg: validWindAvgs.length > 0 ? validWindAvgs.reduce((s, v) => s + v, 0) / validWindAvgs.length : 0,
-      gustMax: validGustMaxs.length > 0 ? Math.max(...validGustMaxs) : 0,
+      tempMin: validTempMins.length > 0 ? Math.min(...validTempMins) : null,
+      tempMax: validTempMaxs.length > 0 ? Math.max(...validTempMaxs) : null,
+      tempAvg: validTempAvgs.length > 0 ? validTempAvgs.reduce((s, v) => s + v, 0) / validTempAvgs.length : null,
+      dtAvg: validDtAvgs.length > 0 ? validDtAvgs.reduce((s, v) => s + v, 0) / validDtAvgs.length : null,
+      windMin: validWindMins.length > 0 ? Math.min(...validWindMins) : null,
+      windMax: validWindMaxs.length > 0 ? Math.max(...validWindMaxs) : null,
+      windAvg: validWindAvgs.length > 0 ? validWindAvgs.reduce((s, v) => s + v, 0) / validWindAvgs.length : null,
+      gustMax: validGustMaxs.length > 0 ? Math.max(...validGustMaxs) : null,
       totalHoursBelow0: dailyData.reduce((s, d) => s + (d.hoursBelow0 || 0), 0),
       totalHoursBelow3: dailyData.reduce((s, d) => s + (d.hoursBelow3 || 0), 0),
+      frostDays: dailyData.filter(d => (d.hoursBelow0 || 0) > 2).length,
       totalRain: dailyData.reduce((s, d) => s + (d.rainTotal || 0), 0),
       totalRecords: rawRecords.length,
       greenDays: dailyData.filter(d => (d.dtHoursOptimal || 0) >= 4).length,
@@ -469,9 +488,9 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       const dayStr = format(date, 'yyyy-MM-dd');
       
       // Take first valid record of each hour
-      if (r.value.temp1avg !== undefined && r.value.hum1avg !== undefined && r.value.hum1avg > 0) {
+      if (r.value.temp1avg !== undefined && r.value.hum2avg !== undefined && r.value.hum2avg > 0) {
         if (key !== currentKey) {
-          const dt = calculateDeltaT(r.value.temp1avg, r.value.hum1avg);
+          const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg);
           if (dt !== null) {
             daysWithData.add(dayStr);
             hourly.push({
@@ -671,6 +690,11 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       bullets.push(`Se acumularon aproximadamente ${periodSummary.totalHoursBelow0.toFixed(1)} horas con temperatura bajo cero, lo que indica ocurrencia de condiciones frías con potencial de helada en sectores bajos.`);
     }
 
+    // Días de heladas
+    if (periodSummary.frostDays > 0) {
+      bullets.push(`Se registraron ${periodSummary.frostDays} días de heladas dentro del periodo (temperatura menor a 0 °C con duración mayor a dos horas).`);
+    }
+
     // 4. Rafagas superaron 20 km/h en X dias
     const daysWithHighGusts = dailyData.filter(d => d.gustMax > 20).length;
     if (daysWithHighGusts > 0) {
@@ -700,6 +724,11 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
       {/* Form */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        {isDemo && (
+          <div className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-700 border border-amber-100">
+            <p className="font-medium">En el <b>modo demostración</b> solo se pueden consultar los reportes de los últimos 7 días.</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
           {/* Start Date */}
           <div>
@@ -709,7 +738,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               value={startDate}
               max={endDate || new Date().toISOString().split('T')[0]}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              disabled={isDemo}
+              className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 ${isDemo ? 'bg-slate-100 opacity-70 cursor-not-allowed' : 'bg-white'}`}
             />
           </div>
 
@@ -722,7 +752,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               min={startDate}
               max={new Date().toISOString().split('T')[0]}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              disabled={isDemo}
+              className={`w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition-colors focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 ${isDemo ? 'bg-slate-100 opacity-70 cursor-not-allowed' : 'bg-white'}`}
             />
           </div>
 
@@ -786,12 +817,14 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <div className="overflow-x-auto rounded-lg border border-slate-200 print:border-slate-300">
                 <table className="w-full text-sm text-left">
                   <tbody>
-                    <tr className="border-b border-slate-200 print:border-slate-300">
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. min</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.tempMin)} °C</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. max</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</td>
-                    </tr>
+                    {(periodSummary.tempMin !== null || periodSummary.tempMax !== null) && (
+                      <tr className="border-b border-slate-200 print:border-slate-300">
+                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. min</td>
+                        <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.tempMin)} °C</td>
+                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. max</td>
+                        <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</td>
+                      </tr>
+                    )}
                     <tr className="border-b border-slate-200 print:border-slate-300">
                       <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Delta T prom.</td>
                       <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.dtAvg)} °C</td>
@@ -804,12 +837,27 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                       <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Dir. predominante</td>
                       <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{predominantWind ? `${predominantWind.label} (${predominantWind.percentage.toFixed(0)}%)` : '--'}</td>
                     </tr>
-                    <tr>
+                    <tr className="border-b border-slate-200 print:border-slate-300">
                       <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Horas bajo 0 °C</td>
                       <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.totalHoursBelow0)} h</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días verdes</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{periodSummary.greenDays}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días de heladas</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{periodSummary.frostDays}</td>
                     </tr>
+                    {(periodSummary.totalRain !== null && periodSummary.totalRain > 0) ? (
+                      <tr>
+                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Lluvia acumulada</td>
+                        <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.totalRain)} mm</td>
+                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días verdes</td>
+                        <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{periodSummary.greenDays}</td>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días verdes</td>
+                        <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{periodSummary.greenDays}</td>
+                        <td className="py-3 px-4 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></td>
+                        <td className="py-3 px-4"></td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -834,32 +882,34 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <div className="space-y-12 print:space-y-32">
                 
                 {/* Temperatura Max y Min */}
-                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
-                  <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Temperatura máxima y mínima diaria</p>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ComposedChart data={dailyData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} angle={-45} textAnchor="end" tickMargin={10} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Temperatura (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: -5 }} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                        formatter={(value: number, name: string) => [`${fmt(value)}°C`, name === 'tempMax' ? 'Temp. máxima diaria' : name === 'tempMin' ? 'Temp. mínima diaria' : name]}
-                        labelFormatter={(label) => `Fecha: ${label}`}
-                      />
-                      <Legend wrapperStyle={{ fontSize: '12px', top: -10 }} verticalAlign="top" 
-                        payload={[
-                          { value: 'Temp. máxima diaria', type: 'line', color: '#dc2626' },
-                          { value: 'Temp. mínima diaria', type: 'line', color: '#2563eb' }
-                        ]}
-                      />
-                      <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
-                      
-                      <Area type="monotone" dataKey="tempRange" stroke="none" fill="#f1f5f9" fillOpacity={0.6} />
-                      <Line type="monotone" dataKey="tempMax" name="Temp. máxima diaria" stroke="#dc2626" strokeWidth={2} dot={{ r: 4, fill: '#dc2626' }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="tempMin" name="Temp. mínima diaria" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 6 }} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
+                {(periodSummary.tempMin !== null || periodSummary.tempMax !== null) && (
+                  <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
+                    <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Temperatura máxima y mínima diaria</p>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <ComposedChart data={dailyData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} angle={-45} textAnchor="end" tickMargin={10} />
+                        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Temperatura (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: -5 }} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                          formatter={(value: number, name: string) => [`${fmt(value)}°C`, name === 'tempMax' ? 'Temp. máxima diaria' : name === 'tempMin' ? 'Temp. mínima diaria' : name]}
+                          labelFormatter={(label) => `Fecha: ${label}`}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '12px', top: -10 }} verticalAlign="top" 
+                          payload={[
+                            { value: 'Temp. máxima diaria', type: 'line', color: '#dc2626' },
+                            { value: 'Temp. mínima diaria', type: 'line', color: '#2563eb' }
+                          ]}
+                        />
+                        <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+                        
+                        <Area type="monotone" dataKey="tempRange" stroke="none" fill="#f1f5f9" fillOpacity={0.6} />
+                        <Line type="monotone" dataKey="tempMax" name="Temp. máxima diaria" stroke="#dc2626" strokeWidth={2} dot={{ r: 4, fill: '#dc2626' }} activeDot={{ r: 6 }} />
+                        <Line type="monotone" dataKey="tempMin" name="Temp. mínima diaria" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 6 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
 
                 {/* Delta T */}
                 <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">

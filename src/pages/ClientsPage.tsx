@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database, RefreshCw } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Copy, Check, Sun, Mail, Database, RefreshCw, ChevronDown } from "lucide-react";
 import { getColorForClient } from "../lib/utils";
 import MagneticEffect from "../components/MagneticEffect";
 import CreateClientModal from "../components/CreateClientModal";
@@ -16,6 +16,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'owner' | 'associated' | 'all'>('owner');
 
   // Delete Modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -157,6 +158,67 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
     }
   };
 
+  const handleSendWhatsApp = async (client: Client) => {
+    if (!client.phone) return;
+    
+    // Open a new tab immediately with a friendly loading state
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Preparando WhatsApp...</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8fafc; color: #475569; }
+              .spinner { border: 3px solid #e2e8f0; border-top-color: #25D366; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin-bottom: 16px; }
+              @keyframes spin { to { transform: rotate(360deg); } }
+            </style>
+          </head>
+          <body>
+            <div class="spinner"></div>
+            <p><strong>Generando enlace seguro...</strong></p>
+            <p style="font-size: 14px; color: #94a3b8;">Serás redirigido a WhatsApp en un momento.</p>
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+
+    setResendingInviteId(client.id);
+    try {
+      const response = await authenticatedFetch('/backend/auth/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: client.id }),
+      });
+      const data = await response.json();
+      if (data.success && data.setupLink) {
+        setResendSuccessId(client.id);
+        setTimeout(() => setResendSuccessId(null), 3000);
+        
+        const text = `¡Hola ${client.name}!\n\nSe ha creado una cuenta para usted en TradeAgro. Para comenzar a usar el sistema, debe configurar su contraseña haciendo clic en el siguiente enlace:\n\n${data.setupLink}\n\nEste enlace expira en 48 horas.`;
+        const url = `https://wa.me/${formatPhoneNumberForWhatsApp(client.phone)}?text=${encodeURIComponent(text)}`;
+        if (newWindow) {
+          newWindow.location.href = url;
+        } else {
+          window.location.href = url;
+        }
+      } else {
+        if (newWindow) newWindow.close();
+        alert(data.error || 'Error al generar el enlace');
+      }
+    } catch (error) {
+      if (newWindow) newWindow.close();
+      console.error('Error resending invite for WhatsApp:', error);
+      alert('Error al generar el enlace');
+    } finally {
+      setResendingInviteId(null);
+    }
+  };
+
   const handleSaveStationsConfig = async (clientId: number, allowedStations: string[] | null) => {
     try {
       const response = await authenticatedFetch(`/backend/clients/${clientId}/allowed-stations`, {
@@ -174,10 +236,16 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (client.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients.filter(client => {
+    const matchesSearch = (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (client.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (roleFilter === 'owner') return client.clientRole !== 'associated';
+    if (roleFilter === 'associated') return client.clientRole === 'associated';
+    return true;
+  });
 
   const ClientSkeleton = () => (
     <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm animate-pulse h-full">
@@ -233,13 +301,25 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as any)}
+              className="appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-slate-900 focus:border-[#2e7d32] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/20 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              <option value="owner">Dueños</option>
+              <option value="associated">Asociados</option>
+              <option value="all">Todos</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          </div>
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Buscar cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-64"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#2e7d32] focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/20 shadow-sm sm:w-64 transition-colors hover:bg-slate-50"
             />
           </div>
           <button
@@ -325,7 +405,7 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                   </div>
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors capitalize text-nowrap truncate">
                       {client.name}
@@ -334,40 +414,6 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                       <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-extrabold text-rose-600 border border-rose-100 shrink-0">
                         TEST
                       </span>
-                    )}
-                    {client.setupPending && (
-                      <>
-                        <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
-                          Pendiente
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleResendInvite(client); }}
-                          disabled={resendingInviteId === client.id || resendSuccessId === client.id}
-                          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-bold shrink-0 cursor-pointer transition-all duration-200 shadow-sm ${
-                            resendSuccessId === client.id
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-[#2e7d32] text-white hover:bg-[#256b29] hover:shadow-md active:scale-95'
-                          } disabled:opacity-60 disabled:cursor-not-allowed`}
-                          title="Reenviar email de invitación"
-                        >
-                          {resendSuccessId === client.id ? (
-                            <>
-                              <Check className="h-3 w-3" />
-                              Enviado
-                            </>
-                          ) : resendingInviteId === client.id ? (
-                            <>
-                              <RefreshCw className="h-3 w-3 animate-spin" />
-                              Enviando...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="h-3 w-3" />
-                              Reenviar invitación
-                            </>
-                          )}
-                        </button>
-                      </>
                     )}
                   </div>
                   {client.businessName && (
@@ -381,9 +427,56 @@ export default function ClientsPage({ userRole = 'client' }: { userRole?: 'profe
                       {client.ivaCondition}
                     </span>
                   </div>
+                  {client.setupPending && (
+                    <div className="mt-2 flex items-stretch gap-2">
+                      <span className="inline-flex items-center justify-center rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700 border border-amber-100 animate-pulse shrink-0">
+                        Pendiente
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleResendInvite(client); }}
+                        disabled={resendingInviteId === client.id || resendSuccessId === client.id}
+                        className={`inline-flex items-center justify-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-bold shrink-0 cursor-pointer transition-all duration-200 shadow-sm border border-transparent ${
+                          resendSuccessId === client.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-[#2e7d32] text-white hover:bg-[#256b29] hover:shadow-md active:scale-95'
+                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                        title="Reenviar email de invitación"
+                      >
+                        {resendSuccessId === client.id ? (
+                          <>
+                            <Check className="h-3 w-3" />
+                            Enviado
+                          </>
+                        ) : resendingInviteId === client.id ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3" />
+                            Reenviar invitación
+                          </>
+                        )}
+                      </button>
+                      {client.phone && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleSendWhatsApp(client); }}
+                          disabled={resendingInviteId === client.id || resendSuccessId === client.id}
+                          className="inline-flex items-center justify-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-bold shrink-0 cursor-pointer transition-all duration-200 shadow-sm bg-[#25D366] text-white hover:bg-[#128C7E] hover:shadow-md active:scale-95 border border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
+                          title="Enviar aviso por WhatsApp con link"
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                          </svg>
+                          Avisar
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-3 border-t border-slate-100 pt-6">
+                <div className="space-y-3 border-t border-slate-100 pt-4">
                   <div className="flex items-center gap-3 text-sm text-slate-500">
                     <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                     <span className="truncate">{client.email}</span>

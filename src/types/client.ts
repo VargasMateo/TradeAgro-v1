@@ -21,5 +21,7 @@ export interface Client {
   notificationEmails?: string;
   isTest?: boolean;
   allowedStations?: string[] | null;
+  clientRole?: 'owner' | 'associated';
+  ownerId?: number;
   createdAt?: string;
 }
