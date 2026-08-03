@@ -130,7 +130,7 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
     const temps = dayRecords.map(r => r.value.temp1avg).filter((v): v is number => v !== undefined && v !== null);
     const tempsMin = dayRecords.map(r => r.value.temp1min).filter((v): v is number => v !== undefined && v !== null);
     const tempsMax = dayRecords.map(r => r.value.temp1max).filter((v): v is number => v !== undefined && v !== null);
-    const hums = dayRecords.map(r => r.value.hum2avg).filter((v): v is number => v !== undefined && v !== null && v > 0);
+    const hums = dayRecords.map(r => r.value.hum2avg ?? r.value.hum1avg).filter((v): v is number => v !== undefined && v !== null && v > 0);
     const vels = dayRecords.map(r => r.value.velavg).filter((v): v is number => v !== undefined && v !== null);
     const gusts = dayRecords.map(r => r.value.rafaga ?? r.value.velmax).filter((v): v is number => v !== undefined && v !== null);
 
@@ -149,17 +149,17 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
 
     // Delta T calculations
     const dtValues = dayRecords
-      .map(r => calculateDeltaT(r.value.temp1avg, r.value.hum2avg))
+      .map(r => calculateDeltaT(r.value.temp1avg, r.value.hum2avg ?? r.value.hum1avg))
       .filter((v): v is number => v !== null && !isNaN(v));
 
     const dtHoursOptimal = dayRecords.filter(r => {
-      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg);
+      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg ?? r.value.hum1avg);
       const gust = r.value.rafaga ?? r.value.velmax ?? r.value.velavg ?? 0;
       return dt !== null && dt >= 2 && dt <= 8 && gust < 15;
     }).length * dynamicHoursPerRecord;
 
     const dtOnlyHoursOptimal = dayRecords.filter(r => {
-      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg);
+      const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg ?? r.value.hum1avg);
       return dt !== null && dt >= 2 && dt <= 8;
     }).length * dynamicHoursPerRecord;
 
@@ -174,7 +174,7 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
 
     // Rain
     const rains = dayRecords.map(r => r.value.rain).filter((v): v is number => v !== undefined && v !== null);
-    const rainTotal = rains.reduce((sum, v) => sum + v, 0);
+    const rainTotal = rains.length > 0 ? Math.max(...rains) : 0;
 
     return {
       date: format(day, 'yyyy-MM-dd'),
@@ -488,9 +488,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       const dayStr = format(date, 'yyyy-MM-dd');
       
       // Take first valid record of each hour
-      if (r.value.temp1avg !== undefined && r.value.hum2avg !== undefined && r.value.hum2avg > 0) {
+      const humVal = r.value.hum2avg ?? r.value.hum1avg;
+      if (r.value.temp1avg !== undefined && humVal !== undefined && humVal > 0) {
         if (key !== currentKey) {
-          const dt = calculateDeltaT(r.value.temp1avg, r.value.hum2avg);
+          const dt = calculateDeltaT(r.value.temp1avg, humVal);
           if (dt !== null) {
             daysWithData.add(dayStr);
             hourly.push({
