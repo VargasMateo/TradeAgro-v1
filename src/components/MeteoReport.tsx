@@ -457,6 +457,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
     const validWindAvgs = dailyData.map(d => d.windAvg).filter(v => v !== null) as number[];
     const validGustMaxs = dailyData.map(d => d.gustMax).filter(v => v !== null) as number[];
 
+    const validRains = dailyData.map(d => d.rainTotal).filter(v => v !== null) as number[];
+    const hasTemp = validTempMins.length > 0;
+    const hasDt = validDtAvgs.length > 0;
+
     return {
       tempMin: validTempMins.length > 0 ? Math.min(...validTempMins) : null,
       tempMax: validTempMaxs.length > 0 ? Math.max(...validTempMaxs) : null,
@@ -466,12 +470,12 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
       windMax: validWindMaxs.length > 0 ? Math.max(...validWindMaxs) : null,
       windAvg: validWindAvgs.length > 0 ? validWindAvgs.reduce((s, v) => s + v, 0) / validWindAvgs.length : null,
       gustMax: validGustMaxs.length > 0 ? Math.max(...validGustMaxs) : null,
-      totalHoursBelow0: dailyData.reduce((s, d) => s + (d.hoursBelow0 || 0), 0),
-      totalHoursBelow3: dailyData.reduce((s, d) => s + (d.hoursBelow3 || 0), 0),
-      frostDays: dailyData.filter(d => (d.hoursBelow0 || 0) > 2).length,
-      totalRain: dailyData.reduce((s, d) => s + (d.rainTotal || 0), 0),
+      totalHoursBelow0: hasTemp ? dailyData.reduce((s, d) => s + (d.hoursBelow0 || 0), 0) : null,
+      totalHoursBelow3: hasTemp ? dailyData.reduce((s, d) => s + (d.hoursBelow3 || 0), 0) : null,
+      frostDays: hasTemp ? dailyData.filter(d => (d.hoursBelow0 || 0) > 2).length : null,
+      totalRain: validRains.length > 0 ? validRains.reduce((s, v) => s + v, 0) : null,
       totalRecords: rawRecords.length,
-      greenDays: dailyData.filter(d => (d.dtHoursOptimal || 0) >= 4).length,
+      greenDays: hasDt ? dailyData.filter(d => (d.dtHoursOptimal || 0) >= 4).length : null,
     };
   }, [dailyData, rawRecords]);
 
@@ -710,6 +714,43 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
 
   // ── Render ───────────────────────────────────────────────────────
 
+  const executiveMetrics: { label: string; value: React.ReactNode }[] = [];
+  if (periodSummary?.tempMin !== null) {
+    executiveMetrics.push({ label: 'Temp. min', value: `${fmt(periodSummary?.tempMin)} °C` });
+  }
+  if (periodSummary?.tempMax !== null) {
+    executiveMetrics.push({ label: 'Temp. max', value: `${fmt(periodSummary?.tempMax)} °C` });
+  }
+  if (periodSummary?.dtAvg !== null) {
+    executiveMetrics.push({ label: 'Delta T prom.', value: `${fmt(periodSummary?.dtAvg)} °C` });
+  }
+  if (periodSummary?.windAvg !== null) {
+    executiveMetrics.push({ label: 'Viento prom.', value: `${fmt(periodSummary?.windAvg)} km/h` });
+  }
+  if (periodSummary?.gustMax !== null) {
+    executiveMetrics.push({ label: 'Ráfaga max.', value: `${fmt(periodSummary?.gustMax)} km/h` });
+  }
+  if (predominantWind !== null) {
+    executiveMetrics.push({ label: 'Dir. predominante', value: `${predominantWind.label} (${predominantWind.percentage.toFixed(0)}%)` });
+  }
+  if (periodSummary?.totalHoursBelow0 !== null) {
+    executiveMetrics.push({ label: 'Horas bajo 0 °C', value: `${fmt(periodSummary?.totalHoursBelow0)} h` });
+  }
+  if (periodSummary?.frostDays !== null) {
+    executiveMetrics.push({ label: 'Días de heladas', value: periodSummary?.frostDays });
+  }
+  if (periodSummary?.totalRain !== null) {
+    executiveMetrics.push({ label: 'Lluvia acumulada', value: `${fmt(periodSummary?.totalRain)} mm` });
+  }
+  if (periodSummary?.greenDays !== null) {
+    executiveMetrics.push({ label: 'Días verdes', value: periodSummary?.greenDays });
+  }
+
+  const executiveRows = [];
+  for (let i = 0; i < executiveMetrics.length; i += 2) {
+    executiveRows.push([executiveMetrics[i], executiveMetrics[i + 1]]);
+  }
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -818,47 +859,23 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
               <div className="overflow-x-auto rounded-lg border border-slate-200 print:border-slate-300">
                 <table className="w-full text-sm text-left">
                   <tbody>
-                    {(periodSummary.tempMin !== null || periodSummary.tempMax !== null) && (
-                      <tr className="border-b border-slate-200 print:border-slate-300">
-                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. min</td>
-                        <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.tempMin)} °C</td>
-                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Temp. max</td>
-                        <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{fmt(periodSummary.tempMax)} °C</td>
+                    {executiveRows.map((row, idx) => (
+                      <tr key={idx} className="border-b border-slate-200 print:border-slate-300">
+                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{row[0].label}</td>
+                        <td className={`py-3 px-4 font-bold text-slate-800 print:text-black ${row[1] ? 'border-r border-slate-200 print:border-slate-300' : ''}`}>{row[0].value}</td>
+                        {row[1] ? (
+                          <>
+                            <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{row[1].label}</td>
+                            <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{row[1].value}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="py-3 px-4 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></td>
+                            <td className="py-3 px-4"></td>
+                          </>
+                        )}
                       </tr>
-                    )}
-                    <tr className="border-b border-slate-200 print:border-slate-300">
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Delta T prom.</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.dtAvg)} °C</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento prom.</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{fmt(periodSummary.windAvg)} km/h</td>
-                    </tr>
-                    <tr className="border-b border-slate-200 print:border-slate-300">
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Ráfaga max.</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.gustMax)} km/h</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Dir. predominante</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{predominantWind ? `${predominantWind.label} (${predominantWind.percentage.toFixed(0)}%)` : '--'}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200 print:border-slate-300">
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Horas bajo 0 °C</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.totalHoursBelow0)} h</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días de heladas</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{periodSummary.frostDays}</td>
-                    </tr>
-                    {(periodSummary.totalRain !== null && periodSummary.totalRain > 0) ? (
-                      <tr>
-                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Lluvia acumulada</td>
-                        <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{fmt(periodSummary.totalRain)} mm</td>
-                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días verdes</td>
-                        <td className="py-3 px-4 font-bold text-slate-800 print:text-black">{periodSummary.greenDays}</td>
-                      </tr>
-                    ) : (
-                      <tr>
-                        <td className="py-3 px-4 font-semibold text-slate-600 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-slate-800" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Días verdes</td>
-                        <td className="py-3 px-4 font-bold text-slate-800 border-r border-slate-200 print:border-slate-300 print:text-black">{periodSummary.greenDays}</td>
-                        <td className="py-3 px-4 bg-slate-50 border-r border-slate-200 print:bg-slate-50 print:border-slate-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></td>
-                        <td className="py-3 px-4"></td>
-                      </tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -878,9 +895,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
             </div>
 
             {/* Gráficos principales */}
-            <div className="pt-2 print:break-before-page">
-              <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
-              <div className="space-y-12 print:space-y-32">
+            {(periodSummary.tempMin !== null || periodSummary.tempMax !== null || periodSummary.dtAvg !== null) && (
+              <div className="pt-2 print:break-before-page">
+                <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Gráficos principales</h3>
+                <div className="space-y-12 print:space-y-32">
                 
                 {/* Temperatura Max y Min */}
                 {(periodSummary.tempMin !== null || periodSummary.tempMax !== null) && (
@@ -913,48 +931,53 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 )}
 
                 {/* Delta T */}
-                <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
-                  <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Delta T durante el periodo</p>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ComposedChart data={deltaTData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis 
-                        dataKey="dateAxis" 
-                        tick={{ fontSize: 11, fill: '#64748b' }} 
-                        angle={-45} 
-                        textAnchor="end" 
-                        tickMargin={10} 
-                        interval="preserveStartEnd"
-                        minTickGap={30}
-                      />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Delta T (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: -5 }} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                        formatter={(value: number) => [`${fmt(value)}°C`, 'Delta T']}
-                        labelFormatter={(label, payload) => payload?.[0]?.payload?.dateLabel || label}
-                      />
-                      <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
-                        payload={[
-                          { value: 'Delta T', type: 'line', color: '#65a30d' },
-                          { value: 'Rango optimo 2-8 °C', type: 'rect', color: '#dcfce7' }
-                        ]}
-                      />
-                      <ReferenceArea y1={2} y2={8} {...{ fill: "#dcfce7", fillOpacity: 0.6 } as any} />
-                      <ReferenceLine y={2} stroke="#65a30d" strokeDasharray="3 3" strokeWidth={1} />
-                      <ReferenceLine y={8} stroke="#65a30d" strokeDasharray="3 3" strokeWidth={1} />
-                      
-                      <Line type="monotone" dataKey="dt" name="Delta T" stroke="#65a30d" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
+                {periodSummary.dtAvg !== null && (
+                  <div className="border border-slate-200 rounded-lg p-4 bg-white print:border-none print:p-0 print:break-inside-avoid">
+                    <p className="text-center text-lg font-medium mb-4 text-slate-800 print:text-black">Delta T durante el periodo</p>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <ComposedChart data={deltaTData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="dateAxis" 
+                          tick={{ fontSize: 11, fill: '#64748b' }} 
+                          angle={-45} 
+                          textAnchor="end" 
+                          tickMargin={10} 
+                          interval="preserveStartEnd"
+                          minTickGap={30}
+                        />
+                        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} label={{ value: 'Delta T (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#64748b' }, offset: -5 }} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                          formatter={(value: number) => [`${fmt(value)}°C`, 'Delta T']}
+                          labelFormatter={(label, payload) => payload?.[0]?.payload?.dateLabel || label}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '12px', top: -10, left: 20 }} verticalAlign="top" align="left"
+                          payload={[
+                            { value: 'Delta T', type: 'line', color: '#65a30d' },
+                            { value: 'Rango optimo 2-8 °C', type: 'rect', color: '#dcfce7' }
+                          ]}
+                        />
+                        <ReferenceArea y1={2} y2={8} {...{ fill: "#dcfce7", fillOpacity: 0.6 } as any} />
+                        <ReferenceLine y={2} stroke="#65a30d" strokeDasharray="3 3" strokeWidth={1} />
+                        <ReferenceLine y={8} stroke="#65a30d" strokeDasharray="3 3" strokeWidth={1} />
+                        
+                        <Line type="monotone" dataKey="dt" name="Delta T" stroke="#65a30d" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
 
               </div>
             </div>
+            )}
 
             {/* Viento y ventana operativa */}
+            {(periodSummary.windAvg !== null || periodSummary.dtAvg !== null) && (
             <div className="pt-2 print:break-before-page">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Viento y ventana operativa</h3>
               <div className="space-y-8 print:space-y-32">
+                {periodSummary.windAvg !== null && (
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Velocidad de viento y rafagas</p>
                   <ResponsiveContainer width="100%" height={250}>
@@ -1010,6 +1033,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+                )}
+                {periodSummary.dtAvg !== null && (
                 <div className="print:break-inside-avoid">
                   <p className="text-center text-sm font-semibold mb-2 text-slate-700 print:text-black">Horas con Delta T optimo y rafagas &lt; 15 km/h</p>
                   <ResponsiveContainer width="100%" height={250}>
@@ -1053,10 +1078,13 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </div>
             </div>
+            )}
 
             {/* Rosa de vientos */}
+            {periodSummary.windAvg !== null && (
             <div className="break-inside-avoid pt-2 print:break-before-page">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Rosa de vientos y dirección predominante</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-8 print:gap-4 items-center w-full">
@@ -1078,8 +1106,10 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 )}
               </div>
             </div>
+            )}
 
             {/* Semáforo diario */}
+            {periodSummary.dtAvg !== null && (
             <div className="pt-2 print:break-before-page">
               <h3 className="text-lg font-bold bg-[#2e7d32] text-white -mx-6 sm:-mx-8 px-6 sm:px-8 py-2 mb-6 print:bg-[#2e7d32] print:text-white print:mb-16" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Semáforo diario de condiciones de pulverización</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200 print:border-slate-300 print:rounded-xl">
@@ -1119,6 +1149,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                 * Condición basada en la cantidad de horas con Delta T (2 a 8 °C) y ráfagas menores a 15 km/h. Óptima ≥ 4 hs, Regular 1-3 hs, Mala = 0 hs.
               </div>
             </div>
+            )}
 
             {/* Footer */}
             <div className="text-center text-xs text-slate-400 py-6 mt-8 border-t border-slate-100 print:text-black print:border-slate-300">
