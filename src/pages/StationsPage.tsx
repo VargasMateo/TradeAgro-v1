@@ -418,8 +418,9 @@ let globalDevicesCacheTime = 0;
   const hasRainSupport = !!(
     selectedDevice?.name.toLowerCase().includes("pluvio") ||
     selectedDevice?.name.toLowerCase().includes("pluviometro") ||
-    selectedDevice?.templateName?.toLowerCase().includes("pluvio") ||
-    selectedDevice?.templateName?.toLowerCase().includes("pluviometro")
+    ((selectedDevice?.templateName?.toLowerCase().includes("pluvio") || 
+      selectedDevice?.templateName?.toLowerCase().includes("pluviometro")) && 
+     !selectedDevice?.name.toLowerCase().includes("viento + temp"))
   );
 
   // Prepare map markers grouped by base name
@@ -475,7 +476,7 @@ let globalDevicesCacheTime = 0;
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div className="space-y-1">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
-            Estación {selectedDeviceName}
+            {selectedDeviceName}
           </h1>
           <div className="text-sm text-slate-500 md:text-lg flex items-center gap-2 mt-2">
             <Clock className="h-4 w-4" /> 
@@ -590,19 +591,21 @@ let globalDevicesCacheTime = 0;
           </div>
 
           {/* Wind */}
-          <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
-              <Wind className="h-24 w-24 text-sky-500" />
-            </div>
-            <div className="relative z-10 flex flex-col items-center text-center">
-              <h2 className="text-4xl font-black">{formatNumber(val.velavg, 1)} <span className="text-2xl">km/h</span></h2>
-              <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">VIENTO {val.dirq || '--'}</p>
-              <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
-                <span className="text-sky-600">Min: {formatNumber(val.velmin, 1)}</span>
-                <span className="text-rose-600">Max: {formatNumber(val.velmax, 1)}</span>
+          {val.velavg !== undefined && val.velavg !== null && (
+            <div className="col-span-1 flex flex-col justify-center rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-5">
+                <Wind className="h-24 w-24 text-sky-500" />
+              </div>
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <h2 className="text-4xl font-black">{formatNumber(val.velavg, 1)} <span className="text-2xl">km/h</span></h2>
+                <p className="mt-1 text-sm font-bold tracking-widest text-slate-500">VIENTO {val.dirq || '--'}</p>
+                <div className="mt-3 flex flex-col text-sm font-bold gap-0.5">
+                  <span className="text-sky-600">Min: {formatNumber(val.velmin, 1)}</span>
+                  <span className="text-rose-600">Max: {formatNumber(val.velmax, 1)}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Rain */}
           {hasRainSupport && val.rain !== undefined && val.rain !== null && (
