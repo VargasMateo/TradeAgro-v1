@@ -779,7 +779,7 @@ let globalDevicesCacheTime = 0;
       {/* Meteo Report Component */}
       {selectedDid && (
         <div className="mt-8 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
-          <MeteoReport selectedDevice={selectedDid} selectedDeviceName={selectedDeviceName} />
+          <MeteoReport selectedDevice={selectedDid} selectedDeviceName={selectedDeviceName} devices={devices} />
         </div>
       )}
 

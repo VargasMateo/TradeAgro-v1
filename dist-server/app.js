@@ -4035,9 +4035,10 @@ apiRouter.get('/weather-stations/historical', authenticateToken, async (req, res
         console.log(`[MKL API] Fetching historical data in chunks: ${startDate} → ${endDate} for device ${dId}`);
         while (currentStart <= end) {
             let currentEnd = new Date(currentStart);
-            currentEnd.setDate(currentEnd.getDate() + chunkDays - 1);
+            currentEnd.setDate(currentEnd.getDate() + chunkDays); // MKL API endDate is exclusive, do not subtract 1
             if (currentEnd > end) {
                 currentEnd = new Date(end);
+                currentEnd.setDate(currentEnd.getDate() + 1); // Pad the final endDate by 1 day to include the full day
             }
             const chunkStartStr = currentStart.toISOString().split('T')[0];
             const chunkEndStr = currentEnd.toISOString().split('T')[0];
@@ -4063,7 +4064,7 @@ apiRouter.get('/weather-stations/historical', authenticateToken, async (req, res
             }
             // Advance to the next day after currentEnd
             currentStart = new Date(currentEnd);
-            currentStart.setDate(currentStart.getDate() + 1);
+            // Removed + 1 day because currentEnd is now exclusive in MKL API, so next chunk must start precisely at currentEnd to avoid dropping data.
         }
         // Ensure records are ordered chronologically
         allRecords.sort((a, b) => (a.time || 0) - (b.time || 0));

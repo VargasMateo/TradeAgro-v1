@@ -107,7 +107,7 @@ const degreeToCardinal = (deg: number): string => {
 
 // ── Data Processing ────────────────────────────────────────────────
 
-function processDailyData(records: SensorRecord[], startDate: string, endDate: string): DailySummary[] {
+function processDailyData(records: SensorRecord[], startDate: string, endDate: string, rainMultiplier: number): DailySummary[] {
   let dynamicHoursPerRecord = 1 / 120; // default 30s
   if (records.length >= 2) {
     const diffs = [];
@@ -124,6 +124,27 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
     end: parseISO(endDate),
   });
 
+  // Calculate daily rains by summing interval tips and multiplying by the device's rain multiplier.
+  const dailyRains: Record<string, number> = {};
+  const utcHasRainData: Record<string, boolean> = {};
+  
+  for (const r of records) {
+    const val = r.value.rain;
+    if (val !== undefined && val !== null) {
+      const dayStr = format(new Date(r.time), 'yyyy-MM-dd');
+      utcHasRainData[dayStr] = true;
+      
+      if (dailyRains[dayStr] === undefined) dailyRains[dayStr] = 0;
+      if (val > 0) {
+        dailyRains[dayStr] += val;
+      }
+    }
+  }
+
+  // Convert tips to mm
+  for (const dayStr of Object.keys(dailyRains)) {
+    dailyRains[dayStr] = parseFloat((dailyRains[dayStr] * rainMultiplier).toFixed(1));
+  }
   return days.map(day => {
     const dayRecords = records.filter(r => isSameDay(new Date(r.time), day));
 
@@ -173,8 +194,9 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
       }));
 
     // Rain
-    const rains = dayRecords.map(r => r.value.rain).filter((v): v is number => v !== undefined && v !== null);
-    const rainTotal = rains.length > 0 ? Math.max(...rains) : 0;
+    const dayStr = format(day, 'yyyy-MM-dd');
+    const rainTotal = dailyRains[dayStr] !== undefined ? dailyRains[dayStr] : null;
+    const hasRainData = utcHasRainData[dayStr] || false;
 
     return {
       date: format(day, 'yyyy-MM-dd'),
@@ -193,7 +215,7 @@ function processDailyData(records: SensorRecord[], startDate: string, endDate: s
       windMax: vels.length > 0 ? Math.max(...vels) : null,
       windAvg: vels.length > 0 ? vels.reduce((s, v) => s + v, 0) / vels.length : null,
       gustMax: gusts.length > 0 ? Math.max(...gusts) : null,
-      rainTotal: rainTotal > 0 ? rainTotal : (dayRecords.length > 0 ? 0 : null),
+      rainTotal: hasRainData ? rainTotal : null,
       dtValues,
       dtAvg: dtValues.length > 0 ? dtValues.reduce((s, v) => s + v, 0) / dtValues.length : null,
       dtHoursOptimal: dayRecords.length > 0 ? dtHoursOptimal : null,
@@ -356,8 +378,13 @@ function WindRose({ data }: { data: DailySummary[] }) {
 
 // ── Main Page ──────────────────────────────────────────────────────
 
+export interface MeteoReportProps {
+  selectedDevice: string;
+  selectedDeviceName: string;
+  devices?: any[];
+}
 
-export default function MeteoReport({ selectedDevice, selectedDeviceName }: { selectedDevice: string, selectedDeviceName: string }) {
+export default function MeteoReport({ selectedDevice, selectedDeviceName, devices }: MeteoReportProps) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -440,8 +467,24 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
   // Process data
   const dailyData = useMemo(() => {
     if (rawRecords.length === 0) return [];
-    return processDailyData(rawRecords, startDate, endDate);
-  }, [rawRecords, startDate, endDate]);
+    
+    // Extract rain multiplier from devices context
+    let rainMultiplier = 0.314; // Default MKL Agro rain bucket capacity
+    if (devices && Array.isArray(devices)) {
+      const device = devices.find(d => d.dId === selectedDevice);
+      if (device?.template?.widgets) {
+        const rainWidget = device.template.widgets.find((w: any) => w.widget === 'rainchart' && w.multiplicador);
+        if (rainWidget?.multiplicador) {
+          const parsed = parseFloat(rainWidget.multiplicador);
+          if (!isNaN(parsed) && parsed > 0) {
+            rainMultiplier = parsed;
+          }
+        }
+      }
+    }
+    
+    return processDailyData(rawRecords, startDate, endDate, rainMultiplier);
+  }, [rawRecords, startDate, endDate, devices, selectedDevice]);
 
   // Period aggregates
   const periodSummary = useMemo(() => {
@@ -1120,6 +1163,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                       <th className="text-right py-3 px-4 font-semibold">Horas optimas</th>
                       <th className="text-right py-3 px-4 font-semibold">Delta T opt.</th>
                       <th className="text-right py-3 px-4 font-semibold">Raf. max</th>
+                      <th className="text-right py-3 px-4 font-semibold">Lluvia</th>
                       <th className="text-center py-3 px-4 font-semibold">Estado</th>
                     </tr>
                   </thead>
@@ -1136,6 +1180,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName }: { se
                           <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtHoursOptimal)}</td>
                           <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.dtOnlyHoursOptimal)}</td>
                           <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.gustMax)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 print:text-black">{fmt(d.rainTotal)}</td>
                           <td className="py-2.5 px-4 text-center">
                             <span className={`inline-block px-3 py-1 text-xs font-bold rounded ${bgCond} ${textCond}`} style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{condition}</span>
                           </td>
