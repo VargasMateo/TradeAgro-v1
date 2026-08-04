@@ -1,4 +1,4 @@
-import { ReactNode, useRef, useEffect } from "react";
+import React, { ReactNode, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import logoIso from "../assets/tradeagro-drawer.png";
 import {
@@ -9,7 +9,6 @@ import {
   Shield,
   ClipboardList,
   Sun,
-  FileBarChart,
   KeyRound
 } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -90,6 +89,35 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     };
   }, []);
 
+  // Lógica para cerrar el sidebar con un gesto (swipe a la izquierda)
+  const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Solo registrar si el sidebar está abierto para evitar interferencias
+    if (!isSidebarOpen) return;
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || !isSidebarOpen) return;
+    
+    const touchCurrentX = e.touches[0].clientX;
+    const touchCurrentY = e.touches[0].clientY;
+    
+    const diffX = touchStartRef.current.x - touchCurrentX;
+    const diffY = touchStartRef.current.y - touchCurrentY;
+
+    // Verificar si el swipe es mayormente horizontal y hacia la izquierda
+    if (diffX > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+      setIsSidebarOpen(false);
+      touchStartRef.current = null; // reset
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+  };
+
   const isActive = (path: string) => {
     if (path === "/dashboard") {
       return location.pathname === "/dashboard" || location.pathname === "/";
@@ -130,7 +158,12 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
+    <div 
+      className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div
