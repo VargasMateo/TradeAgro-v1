@@ -287,13 +287,6 @@ export default function PublicWorkOrderPage() {
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={(e) => handleViewFile(file, e)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title="Ver archivo"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
                           onClick={(e) => handleDownloadFile(file, e)}
                           disabled={downloadingFiles[file.id]}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
