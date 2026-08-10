@@ -285,7 +285,7 @@ export default function PublicWorkOrderPage() {
                           <p className="text-xs text-slate-500 mt-0.5 truncate">{file.description}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => handleDownloadFile(file, e)}
                           disabled={downloadingFiles[file.id]}
