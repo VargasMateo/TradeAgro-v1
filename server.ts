@@ -4349,7 +4349,7 @@ apiRouter.get('/weather-stations/devices', authenticateToken, async (req: any, r
     if (!mklResponse.ok) {
       console.error('[ERROR] MKL API returned status:', mklResponse.status);
       const status = mklResponse.status === 401 ? 502 : mklResponse.status;
-      return res.status(status).json({ error: 'Failed to fetch devices from MKL API' });
+      return res.status(status).json({ error: 'Failed to fetch devices' });
     }
 
     const mklData = await mklResponse.json();
@@ -4404,7 +4404,7 @@ apiRouter.get('/weather-stations', authenticateToken, async (req: any, res: any)
     if (!mklResponse.ok) {
       console.error('[ERROR] MKL API returned status:', mklResponse.status);
       const status = mklResponse.status === 401 ? 502 : mklResponse.status;
-      return res.status(status).json({ error: 'Failed to fetch from MKL API' });
+      return res.status(status).json({ error: 'Failed to fetch weather data' });
     }
 
     const mklData = await mklResponse.json();
@@ -4623,7 +4623,7 @@ apiRouter.get('/weather-stations/historical', authenticateToken, async (req: any
       if (!mklResponse.ok) {
         console.error('[ERROR] MKL API returned status for chunk:', mklResponse.status);
         const status = mklResponse.status === 401 ? 502 : mklResponse.status;
-        return res.status(status).json({ error: 'Failed to fetch historical data from MKL API' });
+        return res.status(status).json({ error: 'Failed to fetch historical weather data' });
       }
 
       const mklData = await mklResponse.json();

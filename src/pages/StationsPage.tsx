@@ -260,7 +260,9 @@ let globalDevicesCacheTime = 0;
         }
 
         const res = await authenticatedFetch('/backend/weather-stations/devices');
-        if (!res.ok) throw new Error('Failed to fetch devices');
+        if (!res.ok) {
+          throw new Error('No se pudo conectar con el servicio de estaciones meteorológicas.');
+        }
         const json = await res.json();
         
         if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
@@ -295,11 +297,11 @@ let globalDevicesCacheTime = 0;
             throw new Error('No hay estaciones disponibles para tu perfil');
           }
         } else {
-          throw new Error('No weather devices found');
+          throw new Error('No se encontraron estaciones meteorológicas');
         }
       } catch (err: any) {
         console.error(err);
-        setError(err.message || 'Error fetching devices');
+        setError(err.message || 'Error al cargar los datos');
         setLoading(false);
       }
     };
@@ -533,10 +535,21 @@ let globalDevicesCacheTime = 0;
       {loading && !data ? (
         <StationSkeleton />
       ) : error && !data ? (
-        <div className="flex h-64 items-center justify-center">
-          <div className="rounded-xl bg-red-50 p-6 text-center text-red-600">
-            <p className="font-medium">Error al cargar datos</p>
-            <p className="text-sm">{error}</p>
+        <div className="flex h-64 items-center justify-center p-4">
+          <div className="max-w-sm w-full rounded-2xl bg-rose-50/80 border border-rose-200/80 p-6 text-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-bold text-rose-900 mb-1">Servicio no disponible</h3>
+            <p className="text-xs text-rose-600 font-medium mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
+            >
+              Reintentar
+            </button>
           </div>
         </div>
       ) : data && val ? (
