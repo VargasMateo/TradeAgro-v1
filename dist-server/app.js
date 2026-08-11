@@ -3418,11 +3418,16 @@ apiRouter.patch('/clients/:id/allowed-stations', authenticateToken, async (req, 
     }
     try {
         const jsonStr = allowedStations ? JSON.stringify(allowedStations) : null;
-        const [result] = await pool.query('UPDATE clients SET allowedStations = ? WHERE userId = ?', [jsonStr, id]);
+        const shouldEnableHasStations = allowedStations === null || (Array.isArray(allowedStations) && allowedStations.length > 0);
+        const [result] = await pool.query(`UPDATE clients 
+       SET allowedStations = ?, 
+           hasStations = CASE WHEN ? = 1 THEN 1 ELSE hasStations END,
+           hasSprayMonitor = CASE WHEN ? = 1 THEN 1 ELSE hasSprayMonitor END 
+       WHERE userId = ?`, [jsonStr, shouldEnableHasStations ? 1 : 0, shouldEnableHasStations ? 1 : 0, id]);
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: 'Client not found' });
         }
-        res.json({ success: true, allowedStations });
+        res.json({ success: true, allowedStations, hasStations: shouldEnableHasStations });
     }
     catch (error) {
         console.error('[DATABASE ERROR] PATCH /clients/:id/allowed-stations:', error.message);
