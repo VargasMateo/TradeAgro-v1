@@ -579,9 +579,9 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails,
-             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
-             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
-             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasStations, FALSE), COALESCE(c.hasStations, FALSE)) as hasStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasSprayMonitor, FALSE), COALESCE(c.hasSprayMonitor, FALSE)) as hasSprayMonitor,
+             IF(c.clientRole = 'associated', owner_c.allowedStations, c.allowedStations) as allowedStations,
              c.clientRole, c.ownerId
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
@@ -1308,9 +1308,9 @@ apiRouter.post('/login', async (req, res) => {
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber,
-             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
-             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
-             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasStations, FALSE), COALESCE(c.hasStations, FALSE)) as hasStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasSprayMonitor, FALSE), COALESCE(c.hasSprayMonitor, FALSE)) as hasSprayMonitor,
+             IF(c.clientRole = 'associated', owner_c.allowedStations, c.allowedStations) as allowedStations,
              c.notificationEmails,
              c.clientRole, c.ownerId
       FROM users u
@@ -1465,9 +1465,9 @@ apiRouter.post('/login-external', async (req, res) => {
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber,
-             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
-             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
-             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasStations, FALSE), COALESCE(c.hasStations, FALSE)) as hasStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasSprayMonitor, FALSE), COALESCE(c.hasSprayMonitor, FALSE)) as hasSprayMonitor,
+             IF(c.clientRole = 'associated', owner_c.allowedStations, c.allowedStations) as allowedStations,
              c.notificationEmails,
              c.clientRole, c.ownerId
       FROM users u
@@ -1533,9 +1533,9 @@ apiRouter.get('/auth/me', authenticateToken, async (req, res) => {
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
              c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber,
-             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
-             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
-             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasStations, FALSE), COALESCE(c.hasStations, FALSE)) as hasStations,
+             IF(c.clientRole = 'associated', COALESCE(owner_c.hasSprayMonitor, FALSE), COALESCE(c.hasSprayMonitor, FALSE)) as hasSprayMonitor,
+             IF(c.clientRole = 'associated', owner_c.allowedStations, c.allowedStations) as allowedStations,
              c.notificationEmails,
              c.clientRole, c.ownerId
       FROM users u
