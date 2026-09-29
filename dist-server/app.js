@@ -578,10 +578,15 @@ app.put('/backend/profile', authenticateToken, async (req, res) => {
         const [rows] = await pool.query(`
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails, c.hasStations, c.hasSprayMonitor, c.allowedStations
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.notificationEmails,
+             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
+             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
+             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             c.clientRole, c.ownerId
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
+      LEFT JOIN clients owner_c ON c.clientRole = 'associated' AND c.ownerId = owner_c.userId
       WHERE u.id = ?
     `, [id]);
         // Process nulls...
@@ -1302,10 +1307,16 @@ apiRouter.post('/login', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber,
+             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
+             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
+             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             c.notificationEmails,
+             c.clientRole, c.ownerId
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
+      LEFT JOIN clients owner_c ON c.clientRole = 'associated' AND c.ownerId = owner_c.userId
       WHERE u.email = ?
     `, [email]);
         if (rows.length === 0) {
@@ -1453,10 +1464,16 @@ apiRouter.post('/login-external', async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.password, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber,
+             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
+             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
+             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             c.notificationEmails,
+             c.clientRole, c.ownerId
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
+      LEFT JOIN clients owner_c ON c.clientRole = 'associated' AND c.ownerId = owner_c.userId
       WHERE u.email = ?
     `, [email]);
         if (rows.length === 0) {
@@ -1515,10 +1532,16 @@ apiRouter.get('/auth/me', authenticateToken, async (req, res) => {
       SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
              p.deletedAt as profDeletedAt, c.deletedAt as clientDeletedAt,
              p.phoneNumber, p.specialty,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber,
+             COALESCE(c.hasStations, owner_c.hasStations, FALSE) as hasStations,
+             COALESCE(c.hasSprayMonitor, owner_c.hasSprayMonitor, FALSE) as hasSprayMonitor,
+             COALESCE(c.allowedStations, owner_c.allowedStations) as allowedStations,
+             c.notificationEmails,
+             c.clientRole, c.ownerId
       FROM users u
       LEFT JOIN profesionals p ON u.id = p.userId
       LEFT JOIN clients c ON u.id = c.userId
+      LEFT JOIN clients owner_c ON c.clientRole = 'associated' AND c.ownerId = owner_c.userId
       WHERE u.id = ?
     `, [userId]);
         if (rows.length === 0) {
