@@ -85,7 +85,70 @@ export const authenticatedUpload = (url: string, options: UploadOptions = {}): P
       reject(new Error('Network request failed'));
     };
 
+    // Without these, a server that never answers leaves the UI stuck at "Subiendo (100%)..."
+    xhr.timeout = 120000;
+    xhr.ontimeout = () => reject(new Error('Upload timed out waiting for server response'));
+    xhr.onabort = () => reject(new Error('Upload aborted'));
+
     xhr.send(options.body);
   });
 };
 
+// The hosting layer in front of the API stalls request bodies >= 128 KB, so files go up in smaller pieces.
+const UPLOAD_CHUNK_SIZE = 96 * 1024;
+const CHUNK_RETRIES = 3;
+
+export interface ChunkedUploadOptions {
+  description?: string;
+  onProgress?: (progress: number) => void;
+}
+
+/**
+ * Uploads one file to /work-orders/:id/attachments in chunks, then asks the server to assemble it.
+ * `onProgress` receives the percentage (0-100) of this file's bytes already sent.
+ */
+export const uploadAttachmentInChunks = async (
+  workOrderId: string,
+  file: File,
+  options: ChunkedUploadOptions = {}
+): Promise<void> => {
+  const uploadId = crypto.randomUUID();
+  const base = `/backend/work-orders/${workOrderId}/attachments/chunks/${uploadId}`;
+  const totalChunks = Math.max(1, Math.ceil(file.size / UPLOAD_CHUNK_SIZE));
+
+  for (let index = 0; index < totalChunks; index++) {
+    const start = index * UPLOAD_CHUNK_SIZE;
+    const slice = file.slice(start, Math.min(start + UPLOAD_CHUNK_SIZE, file.size));
+    const body = new Blob([slice], { type: 'application/octet-stream' });
+
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const response = await authenticatedUpload(`${base}/${index}`, {
+          method: 'PUT',
+          body,
+          onProgress: (pct) => {
+            const sent = start + (slice.size * pct) / 100;
+            options.onProgress?.(Math.min(99, Math.round((sent / file.size) * 100)));
+          }
+        });
+        if (!response.ok) throw new Error(`Chunk ${index} failed with status ${response.status}`);
+        break;
+      } catch (err) {
+        if (attempt >= CHUNK_RETRIES) throw err;
+      }
+    }
+  }
+
+  const response = await authenticatedFetch(`${base}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fileName: file.name,
+      fileType: file.type || 'application/octet-stream',
+      totalChunks,
+      description: options.description || ''
+    })
+  });
+  if (!response.ok) throw new Error(`Assembling upload failed with status ${response.status}`);
+  options.onProgress?.(100);
+};

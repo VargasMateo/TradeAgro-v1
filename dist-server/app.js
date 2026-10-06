@@ -42,7 +42,8 @@ const pool = mysql.createPool({
     port: parseInt(process.env.DB_PORT || '3306'),
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    connectTimeout: 15000
 });
 const JWT_SECRET = process.env.JWT_SECRET;
 // Invite link: HMAC-based stateless token for public work order access
@@ -350,6 +351,19 @@ async function initializeDatabase() {
         catch (err) {
             console.log('[INIT] work_order_attachments migration check skipped (table might not exist yet).');
         }
+        // Chunked uploads: the hosting layer in front of Node stalls POST bodies >= 128 KB,
+        // so files are sent in small chunks that are buffered here until assembled.
+        await connection.query(`
+      CREATE TABLE IF NOT EXISTS work_order_upload_chunks (
+        uploadId VARCHAR(64) NOT NULL,
+        chunkIndex INT NOT NULL,
+        workOrderId INT NOT NULL,
+        userId INT NOT NULL,
+        data MEDIUMBLOB NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (uploadId, chunkIndex)
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
         // Observations Table
         console.log('[INIT] Creating work_order_observations table...');
         await connection.query(`
@@ -1347,6 +1361,7 @@ apiRouter.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
         console.log(`[AUTH] Success: ${email} logged in as ${user.role}`);
+        console.log(`[AUTH-DEBUG] clientRole=${user.clientRole}, ownerId=${user.ownerId}, hasStations=${user.hasStations}, allowedStations=${user.allowedStations}`);
         const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
         // Filter out password and null fields to match polymorphic interface
         const userData = { ...user };
@@ -1548,6 +1563,7 @@ apiRouter.get('/auth/me', authenticateToken, async (req, res) => {
             return res.status(404).json({ success: false, error: 'User not found' });
         }
         const userData = { ...rows[0] };
+        console.log(`[AUTH-ME-DEBUG] userId=${userId}, clientRole=${userData.clientRole}, ownerId=${userData.ownerId}, hasStations=${userData.hasStations}, allowedStations=${userData.allowedStations}`);
         if ('hasStations' in userData) {
             userData.hasStations = !!userData.hasStations;
         }
@@ -2683,6 +2699,8 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
     const { id } = req.params;
     const files = req.files;
     const uploadedBy = req.user.id;
+    const startedAt = Date.now();
+    console.log(`[UPLOAD] work-order=${id} files=${files?.length ?? 0} bytes=${files?.reduce((n, f) => n + f.size, 0) ?? 0}`);
     if (!files || files.length === 0) {
         return res.status(400).json({ success: false, error: 'No files uploaded' });
     }
@@ -2738,11 +2756,115 @@ apiRouter.post('/work-orders/:id/attachments', authenticateToken, upload.array('
         await pool.query('INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description, displayOrder) VALUES ?', [values]);
         // After insert, we could update the fileUrl to point to the correct ID, 
         // but the GET endpoint will construct it dynamically.
+        console.log(`[UPLOAD] work-order=${id} saved in ${Date.now() - startedAt}ms`);
         res.json({ success: true, message: 'Files uploaded successfully' });
     }
     catch (error) {
         console.error(`[DATABASE ERROR] POST /backend/work-orders/${id}/attachments:`, error.message);
         res.status(500).json({ success: false, error: 'Failed to save attachments' });
+    }
+});
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_CHUNK_BYTES = 128 * 1024;
+const UPLOAD_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
+/**
+ * Resolves a work order by UUID and checks the user may attach files to it.
+ * Sends the error response itself and returns null when access is not granted.
+ */
+async function getOrderForUpload(req, res, uuid) {
+    const [woRows] = await pool.query('SELECT id, clientId, profesionalId FROM work_orders WHERE uuid = ? AND deletedAt IS NULL', [uuid]);
+    if (woRows.length === 0) {
+        res.status(404).json({ success: false, error: 'Orden de trabajo no encontrada' });
+        return null;
+    }
+    const order = woRows[0];
+    let isAuthorized = req.user.role === 'admin' || req.user.id === order.clientId || req.user.id === order.profesionalId;
+    if (!isAuthorized && req.user.role === 'client') {
+        const [clientRows] = await pool.query('SELECT clientRole, ownerId FROM clients WHERE userId = ?', [req.user.id]);
+        if (clientRows.length > 0 && clientRows[0].clientRole === 'associated' && clientRows[0].ownerId === order.clientId) {
+            isAuthorized = true;
+        }
+    }
+    if (!isAuthorized) {
+        res.status(403).json({ success: false, error: 'No tienes permiso para subir archivos a esta orden' });
+        return null;
+    }
+    return order;
+}
+/**
+ * Receive one chunk (raw bytes) of a file being uploaded in pieces
+ */
+apiRouter.put('/work-orders/:id/attachments/chunks/:uploadId/:index', authenticateToken, express.raw({ type: '*/*', limit: MAX_CHUNK_BYTES }), async (req, res) => {
+    const { id, uploadId } = req.params;
+    const index = Number(req.params.index);
+    const chunk = req.body;
+    if (!UPLOAD_ID_RE.test(uploadId) || !Number.isInteger(index) || index < 0 || index > 1000) {
+        return res.status(400).json({ success: false, error: 'Parámetros de subida inválidos' });
+    }
+    if (!Buffer.isBuffer(chunk) || chunk.length === 0) {
+        return res.status(400).json({ success: false, error: 'Fragmento vacío' });
+    }
+    try {
+        const order = await getOrderForUpload(req, res, id);
+        if (!order)
+            return;
+        // Opportunistically drop abandoned uploads
+        await pool.query('DELETE FROM work_order_upload_chunks WHERE createdAt < (NOW() - INTERVAL 1 DAY)');
+        await pool.query(`INSERT INTO work_order_upload_chunks (uploadId, chunkIndex, workOrderId, userId, data)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE data = VALUES(data)`, [uploadId, index, order.id, req.user.id, chunk]);
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error(`[DATABASE ERROR] PUT chunk ${uploadId}/${index}:`, error.message);
+        res.status(500).json({ success: false, error: 'Failed to save chunk' });
+    }
+});
+/**
+ * Assemble the received chunks into an attachment
+ */
+apiRouter.post('/work-orders/:id/attachments/chunks/:uploadId/complete', authenticateToken, async (req, res) => {
+    const { id, uploadId } = req.params;
+    const { fileName, fileType, totalChunks, description } = req.body || {};
+    const startedAt = Date.now();
+    if (!UPLOAD_ID_RE.test(uploadId) || typeof fileName !== 'string' || !fileName
+        || !Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 1000) {
+        return res.status(400).json({ success: false, error: 'Parámetros de subida inválidos' });
+    }
+    try {
+        const order = await getOrderForUpload(req, res, id);
+        if (!order)
+            return;
+        const [rows] = await pool.query('SELECT chunkIndex, data FROM work_order_upload_chunks WHERE uploadId = ? AND workOrderId = ? AND userId = ? ORDER BY chunkIndex ASC', [uploadId, order.id, req.user.id]);
+        const complete = rows.length === totalChunks && rows.every((r, i) => r.chunkIndex === i);
+        if (!complete) {
+            return res.status(400).json({ success: false, error: 'Faltan fragmentos del archivo' });
+        }
+        const fileData = Buffer.concat(rows.map((r) => r.data));
+        if (fileData.length > MAX_UPLOAD_BYTES) {
+            await pool.query('DELETE FROM work_order_upload_chunks WHERE uploadId = ?', [uploadId]);
+            return res.status(413).json({ success: false, error: 'El archivo supera el máximo de 20MB' });
+        }
+        const [maxOrderRows] = await pool.query('SELECT COALESCE(MAX(displayOrder), -1) as maxOrder FROM work_order_attachments WHERE workOrderId = ?', [order.id]);
+        const displayOrder = (maxOrderRows[0]?.maxOrder ?? -1) + 1;
+        await pool.query('INSERT INTO work_order_attachments (workOrderId, fileName, fileUrl, fileType, fileSize, fileData, uploadedBy, description, displayOrder) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            order.id,
+            fileName.slice(0, 255),
+            `/backend/attachments/content/`, // Placeholder
+            typeof fileType === 'string' ? fileType.slice(0, 100) : 'application/octet-stream',
+            fileData.length,
+            fileData,
+            req.user.id,
+            typeof description === 'string' ? description : '',
+            displayOrder
+        ]);
+        await pool.query('DELETE FROM work_order_upload_chunks WHERE uploadId = ?', [uploadId]);
+        console.log(`[UPLOAD] work-order=${id} chunked file assembled chunks=${totalChunks} bytes=${fileData.length} in ${Date.now() - startedAt}ms`);
+        res.json({ success: true, message: 'Files uploaded successfully' });
+    }
+    catch (error) {
+        console.error(`[DATABASE ERROR] POST complete ${uploadId}:`, error.message);
+        res.status(500).json({ success: false, error: 'Failed to save attachment' });
     }
 });
 /**

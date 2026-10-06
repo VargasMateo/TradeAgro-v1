@@ -27,7 +27,7 @@ import { SortableAttachment } from '../components/SortableAttachment';
 import Map from "../components/Map";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { cn } from "../lib/utils";
-import { authenticatedFetch, authenticatedUpload } from "../lib/api";
+import { authenticatedFetch, uploadAttachmentInChunks } from "../lib/api";
 
 interface UploadingFile {
   id: string;
@@ -175,26 +175,17 @@ export default function WorkOrderDetailsPage({ userRole = 'profesional' }: { use
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      filesArray.forEach(file => {
-        formData.append('files', file);
-      });
-
-      const response = await authenticatedUpload(`/backend/work-orders/${id}/attachments`, {
-        method: 'POST',
-        body: formData,
-        onProgress: (progress) => {
-          setUploadingFiles(prev => prev.map(f => ({ ...f, progress })));
-        }
-      });
-
-      if (response.ok) {
-        await fetchAttachments();
-      } else {
-        alert('Error al subir archivos');
+      for (let i = 0; i < filesArray.length; i++) {
+        await uploadAttachmentInChunks(id!, filesArray[i], {
+          onProgress: (progress) => {
+            setUploadingFiles(prev => prev.map((f, idx) => idx === i ? { ...f, progress } : f));
+          }
+        });
       }
+      await fetchAttachments();
     } catch (err) {
       console.error('Upload error:', err);
+      alert('No se pudo subir el archivo. Intentá nuevamente.');
     } finally {
       setIsUploading(false);
       setUploadingFiles([]);

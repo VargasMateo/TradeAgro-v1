@@ -168,7 +168,7 @@ import CreateFieldModal from "./CreateFieldModal";
 import CreateLotModal from "./CreateLotModal";
 import CreateProfesionalModal from "./CreateProfesionalModal";
 import { WorkOrder, Service } from "../types/database";
-import { authenticatedFetch, authenticatedUpload } from "../lib/api";
+import { authenticatedFetch, uploadAttachmentInChunks } from "../lib/api";
 
 export default function CreateWorkOrderModal() {
   const navigate = useNavigate();
@@ -722,30 +722,18 @@ export default function CreateWorkOrderModal() {
       if (selectedFiles.length > 0 && primaryJobId) {
         setIsUploadingFiles(true);
         setUploadProgress(0);
-        const formDataUpload = new FormData();
-        selectedFiles.forEach(item => {
-          formDataUpload.append('files', item.file);
-        });
-        formDataUpload.append(
-          'descriptions',
-          JSON.stringify(
-            selectedFiles.map(item => ({
-              fileName: item.file.name,
-              description: item.description || ''
-            }))
-          )
-        );
-
-        const uploadRes = await authenticatedUpload(`/backend/work-orders/${primaryJobId}/attachments`, {
-          method: 'POST',
-          body: formDataUpload,
-          onProgress: (progress) => {
-            setUploadProgress(progress);
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const item = selectedFiles[i];
+          try {
+            await uploadAttachmentInChunks(primaryJobId, item.file, {
+              description: item.description || '',
+              onProgress: (progress) => {
+                setUploadProgress(Math.round((i * 100 + progress) / selectedFiles.length));
+              }
+            });
+          } catch (uploadError) {
+            console.error('Failed to upload file:', item.file.name, uploadError);
           }
-        });
-
-        if (!uploadRes.ok) {
-          console.error('Failed to upload files');
         }
         setIsUploadingFiles(false);
         setUploadProgress(null);
