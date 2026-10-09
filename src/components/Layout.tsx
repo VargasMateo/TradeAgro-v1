@@ -12,6 +12,7 @@ import {
   KeyRound
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { authenticatedFetch } from "../lib/api";
 import { useState } from "react";
 import CreateWorkOrderModal from "./CreateWorkOrderModal";
 import GlobalCreateClientModal from "./GlobalCreateClientModal";
@@ -75,6 +76,38 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
       window.removeEventListener("profile-updated", loadProfile);
     };
   }, [location.pathname]);
+
+  // Refresh the cached profile from the server so permission changes (e.g. stations
+  // assigned after the user logged in) show up without requiring a re-login.
+  useEffect(() => {
+    let cancelled = false;
+    const refreshProfile = async () => {
+      if (!localStorage.getItem("authToken")) return;
+      try {
+        const res = await authenticatedFetch('/backend/auth/me');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled || !json.success || !json.user) return;
+        const saved = localStorage.getItem("userProfile");
+        const current = saved ? JSON.parse(saved) : {};
+        // Server omits null fields, so clear stale values explicitly
+        const merged = { ...current, ...json.user };
+        if (!('allowedStations' in json.user)) merged.allowedStations = null;
+        if (JSON.stringify(merged) !== JSON.stringify(current)) {
+          localStorage.setItem("userProfile", JSON.stringify(merged));
+          window.dispatchEvent(new Event("profile-updated"));
+        }
+      } catch (e) {
+        console.error("Failed to refresh user profile", e);
+      }
+    };
+    refreshProfile();
+    window.addEventListener("focus", refreshProfile);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshProfile);
+    };
+  }, []);
 
   // Close notifications when clicking outside
   useEffect(() => {
