@@ -1753,24 +1753,45 @@ apiRouter.put('/clients/:id', authenticateToken, async (req, res) => {
         clientRole, ownerId } = req.body;
         await connection.beginTransaction();
         // 1. Update user data (Base)
-        await connection.query('UPDATE users SET displayName = ?, email = ?, isTest = ? WHERE id = ?', [displayName, email, isTest ? 1 : 0, userId]);
+        // Partial updates (e.g. adding a field or lot) don't send every property:
+        // only touch what was actually provided so we don't wipe existing settings.
+        const userUpdate = {};
+        if (displayName !== undefined)
+            userUpdate.displayName = displayName;
+        if (email !== undefined)
+            userUpdate.email = email;
+        if (isTest !== undefined)
+            userUpdate.isTest = isTest ? 1 : 0;
+        if (Object.keys(userUpdate).length > 0) {
+            await connection.query('UPDATE users SET ? WHERE id = ?', [userUpdate, userId]);
+        }
         // 2. Update client data (Extension)
-        const clientData = {
-            businessName: businessName,
-            cuit: cuit,
-            ivaCondition: ivaCondition || 'Responsable Inscripto',
-            phoneNumber: phoneNumber,
-            notificationEmails: notificationEmails || null,
-            hasStations: hasStations === undefined ? null : !!hasStations,
-            hasSprayMonitor: hasSprayMonitor === undefined ? null : !!hasSprayMonitor,
-            allowedStations: allowedStations ? JSON.stringify(allowedStations) : null
-        };
+        const clientData = {};
+        if (businessName !== undefined)
+            clientData.businessName = businessName;
+        if (cuit !== undefined)
+            clientData.cuit = cuit;
+        if (ivaCondition !== undefined)
+            clientData.ivaCondition = ivaCondition || 'Responsable Inscripto';
+        if (phoneNumber !== undefined)
+            clientData.phoneNumber = phoneNumber;
+        if (notificationEmails !== undefined)
+            clientData.notificationEmails = notificationEmails || null;
+        if (hasStations !== undefined)
+            clientData.hasStations = !!hasStations;
+        if (hasSprayMonitor !== undefined)
+            clientData.hasSprayMonitor = !!hasSprayMonitor;
+        // allowedStations: null means "all stations", so only skip it when it's not sent at all
+        if (allowedStations !== undefined)
+            clientData.allowedStations = allowedStations ? JSON.stringify(allowedStations) : null;
         if (clientRole !== undefined)
             clientData.clientRole = clientRole;
         if (ownerId !== undefined)
             clientData.ownerId = ownerId;
         console.log('[DEBUG] Updating client extension for userId:', userId);
-        await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
+        if (Object.keys(clientData).length > 0) {
+            await connection.query('UPDATE clients SET ? WHERE userId = ?', [clientData, userId]);
+        }
         // 3. Replace fields (delete existing, insert new)
         if (clientRole !== 'associated') {
             console.log('[DEBUG] Replacing associated fields');
