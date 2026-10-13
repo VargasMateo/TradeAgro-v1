@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Search, AlertCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, AlertCircle, Clock, CheckCircle2, XCircle, Link2, Check } from 'lucide-react';
 import { authenticatedFetch } from '../lib/api';
 import CreateDemoAccountModal from '../components/CreateDemoAccountModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import DemoLinksSection from '../components/DemoLinksSection';
 
 interface DemoPadronEntry {
   id: number;
@@ -12,9 +13,10 @@ interface DemoPadronEntry {
   expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
+  accessLink?: string;
 }
 
-export default function DemoAccountsPage() {
+function DemoPadronSection() {
   const [entries, setEntries] = useState<DemoPadronEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +25,18 @@ export default function DemoAccountsPage() {
   const [editingEntry, setEditingEntry] = useState<DemoPadronEntry | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<DemoPadronEntry | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const handleCopyLink = async (entry: DemoPadronEntry) => {
+    if (!entry.accessLink) return;
+    try {
+      await navigator.clipboard.writeText(entry.accessLink);
+    } catch {
+      window.prompt('Copiá el link de acceso demo:', entry.accessLink);
+    }
+    setCopiedId(entry.id);
+    setTimeout(() => setCopiedId(prev => (prev === entry.id ? null : prev)), 2000);
+  };
 
   const fetchEntries = async () => {
     try {
@@ -369,6 +383,13 @@ export default function DemoAccountsPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={() => handleCopyLink(entry)}
+                            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer"
+                            title="Copiar link de acceso directo"
+                          >
+                            {copiedId === entry.id ? <Check className="h-4 w-4 text-emerald-600" /> : <Link2 className="h-4 w-4" />}
+                          </button>
+                          <button
                             onClick={() => {
                               setEditingEntry(entry);
                               setIsModalOpen(true);
@@ -435,6 +456,13 @@ export default function DemoAccountsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
+                        onClick={() => handleCopyLink(entry)}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer"
+                        title="Copiar link de acceso directo"
+                      >
+                        {copiedId === entry.id ? <Check className="h-4 w-4 text-emerald-600" /> : <Link2 className="h-4 w-4" />}
+                      </button>
+                      <button
                         onClick={() => {
                           setEditingEntry(entry);
                           setIsModalOpen(true);
@@ -478,6 +506,25 @@ export default function DemoAccountsPage() {
         onConfirm={handleDelete}
         onClose={() => setDeletingEntry(null)}
       />
+    </div>
+  );
+}
+
+export default function DemoAccountsPage() {
+  const [tab, setTab] = useState<'cuit' | 'links'>('cuit');
+
+  const tabClass = (active: boolean) =>
+    `rounded-lg px-4 py-2 text-sm font-bold transition-colors cursor-pointer ${
+      active ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+    }`;
+
+  return (
+    <div className="space-y-6">
+      <div className="inline-flex gap-1 rounded-xl bg-slate-100 p-1">
+        <button onClick={() => setTab('cuit')} className={tabClass(tab === 'cuit')}>Cuentas por CUIT</button>
+        <button onClick={() => setTab('links')} className={tabClass(tab === 'links')}>Links de estaciones</button>
+      </div>
+      {tab === 'cuit' ? <DemoPadronSection /> : <DemoLinksSection />}
     </div>
   );
 }

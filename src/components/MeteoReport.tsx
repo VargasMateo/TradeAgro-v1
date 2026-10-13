@@ -877,7 +877,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName, device
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">TradeAgro</h1>
-                <h2 className="text-xl mt-4 font-semibold text-emerald-50">Reporte meteorológico de aplicación</h2>
+                <h2 className="text-xl mt-4 font-semibold text-emerald-50">Reporte meteorológico de aplicación - {selectedDeviceName}</h2>
                 <p className="text-sm mt-1 text-emerald-100/80">Período: {format(parseISO(startDate), "dd/MM/yyyy")} al {format(parseISO(endDate), "dd/MM/yyyy")} - Central: {selectedDeviceName}</p>
               </div>
               <div className="sm:text-right">

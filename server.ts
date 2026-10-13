@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { randomUUID, createHmac } from 'crypto';
+import { randomUUID, randomBytes, createHmac } from 'crypto';
 import nodemailer from 'nodemailer';
 
 // Define __dirname for ES module scope
@@ -91,6 +91,26 @@ const authenticateToken = (req: any, res: any, next: any) => {
     }
 
     try {
+      // Stations-only demo sessions (from a demo link): only weather-station reads are allowed,
+      // and the link must still be active and unexpired on every request.
+      if (user.scope === 'stations') {
+        const reqPath = String(req.originalUrl || '').split('?')[0];
+        const allowed = req.method === 'GET' && (
+          reqPath === '/backend/auth/me' ||
+          (reqPath.startsWith('/backend/weather-stations') && !reqPath.includes('/debug-'))
+        );
+        if (!allowed) {
+          return res.status(403).json({ success: false, error: 'Este acceso demo solo permite ver estaciones meteorológicas.' });
+        }
+        const [linkRows]: any = await pool.query(
+          'SELECT 1 FROM demo_links WHERE id = ? AND isActive = 1 AND expiresAt > NOW()',
+          [user.linkId]
+        );
+        if (linkRows.length === 0) {
+          return res.status(401).json({ success: false, error: 'Tu acceso demo ha expirado o fue desactivado.' });
+        }
+      }
+
       // Fetch isTest status from users table
       const [userRows]: any = await pool.query('SELECT isTest FROM users WHERE id = ?', [user.id]);
       if (userRows.length > 0) {
@@ -451,6 +471,23 @@ async function initializeDatabase() {
         razonSocial VARCHAR(255) NOT NULL,
         isActive BOOLEAN DEFAULT TRUE,
         expiresAt DATETIME DEFAULT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+
+    // Demo station links (stations-only access, one link per person, with expiration)
+    console.log('[INIT] Creating demo_links table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS demo_links (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        token VARCHAR(64) NOT NULL UNIQUE,
+        expiresAt DATETIME NOT NULL,
+        isActive BOOLEAN DEFAULT TRUE,
+        accessCount INT NOT NULL DEFAULT 0,
+        lastAccessAt DATETIME DEFAULT NULL,
+        createdBy INT DEFAULT NULL,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
@@ -1549,6 +1586,59 @@ apiRouter.post('/login', async (req, res) => {
 // ==========================================
 // DEMO LOGIN ENDPOINT
 // ==========================================
+/**
+ * Validates a demo_padron entry (active, not expired), sets the 7-day expiration on first use
+ * and builds the demo session. Returns null if the demo account is missing.
+ */
+async function issueDemoSession(padronEntry: any, demoEmail: string) {
+  if (!padronEntry.expiresAt) {
+    console.log(`[AUTH-DEMO] First login for CUIT ${padronEntry.cuit}. Setting expiration to 7 days.`);
+    await pool.query(
+      'UPDATE demo_padron SET expiresAt = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?',
+      [padronEntry.id]
+    );
+  }
+
+  const [userRows]: any = await pool.query(`
+    SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
+           c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+    FROM users u
+    LEFT JOIN clients c ON u.id = c.userId
+    WHERE u.email = ?
+  `, [demoEmail]);
+
+  if (userRows.length === 0) {
+    console.error(`[AUTH-DEMO] CRITICAL: Demo account ${demoEmail} not found in database`);
+    return null;
+  }
+
+  const user = userRows[0];
+  const token = jwt.sign(
+    { id: user.id, email: user.email, role: user.role, isDemo: true },
+    JWT_SECRET!,
+    { expiresIn: '24h' }
+  );
+
+  let expiresAt = padronEntry.expiresAt;
+  if (!expiresAt) {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    expiresAt = d.toISOString();
+  }
+  const userData: any = { ...user, isDemo: true, demoExpiresAt: expiresAt };
+  if ('hasStations' in userData) userData.hasStations = !!userData.hasStations;
+  if ('hasSprayMonitor' in userData) userData.hasSprayMonitor = !!userData.hasSprayMonitor;
+  if (userData.allowedStations) {
+    userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
+  }
+  Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
+
+  return { token, user: userData };
+}
+
+// Direct access link for a demo_padron entry (stateless HMAC token; revoke by deactivating the entry)
+const demoLinkToken = (padronId: number | string) => generateInviteToken(`demo-padron:${padronId}`);
+
 apiRouter.post('/login-demo', async (req, res) => {
   const { username, cuit } = req.body;
   const expectedUsername = process.env.DEMO_USERNAME || 'demo';
@@ -1591,65 +1681,254 @@ apiRouter.post('/login-demo', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Tu acceso demo ha expirado' });
     }
 
-    // 4.5 Set 7 days expiration on first login
-    if (!padronEntry.expiresAt) {
-      console.log(`[AUTH-DEMO] First login for CUIT ${cuit}. Setting expiration to 7 days.`);
-      await pool.query(
-        'UPDATE demo_padron SET expiresAt = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?',
-        [padronEntry.id]
-      );
+    const session = await issueDemoSession(padronEntry, demoEmail);
+    if (!session) {
+      return res.status(500).json({ success: false, error: 'Cuenta demo no configurada. Contacte al administrador.' });
+    }
+    console.log(`[AUTH-DEMO] Success: CUIT ${cuit} (${padronEntry.razonSocial}) logged in as demo`);
+    res.json({ success: true, ...session });
+  } catch (error: any) {
+    console.error('[AUTH-DEMO ERROR]:', error.message);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+/**
+ * POST /backend/login-demo-link — Demo login through a direct access link (no username/CUIT form)
+ */
+apiRouter.post('/login-demo-link', async (req, res) => {
+  const { id, token } = req.body;
+  const demoEmail = process.env.DEMO_EMAIL || 'demo@tradeagro.com';
+
+  try {
+    if (!id || !token || !validateInviteToken(`demo-padron:${id}`, String(token))) {
+      return res.status(401).json({ success: false, error: 'Link de acceso demo inválido' });
     }
 
-    // 5. Fetch demo account
+    const [padronRows]: any = await pool.query('SELECT * FROM demo_padron WHERE id = ?', [id]);
+    if (padronRows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Link de acceso demo inválido' });
+    }
+    const padronEntry = padronRows[0];
+
+    if (!padronEntry.isActive) {
+      return res.status(401).json({ success: false, error: 'Tu acceso demo se encuentra desactivado' });
+    }
+    if (padronEntry.expiresAt && new Date(padronEntry.expiresAt) < new Date()) {
+      return res.status(401).json({ success: false, error: 'Tu acceso demo ha expirado' });
+    }
+
+    const session = await issueDemoSession(padronEntry, demoEmail);
+    if (!session) {
+      return res.status(500).json({ success: false, error: 'Cuenta demo no configurada. Contacte al administrador.' });
+    }
+    console.log(`[AUTH-DEMO] Link login: padron ${padronEntry.id} (${padronEntry.razonSocial})`);
+    res.json({ success: true, ...session });
+  } catch (error: any) {
+    console.error('[AUTH-DEMO ERROR] login-demo-link:', error.message);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+// ==========================================
+// DEMO STATION LINKS (stations-only access)
+// ==========================================
+const DEMO_LINK_MAX_SESSION_MS = 24 * 60 * 60 * 1000;
+
+const mapDemoLink = (r: any) => ({
+  id: r.id,
+  name: r.name,
+  expiresAt: r.expiresAt,
+  isActive: !!r.isActive,
+  accessCount: r.accessCount,
+  lastAccessAt: r.lastAccessAt,
+  createdAt: r.createdAt,
+  accessLink: `${getAppUrl()}/demo-estaciones?t=${r.token}`
+});
+
+/**
+ * POST /backend/login-demo-station — Public. Enter with a demo station link token.
+ * Issues a stations-only demo session that lasts until the link expires (max 24h).
+ */
+apiRouter.post('/login-demo-station', async (req, res) => {
+  const { token } = req.body;
+  const demoEmail = process.env.DEMO_EMAIL || 'demo@tradeagro.com';
+
+  try {
+    if (!token || typeof token !== 'string') {
+      return res.status(401).json({ success: false, error: 'Link de acceso demo inválido' });
+    }
+
+    const [rows]: any = await pool.query('SELECT * FROM demo_links WHERE token = ?', [token]);
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Link de acceso demo inválido' });
+    }
+    const link = rows[0];
+
+    if (!link.isActive) {
+      return res.status(401).json({ success: false, error: 'Este link de acceso demo fue desactivado' });
+    }
+    const expiresMs = new Date(link.expiresAt).getTime();
+    if (expiresMs <= Date.now()) {
+      return res.status(401).json({ success: false, error: 'Este link de acceso demo ha expirado' });
+    }
+
     const [userRows]: any = await pool.query(`
-      SELECT u.id, u.displayName, u.email, u.role, u.createdAt, u.createdBy,
-             c.businessName, c.cuit, c.ivaCondition, c.phoneNumber as clientPhoneNumber, c.hasStations, c.hasSprayMonitor, c.allowedStations, c.notificationEmails
+      SELECT u.id, u.displayName, u.email, u.role, u.createdAt,
+             c.businessName, c.hasStations, c.hasSprayMonitor, c.allowedStations
       FROM users u
       LEFT JOIN clients c ON u.id = c.userId
       WHERE u.email = ?
     `, [demoEmail]);
-
     if (userRows.length === 0) {
       console.error(`[AUTH-DEMO] CRITICAL: Demo account ${demoEmail} not found in database`);
       return res.status(500).json({ success: false, error: 'Cuenta demo no configurada. Contacte al administrador.' });
     }
-
     const user = userRows[0];
 
-    console.log(`[AUTH-DEMO] Success: CUIT ${cuit} (${padronEntry.razonSocial}) logged in as demo`);
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, isDemo: true },
-      JWT_SECRET!,
-      { expiresIn: '24h' }
+    await pool.query(
+      'UPDATE demo_links SET accessCount = accessCount + 1, lastAccessAt = NOW() WHERE id = ?',
+      [link.id]
     );
 
-    // Build user data
-    let expiresAt = padronEntry.expiresAt;
-    if (!expiresAt) {
-      const d = new Date();
-      d.setDate(d.getDate() + 7);
-      expiresAt = d.toISOString();
-    }
-    const userData: any = { ...user, isDemo: true, demoExpiresAt: expiresAt };
-    if ('hasStations' in userData) {
-      userData.hasStations = !!userData.hasStations;
-    }
-    if ('hasSprayMonitor' in userData) {
-      userData.hasSprayMonitor = !!userData.hasSprayMonitor;
-    }
+    // Session never outlives the link
+    const ttlSeconds = Math.max(60, Math.floor(Math.min(expiresMs - Date.now(), DEMO_LINK_MAX_SESSION_MS) / 1000));
+    const jwtToken = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, isDemo: true, scope: 'stations', linkId: link.id },
+      JWT_SECRET!,
+      { expiresIn: ttlSeconds }
+    );
+
+    const userData: any = {
+      ...user,
+      hasStations: true,
+      hasSprayMonitor: !!user.hasSprayMonitor,
+      isDemo: true,
+      demoScope: 'stations',
+      demoExpiresAt: link.expiresAt,
+      displayName: link.name || user.displayName
+    };
     if (userData.allowedStations) {
       userData.allowedStations = typeof userData.allowedStations === 'string' ? JSON.parse(userData.allowedStations) : userData.allowedStations;
     }
     Object.keys(userData).forEach(key => userData[key] === null && delete userData[key]);
 
-    res.json({
-      success: true,
-      token,
-      user: userData
-    });
+    console.log(`[AUTH-DEMO] Station link login: link ${link.id} (${link.name})`);
+    res.json({ success: true, token: jwtToken, user: userData });
   } catch (error: any) {
-    console.error('[AUTH-DEMO ERROR]:', error.message);
+    console.error('[AUTH-DEMO ERROR] login-demo-station:', error.message);
     res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+const requireAdmin = (req: any, res: any): boolean => {
+  if (req.user.role !== 'admin' || req.user.scope) {
+    res.status(403).json({ success: false, error: 'Acceso denegado' });
+    return false;
+  }
+  return true;
+};
+
+// LIST demo station links
+apiRouter.get('/demo-links', authenticateToken, async (req: any, res: any) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM demo_links ORDER BY createdAt DESC, id DESC');
+    res.json({ success: true, data: rows.map(mapDemoLink) });
+  } catch (error: any) {
+    console.error('[DEMO LINKS ERROR] GET:', error.message);
+    res.status(500).json({ success: false, error: 'Error al obtener los links demo' });
+  }
+});
+
+// CREATE demo station link (expiration is mandatory: pass `days` or `expiresAt`)
+apiRouter.post('/demo-links', authenticateToken, async (req: any, res: any) => {
+  if (!requireAdmin(req, res)) return;
+  const { name, days, expiresAt } = req.body;
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ success: false, error: 'El nombre es requerido' });
+  }
+
+  let expires: Date;
+  if (expiresAt) {
+    expires = new Date(expiresAt);
+  } else if (days && Number(days) > 0) {
+    expires = new Date(Date.now() + Number(days) * 24 * 60 * 60 * 1000);
+  } else {
+    return res.status(400).json({ success: false, error: 'El vencimiento es requerido' });
+  }
+  if (isNaN(expires.getTime()) || expires.getTime() <= Date.now()) {
+    return res.status(400).json({ success: false, error: 'El vencimiento debe ser una fecha futura' });
+  }
+
+  try {
+    const token = randomBytes(24).toString('hex');
+    const [result]: any = await pool.query(
+      'INSERT INTO demo_links (name, token, expiresAt, createdBy) VALUES (?, ?, ?, ?)',
+      [String(name).trim(), token, expires, req.user.id]
+    );
+    const [rows]: any = await pool.query('SELECT * FROM demo_links WHERE id = ?', [result.insertId]);
+    res.status(201).json({ success: true, data: mapDemoLink(rows[0]) });
+  } catch (error: any) {
+    console.error('[DEMO LINKS ERROR] POST:', error.message);
+    res.status(500).json({ success: false, error: 'Error al crear el link demo' });
+  }
+});
+
+// UPDATE demo station link (name, active flag, expiration)
+apiRouter.patch('/demo-links/:id', authenticateToken, async (req: any, res: any) => {
+  if (!requireAdmin(req, res)) return;
+  const { name, isActive, expiresAt } = req.body;
+  const update: any = {};
+  if (name !== undefined) {
+    if (!String(name).trim()) return res.status(400).json({ success: false, error: 'El nombre es requerido' });
+    update.name = String(name).trim();
+  }
+  if (isActive !== undefined) update.isActive = !!isActive;
+  if (expiresAt !== undefined) {
+    const d = new Date(expiresAt);
+    if (isNaN(d.getTime())) return res.status(400).json({ success: false, error: 'Fecha de vencimiento inválida' });
+    update.expiresAt = d;
+  }
+  if (Object.keys(update).length === 0) {
+    return res.status(400).json({ success: false, error: 'No hay cambios para guardar' });
+  }
+  try {
+    const [result]: any = await pool.query('UPDATE demo_links SET ? WHERE id = ?', [update, req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, error: 'Link no encontrado' });
+    const [rows]: any = await pool.query('SELECT * FROM demo_links WHERE id = ?', [req.params.id]);
+    res.json({ success: true, data: mapDemoLink(rows[0]) });
+  } catch (error: any) {
+    console.error('[DEMO LINKS ERROR] PATCH:', error.message);
+    res.status(500).json({ success: false, error: 'Error al actualizar el link demo' });
+  }
+});
+
+// REGENERATE token (the previous link stops working)
+apiRouter.post('/demo-links/:id/regenerate', authenticateToken, async (req: any, res: any) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const token = randomBytes(24).toString('hex');
+    const [result]: any = await pool.query('UPDATE demo_links SET token = ? WHERE id = ?', [token, req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, error: 'Link no encontrado' });
+    const [rows]: any = await pool.query('SELECT * FROM demo_links WHERE id = ?', [req.params.id]);
+    res.json({ success: true, data: mapDemoLink(rows[0]) });
+  } catch (error: any) {
+    console.error('[DEMO LINKS ERROR] regenerate:', error.message);
+    res.status(500).json({ success: false, error: 'Error al regenerar el link demo' });
+  }
+});
+
+// DELETE demo station link
+apiRouter.delete('/demo-links/:id', authenticateToken, async (req: any, res: any) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const [result]: any = await pool.query('DELETE FROM demo_links WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, error: 'Link no encontrado' });
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[DEMO LINKS ERROR] DELETE:', error.message);
+    res.status(500).json({ success: false, error: 'Error al eliminar el link demo' });
   }
 });
 
@@ -1796,7 +2075,12 @@ apiRouter.get('/demo-padron', authenticateToken, async (req: any, res: any) => {
   }
   try {
     const [rows]: any = await pool.query('SELECT * FROM demo_padron ORDER BY createdAt DESC');
-    res.json({ success: true, data: rows });
+    const appUrl = getAppUrl();
+    const data = rows.map((r: any) => ({
+      ...r,
+      accessLink: `${appUrl}/demo-access?id=${r.id}&token=${demoLinkToken(r.id)}`
+    }));
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error('[DEMO PADRON ERROR] GET:', error.message);
     res.status(500).json({ success: false, error: 'Error al obtener el padrón demo' });
