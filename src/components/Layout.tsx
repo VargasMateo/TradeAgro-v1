@@ -35,12 +35,13 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           hasStations: !!parsed.hasStations,
           allowedStations: parsed.allowedStations,
           isDemo: !!parsed.isDemo,
+          demoScope: parsed.demoScope || null,
           demoExpiresAt: parsed.demoExpiresAt || null,
           avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
         };
       } catch (e) { /* fall through */ }
     }
-    return { name: "Usuario", email: "", hasStations: false, allowedStations: null, isDemo: false, demoExpiresAt: null, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
+    return { name: "Usuario", email: "", hasStations: false, allowedStations: null, isDemo: false, demoScope: null as string | null, demoExpiresAt: null, avatarUrl: `https://ui-avatars.com/api/?name=U&background=059669&color=fff&size=256` };
   };
 
   const [userProfile, setUserProfile] = useState(getInitialProfile);
@@ -57,6 +58,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
             hasStations: !!parsed.hasStations,
             allowedStations: parsed.allowedStations,
             isDemo: !!parsed.isDemo,
+            demoScope: parsed.demoScope || null,
             demoExpiresAt: parsed.demoExpiresAt || null,
             avatarUrl: parsed.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.displayName || parsed.name || 'U')}&background=059669&color=fff&size=256`
           });
@@ -165,7 +167,10 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
     //{ path: "/reports", label: "Reportes", icon: FileText },
   ];
 
-  if (userRole === 'profesional') {
+  if (userProfile.demoScope === 'stations') {
+    // Demo link: stations only
+    navItems.splice(0, navItems.length, { path: "/stations", label: "Est. Meteorológicas", icon: Sun });
+  } else if (userRole === 'profesional') {
     navItems.push(
       { path: "/clients", label: "Clientes", icon: Users },
       { path: "/stations", label: "Est. Meteorológicas", icon: Sun }

@@ -20,6 +20,7 @@ import CalendarPage from "./pages/CalendarPage";
 import DbTestPage from "./pages/DbTestPage";
 import DemoAccountsPage from "./pages/DemoAccountsPage";
 import PublicWorkOrderPage from "./pages/PublicWorkOrderPage";
+import DemoAccessPage from "./pages/DemoAccessPage";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("authToken"));
@@ -114,6 +115,11 @@ export default function App() {
     );
   }
 
+  // Public route: direct access link for demo accounts
+  if (window.location.pathname === '/demo-access' || window.location.pathname === '/demo-estaciones') {
+    return <DemoAccessPage />;
+  }
+
   // Public route: invitation link to view work orders without auth
   if (window.location.pathname.startsWith('/order/')) {
     return (
@@ -151,6 +157,25 @@ export default function App() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const redirectPath = urlParams.get('redirect') || '/dashboard';
+
+  // Sessions from a demo station link can only see the weather stations
+  let isStationsOnly = false;
+  try {
+    isStationsOnly = JSON.parse(localStorage.getItem("userProfile") || "{}").demoScope === 'stations';
+  } catch (e) { /* ignore */ }
+
+  if (isStationsOnly) {
+    return (
+      <Router>
+        <Layout onLogout={handleLogout} userRole={userRole}>
+          <Routes>
+            <Route path="/stations" element={<StationsPage />} />
+            <Route path="*" element={<Navigate to="/stations" replace />} />
+          </Routes>
+        </Layout>
+      </Router>
+    );
+  }
 
   return (
     <Router>

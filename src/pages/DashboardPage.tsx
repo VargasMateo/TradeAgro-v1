@@ -9,13 +9,16 @@ import {
   Clock,
   Calendar,
   BarChart3,
-  ThermometerSun
+  ThermometerSun,
+  ClipboardList,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import Map from "../components/Map";
 import UpcomingWorkOrders from "../components/UpcomingWorkOrders";
 import MagneticEffect from "../components/MagneticEffect";
 import { authenticatedFetch } from "../lib/api";
+import { useIsDesktop } from "../lib/useIsDesktop";
 
 export default function DashboardPage({ userRole = 'profesional' }: { userRole?: 'profesional' | 'client' | 'admin' }) {
   const [clients, setClients] = useState<any[]>([]);
@@ -26,6 +29,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [weatherMarkers, setWeatherMarkers] = useState<any[]>([]);
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -166,7 +170,8 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
     fetchClients();
     fetchWorkOrders();
     loadProfile();
-    fetchWeatherStations();
+    // The weather map (and its per-station requests) is only shown on desktop
+    if (isDesktop) fetchWeatherStations();
 
     window.addEventListener("profile-updated", loadProfile);
     window.addEventListener("clients-updated", fetchClients);
@@ -176,13 +181,19 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       window.removeEventListener("clients-updated", fetchClients);
       window.removeEventListener("job-created", fetchWorkOrders);
     };
-  }, []);
+  }, [isDesktop]);
 
   // Obtener la fecha actual formateada
   const today = new Date();
   const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
   const formattedDate = today.toLocaleDateString('es-ES', options);
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+
+  // Same rule as the sidebar menu for who sees the weather stations
+  const hasStationsAccess =
+    userRole === 'profesional' || userRole === 'admin' ||
+    (!!currentUser?.hasStations &&
+      (!Array.isArray(currentUser?.allowedStations) || currentUser.allowedStations.length > 0));
 
   // Determine el saludo según la hora
   const hour = today.getHours();
@@ -351,14 +362,47 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
         </div>
       )}
 
-      {/* Upcoming Jobs Section */}
-      <div className="order-4 lg:col-span-2">
-        <UpcomingWorkOrders
-          data={filteredWorkOrders}
-          isLoading={isLoadingWorkOrders}
-          userRole={userRole}
-        />
-      </div>
+      {/* Upcoming Jobs Section (desktop) / quick access cards (mobile) */}
+      {isDesktop ? (
+        <div className="order-4 lg:col-span-2">
+          <UpcomingWorkOrders
+            data={filteredWorkOrders}
+            isLoading={isLoadingWorkOrders}
+            userRole={userRole}
+          />
+        </div>
+      ) : (
+        <div className="order-4 grid grid-cols-1 gap-3">
+          <Link
+            to="/work-orders"
+            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-transform active:scale-[0.98]"
+          >
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <ClipboardList className="h-7 w-7 text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-base font-bold text-slate-900">Órdenes de trabajo</p>
+              <p className="text-sm text-slate-500">Ver y gestionar tus órdenes</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-slate-400" />
+          </Link>
+          {hasStationsAccess && (
+            <Link
+              to="/stations"
+              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-transform active:scale-[0.98]"
+            >
+              <div className="rounded-xl bg-emerald-50 p-3">
+                <ThermometerSun className="h-7 w-7 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-base font-bold text-slate-900">Estaciones meteorológicas</p>
+                <p className="text-sm text-slate-500">Datos e informes de tus estaciones</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-slate-400" />
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Map & Weather - Only for profesional and admin and if there are markers or loading */}
       {(userRole === 'profesional' || userRole === 'admin') && (() => {
@@ -437,7 +481,7 @@ export default function DashboardPage({ userRole = 'profesional' }: { userRole?:
       })()}
 
       {/* Weather Stations Map - Based on permissions */}
-      {weatherMarkers.length > 0 && (
+      {isDesktop && weatherMarkers.length > 0 && (
         <div className="space-y-4 order-6 lg:col-span-2">
           <div className="flex items-center gap-2 mb-6">
             <ThermometerSun className="h-5 w-5 text-[#2e7d32]" />
