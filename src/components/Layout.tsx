@@ -370,7 +370,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               <div className="flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-amber-600 shrink-0" />
                 <p className="text-sm font-medium text-amber-700">
-                  Estás navegando en <span className="font-bold">modo demostración</span>. Los datos que ves son de ejemplo.
+                  Estás navegando en <span className="font-bold">modo demostración</span>. Los datos que ves son reales.
                 </p>
               </div>
               {userProfile.demoExpiresAt && (
