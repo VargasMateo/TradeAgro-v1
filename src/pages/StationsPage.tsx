@@ -149,7 +149,7 @@ const StationSkeleton = () => (
     </div>
 
     {/* Map Panel Skeleton */}
-    <div className="col-span-1 h-[600px] lg:h-auto min-h-[500px]">
+    <div className="hidden lg:block col-span-1 h-[600px] lg:h-auto min-h-[500px]">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 w-full h-full relative overflow-hidden animate-pulse">
         <div className="w-full h-full bg-slate-100 rounded-xl" />
       </div>
@@ -160,8 +160,10 @@ const StationSkeleton = () => (
 import Map from "../components/Map";
 import MeteoReport from "../components/MeteoReport";
 import MeteoComparison from "../components/MeteoComparison";
+import { useIsDesktop } from "../lib/useIsDesktop";
 
 export default function StationsPage() {
+  const isDesktop = useIsDesktop();
   const [devices, setDevices] = useState<WeatherDevice[]>([]);
   const [selectedDid, setSelectedDid] = useState<string>("");
   const [data, setData] = useState<SensorData | null>(null);
@@ -310,27 +312,30 @@ let globalDevicesCacheTime = 0;
     fetchDebugToken();
   }, []);
 
-  // 2. Fetch sensor data for ALL devices so we have coordinates for the map
+  // 2. Fetch sensor data. Desktop: ALL devices (coordinates for the map).
+  //    Mobile (no map): only the selected device, which is much lighter.
+  const fetchDeviceData = async (dIds: string[]) => {
+    const results: Record<string, SensorData> = {};
+    await Promise.all(dIds.map(async (dId) => {
+      const res = await authenticatedFetch(`/backend/weather-stations?dId=${dId}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === 'success' && json.data && json.data.length > 0) {
+          results[dId] = json.data[0];
+        }
+      }
+    }));
+    return results;
+  };
+
   useEffect(() => {
-    if (devices.length === 0) return;
+    if (!isDesktop || devices.length === 0) return;
 
     const fetchAllData = async () => {
       try {
         setLoading(true);
-        const results: Record<string, SensorData> = {};
-        
-        // Fetch all devices in parallel
-        await Promise.all(devices.map(async (device) => {
-          const res = await authenticatedFetch(`/backend/weather-stations?dId=${device.dId}`);
-          if (res.ok) {
-            const json = await res.json();
-            if (json.status === 'success' && json.data && json.data.length > 0) {
-              results[device.dId] = json.data[0];
-            }
-          }
-        }));
-
-        setAllStationsData(results);
+        const results = await fetchDeviceData(devices.map(d => d.dId));
+        setAllStationsData(prev => ({ ...prev, ...results }));
         setError(null);
         fetchDebugToken(); // Refresh token in UI
       } catch (err: any) {
@@ -344,7 +349,29 @@ let globalDevicesCacheTime = 0;
     fetchAllData();
     const interval = setInterval(fetchAllData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [devices]);
+  }, [devices, isDesktop]);
+
+  useEffect(() => {
+    if (isDesktop || !selectedDid) return;
+
+    const fetchSelected = async () => {
+      try {
+        setLoading(true);
+        const results = await fetchDeviceData([selectedDid]);
+        setAllStationsData(prev => ({ ...prev, ...results }));
+        setError(null);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Error fetching data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSelected();
+    const interval = setInterval(fetchSelected, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [selectedDid, isDesktop]);
 
   // 3. Update active data when selection changes
   useEffect(() => {
@@ -765,7 +792,8 @@ let globalDevicesCacheTime = 0;
         </div>
         </div>
         
-        {/* Map Panel */}
+        {/* Map Panel (desktop only) */}
+        {isDesktop && (
         <div className="col-span-1 h-[600px] lg:h-auto min-h-[500px] animate-fade-in-up" style={{ animationDelay: '280ms' }}>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 w-full h-full relative overflow-hidden">
             {/* Added overlay title for the map */}
@@ -784,6 +812,8 @@ let globalDevicesCacheTime = 0;
             )}
           </div>
         </div>
+
+        )}
 
         </div>
         </div>

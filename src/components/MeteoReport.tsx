@@ -384,6 +384,14 @@ export interface MeteoReportProps {
   devices?: any[];
 }
 
+/** Station name made safe for a file name: no accents, only letters/numbers, single underscores. */
+const fileSafeName = (name: string) =>
+  name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/gi, '_')
+    .replace(/^_+|_+$/g, '');
+
 export default function MeteoReport({ selectedDevice, selectedDeviceName, devices }: MeteoReportProps) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -656,7 +664,7 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName, device
   // PDF download using react-to-print with CSS scale transform
   const handleDownloadPDF = useReactToPrint({
     contentRef: reportRef,
-    documentTitle: `TradeAgro-Meteo-${selectedDeviceName.split(' - ')[0].replace(/[^a-z0-9]/gi, '_')}-${startDate}`,
+    documentTitle: `TradeAgro-Meteo-${fileSafeName(selectedDeviceName)}-${startDate}_al_${endDate}`,
     pageStyle: `
       @page {
         size: A4 portrait;
@@ -800,8 +808,8 @@ export default function MeteoReport({ selectedDevice, selectedDeviceName, device
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="h-7 w-7 text-emerald-600" />
-            Informe Meteorológico
+            <FileText className="h-7 w-7 shrink-0 text-emerald-600" />
+            <span>Informe Meteorológico - {selectedDeviceName}</span>
           </h1>
           <p className="text-sm text-slate-500 mt-1">Generá reportes de datos históricos de tus estaciones</p>
         </div>
