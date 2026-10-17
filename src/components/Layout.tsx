@@ -9,7 +9,8 @@ import {
   Shield,
   ClipboardList,
   Sun,
-  KeyRound
+  KeyRound,
+  LogOut
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { authenticatedFetch } from "../lib/api";
@@ -256,6 +257,31 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
           </nav>
 
           {/* User Profile */}
+          {userProfile.demoScope === 'stations' ? (
+            <div className="space-y-3 border-t border-slate-100 p-6">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3">
+                <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow-sm">
+                  <img
+                    src={userProfile.avatarUrl}
+                    alt={userProfile.name}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-bold text-slate-900">{userProfile.name}</p>
+                  <p className="truncate text-xs font-medium text-slate-500">Acceso demo</p>
+                </div>
+              </div>
+              <button
+                onClick={() => onLogout?.()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                Cerrar sesión
+              </button>
+            </div>
+          ) : (
           <div className="border-t border-slate-100 p-6">
             <Link
               to="/profile"
@@ -294,6 +320,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
               </div>
             </Link>
           </div>
+          )}
         </div>
       </aside>
 
@@ -352,6 +379,15 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
 
 
 
+            {userProfile.demoScope === 'stations' ? (
+              <button
+                onClick={() => onLogout?.()}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:hidden cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Salir
+              </button>
+            ) : (
             <Link to="/profile" className="h-8 w-8 overflow-hidden rounded-full border border-slate-200 sm:hidden">
               <img
                 src={userProfile.avatarUrl}
@@ -360,6 +396,7 @@ export default function Layout({ children, onLogout, userRole = 'profesional' }:
                 referrerPolicy="no-referrer"
               />
             </Link>
+            )}
           </div>
         </header>
 
